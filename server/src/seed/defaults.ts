@@ -1,0 +1,28 @@
+export const DEFAULT_EXPENSE_CATEGORIES = [
+  { name: "Food & Dining", icon: "utensils", color: "#F97316" },
+  { name: "Groceries", icon: "shopping-cart", color: "#22C55E" },
+  { name: "Transport", icon: "car", color: "#3B82F6" },
+  { name: "Shopping", icon: "shopping-bag", color: "#EC4899" },
+  { name: "Bills & Utilities", icon: "receipt", color: "#EAB308" },
+  { name: "Rent", icon: "home", color: "#8B5CF6" },
+  { name: "Entertainment", icon: "clapperboard", color: "#06B6D4" },
+  { name: "Health", icon: "heart-pulse", color: "#EF4444" },
+  { name: "Education", icon: "graduation-cap", color: "#0EA5E9" },
+  { name: "Travel", icon: "plane", color: "#14B8A6" },
+  { name: "Fuel", icon: "fuel", color: "#F59E0B" },
+  { name: "Subscriptions", icon: "repeat", color: "#A855F7" },
+  { name: "Personal Care", icon: "sparkles", color: "#D946EF" },
+  { name: "Gifts & Donations", icon: "gift", color: "#FB7185" },
+  { name: "Other", icon: "ellipsis", color: "#64748B" },
+];
+
+export const DEFAULT_INCOME_CATEGORIES = [
+  { name: "Salary", icon: "banknote", color: "#22C55E" },
+  { name: "Business", icon: "briefcase", color: "#0EA5E9" },
+  { name: "Freelance", icon: "laptop", color: "#8B5CF6" },
+  { name: "Investments", icon: "trending-up", color: "#14B8A6" },
+  { name: "Interest", icon: "percent", color: "#EAB308" },
+  { name: "Gifts", icon: "gift", color: "#EC4899" },
+  { name: "Refunds", icon: "rotate-ccw", color: "#3B82F6" },
+  { name: "Other", icon: "ellipsis", color: "#64748B" },
+];

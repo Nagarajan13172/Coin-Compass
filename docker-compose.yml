@@ -1,0 +1,33 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: money-tracker-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: money-tracker
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional web UI for inspecting the database at http://localhost:8081
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: money-tracker-mongo-express
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/money-tracker
+      ME_CONFIG_BASICAUTH: "false"
+
+volumes:
+  mongo-data:
