@@ -248,6 +248,7 @@ export interface Settings {
   monthStartDay: number;
   currencies: CurrencyConfig[];
   pinEnabled: boolean;
+  emailReports: boolean;
 }
 
 export interface Summary {

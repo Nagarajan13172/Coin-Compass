@@ -10,6 +10,7 @@ import apiRouter from "./routes/index";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { processDueRecurring } from "./services/recurringService";
 import { refreshMetalPrices } from "./services/metalPriceService";
+import { sendDueReports } from "./services/reportEmailService";
 
 async function bootstrap() {
   await connectDB();
@@ -38,6 +39,18 @@ async function bootstrap() {
     "30 6 * * *",
     () => {
       refreshMetalPrices().catch((e) => console.error("[metals] scheduled run failed", e));
+    },
+    { timezone: "Asia/Kolkata" }
+  );
+
+  // Email summary reports on the 1st (last month) and 15th (month-to-date) at 08:00
+  // IST. Also run on boot to catch a run missed while the server was down; the
+  // per-user daily key makes both paths idempotent (no double sends).
+  sendDueReports().catch((e) => console.error("[report-email] boot run failed", e));
+  cron.schedule(
+    "0 8 * * *",
+    () => {
+      sendDueReports().catch((e) => console.error("[report-email] scheduled run failed", e));
     },
     { timezone: "Asia/Kolkata" }
   );

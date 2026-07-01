@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { AccountDatum, CategoryDatum, Dashboard, Summary, TrendDatum } from "@/lib/types";
 
@@ -6,6 +6,14 @@ interface RangeParams {
   from?: string;
   to?: string;
   period?: string;
+}
+
+/** Send a summary report email to the signed-in user now (previews the scheduled ones). */
+export function useSendReportEmail() {
+  return useMutation({
+    mutationFn: async (kind: "monthly" | "midmonth" = "monthly") =>
+      (await api.post<{ ok: boolean; sentTo: string }>(`/reports/email-now?kind=${kind}`)).data,
+  });
 }
 
 export function useDashboard(period: string) {

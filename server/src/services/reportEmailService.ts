@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import type { Types } from "mongoose";
 import { env } from "../config/env";
 import { User, type UserDoc } from "../models/User";
@@ -8,6 +7,15 @@ import { sendMail } from "../mail/mailer";
 import { startOfMonth, addMonths, addDays, startOfDay } from "../utils/dateRange";
 
 const APP_NAME = "Money Tracker";
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const monthYear = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+const shortMonthYear = (d: Date) => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`;
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export type ReportKind = "monthly" | "midmonth";
 
@@ -30,7 +38,7 @@ function periodForKind(kind: ReportKind, now: Date): Period {
       end,
       prevStart: startOfMonth(addMonths(now, -2)),
       prevEnd: start,
-      label: format(start, "MMMM yyyy"),
+      label: monthYear(start),
       title: "Your monthly report",
     };
   }
@@ -44,7 +52,7 @@ function periodForKind(kind: ReportKind, now: Date): Period {
     end,
     prevStart,
     prevEnd: addDays(prevStart, daysIn),
-    label: `1–${now.getDate()} ${format(now, "MMM yyyy")}`,
+    label: `1–${now.getDate()} ${shortMonthYear(now)}`,
     title: "Mid-month check-in",
   };
 }
@@ -193,7 +201,7 @@ export async function sendDueReports(now = new Date()): Promise<{ kind: ReportKi
   const kind: ReportKind | null = day === 1 ? "monthly" : day === 15 ? "midmonth" : null;
   if (!kind) return { kind: null, sent: 0 };
 
-  const key = format(now, "yyyy-MM-dd");
+  const key = ymd(now);
   const users = await User.find({ emailVerified: true });
   let sent = 0;
 

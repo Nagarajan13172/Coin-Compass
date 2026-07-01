@@ -5,8 +5,11 @@ import {
   getTrend,
   getByAccount,
 } from "../services/reportService";
+import { sendReportTo, type ReportKind } from "../services/reportEmailService";
+import { User } from "../models/User";
 import { resolvePeriod, type Period } from "../utils/dateRange";
 import { userId } from "../middleware/auth";
+import { HttpError } from "../middleware/errorHandler";
 
 /** Resolve a date range from query params: either ?period=month or ?from&to. */
 function rangeFromQuery(query: Request["query"]) {
@@ -22,6 +25,15 @@ function rangeFromQuery(query: Request["query"]) {
 
 export async function summaryReport(req: Request, res: Response) {
   res.json(await getSummary(userId(req), rangeFromQuery(req.query)));
+}
+
+/** Send a report email to the signed-in user right now (to preview/test the scheduled ones). */
+export async function sendReportEmailNow(req: Request, res: Response) {
+  const user = await User.findById(userId(req));
+  if (!user) throw new HttpError(404, "User not found");
+  const kind: ReportKind = req.query.kind === "midmonth" ? "midmonth" : "monthly";
+  await sendReportTo(user, kind);
+  res.json({ ok: true, sentTo: user.email, kind });
 }
 
 export async function byCategoryReport(req: Request, res: Response) {

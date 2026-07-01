@@ -1,7 +1,9 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "/api",
+  // Same-origin "/api" by default (routed through the Vite dev proxy / same host in
+  // prod). Override with VITE_API_BASE_URL to point at a separately-hosted API.
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
   headers: { "Content-Type": "application/json" },
   withCredentials: true, // send/receive the session cookie
 });

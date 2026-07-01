@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui";
 import { useDisablePin, useSetPin, useSettings, useUpdateSettings } from "@/hooks/useSettings";
+import { useSendReportEmail } from "@/hooks/useReports";
 import { useImportFile } from "@/hooks/useImport";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ImportResult } from "@/lib/types";
@@ -34,6 +35,16 @@ const APP_VERSION = "1.0.0";
 export default function SettingsPage() {
   const { data: settings } = useSettings();
   const updateSettings = useUpdateSettings();
+  const sendReport = useSendReportEmail();
+
+  async function sendTestReport() {
+    try {
+      const r = await sendReport.mutateAsync("monthly");
+      toast.success(`Report sent to ${r.sentTo}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send");
+    }
+  }
   const setPinMut = useSetPin();
   const disablePin = useDisablePin();
   const theme = useUIStore((s) => s.theme);
@@ -238,6 +249,31 @@ export default function SettingsPage() {
                 Used by the Calendar and weekly reports.
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Email reports */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Email reports</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">Monthly & mid-month summary</p>
+                <p className="text-xs text-muted-foreground">
+                  Emailed on the 1st (last month) and the 15th (this month so far).
+                </p>
+              </div>
+              <Switch
+                checked={settings?.emailReports ?? true}
+                onCheckedChange={(v) => updateSettings.mutate({ emailReports: v })}
+                aria-label="Email reports"
+              />
+            </div>
+            <Button variant="outline" size="sm" disabled={sendReport.isPending} onClick={sendTestReport}>
+              {sendReport.isPending ? "Sending…" : "Send a test report now"}
+            </Button>
           </CardContent>
         </Card>
 
