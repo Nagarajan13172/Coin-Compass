@@ -1,0 +1,4 @@
+# The built frontend (contents of client/dist/) is copied here for the server to
+# serve in production. Ignore those build artifacts, but keep this folder in git.
+*
+!.gitignore

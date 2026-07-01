@@ -3,6 +3,9 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import cron from "node-cron";
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { env } from "./config/env";
 import { connectDB } from "./config/db";
 import apiRouter from "./routes/index";
@@ -16,13 +19,31 @@ async function bootstrap() {
   await connectDB();
 
   const app = express();
-  app.use(helmet());
+  // CSP is disabled so the bundled SPA can load its hashed assets and external
+  // images (e.g. Google profile avatars). Add a real policy before a public deploy.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({ origin: env.clientUrl, credentials: true }));
   app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
   app.use(requestLogger);
 
   app.use("/api", apiRouter);
+
+  // Serve the built frontend when it's present. Put the contents of the client
+  // build (everything inside client/dist/) into server/public/ — so that
+  // server/public/index.html exists. Any non-API GET falls back to index.html
+  // so client-side routes (e.g. /transactions) work on a hard refresh.
+  const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+  if (fs.existsSync(path.join(clientDir, "index.html"))) {
+    app.use(express.static(clientDir));
+    app.use((req, res, next) => {
+      if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+      res.sendFile(path.join(clientDir, "index.html"));
+    });
+    // eslint-disable-next-line no-console
+    console.log(`✓ Serving frontend from ${clientDir}`);
+  }
+
   app.use(notFound);
   app.use(errorHandler);
 
