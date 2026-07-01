@@ -83,7 +83,7 @@ export default function GoalsPage() {
                 <p className="tnum text-3xl font-extrabold">{formatMoney(totalSaved)}</p>
               </div>
               <p className="tnum text-sm text-muted-foreground">
-                of {formatMoney(totalTarget)} across {goals.length} goal{goals.length === 1 ? "" : "s"}
+                of {formatMoney(totalTarget)} across {goals.length} {goals.length === 1 ? "goal" : "goals"}
               </p>
             </CardContent>
           </Card>

@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
-import type { MetalPrice } from "@/lib/types";
+import type { Metal, MetalPrice } from "@/lib/types";
 
 function dayLabel(d: string) {
   try {
@@ -20,15 +20,23 @@ function dayLabel(d: string) {
   }
 }
 
-/** Area chart of a metal's 24k-per-gram rate (INR) over the accumulated history. */
+/**
+ * Area chart of a metal's per-gram rate (INR) over the accumulated history.
+ * Gold tracks the 22K rate (the common jewellery purity in India); silver
+ * tracks its .999 (24K) per-gram rate.
+ */
 export function MetalHistoryChart({
   data,
   color = "#D4AF37",
+  metal = "gold",
 }: {
   data: MetalPrice[];
   color?: string;
+  metal?: Metal;
 }) {
   const gradId = useId();
+  const field = metal === "gold" ? "pricePerGram22k" : "pricePerGram24k";
+  const seriesLabel = metal === "gold" ? "22K / g" : "/ g";
   return (
     <ResponsiveContainer width="100%" height={280}>
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
@@ -64,11 +72,11 @@ export function MetalHistoryChart({
             fontSize: 12,
           }}
           labelFormatter={(l) => dayLabel(String(l))}
-          formatter={(value: number) => [formatMoney(value, { currency: "INR" }), "24K / g"]}
+          formatter={(value: number) => [formatMoney(value, { currency: "INR" }), seriesLabel]}
         />
         <Area
           type="monotone"
-          dataKey="pricePerGram24k"
+          dataKey={field}
           stroke={color}
           strokeWidth={2}
           fill={`url(#${gradId})`}

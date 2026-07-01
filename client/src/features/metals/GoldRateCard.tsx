@@ -9,6 +9,7 @@ import { useMetalHistory, useMetalsLatest } from "@/hooks/useMetals";
 import type { MetalPrice } from "@/lib/types";
 import { METAL_META } from "./meta";
 import { MetalChange } from "./MetalChange";
+import { DEFAULT_CITY, findCity, localRate } from "./cities";
 
 function asOf(date: string) {
   try {
@@ -30,7 +31,7 @@ function Sparkline({ data, color }: { data: MetalPrice[]; color: string }) {
         </defs>
         <Area
           type="monotone"
-          dataKey="pricePerGram24k"
+          dataKey="pricePerGram22k"
           stroke={color}
           strokeWidth={1.75}
           fill="url(#goldSpark)"
@@ -56,6 +57,9 @@ export function GoldRateCard() {
 
   if (!latest?.configured || !gold) return null;
 
+  const city = findCity(DEFAULT_CITY);
+  const local22k = localRate(gold.pricePerGram22k, city.premiumPct);
+
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -69,12 +73,14 @@ export function GoldRateCard() {
       <CardContent className="space-y-3">
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Gold · 24K / gram</p>
+            <p className="text-xs text-muted-foreground">
+              Gold · 22K / gram · {city.label}
+            </p>
             <p className="tnum text-2xl font-bold">
-              {formatMoney(gold.pricePerGram24k, { currency: "INR" })}
+              {formatMoney(local22k, { currency: "INR" })}
             </p>
             <p className="tnum text-xs text-muted-foreground">
-              22K {formatMoney(gold.pricePerGram22k, { currency: "INR" })}
+              Spot 22K {formatMoney(gold.pricePerGram22k, { currency: "INR" })}
             </p>
           </div>
           <div className="text-right">
@@ -89,7 +95,7 @@ export function GoldRateCard() {
 
         {silver && (
           <div className="flex items-center justify-between border-t pt-3">
-            <span className="text-sm text-muted-foreground">Silver · / gram</span>
+            <span className="text-sm text-muted-foreground">Silver · 999 / gram</span>
             <span className="flex items-center gap-2">
               <span className="tnum text-sm font-semibold">
                 {formatMoney(silver.pricePerGram24k, { currency: "INR" })}

@@ -86,7 +86,7 @@ export default function DashboardPage() {
                   className="tnum block text-3xl font-extrabold tracking-tight"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Sum of {data.accounts.length} account{data.accounts.length === 1 ? "" : "s"}
+                  Sum of {data.accounts.length} {data.accounts.length === 1 ? "account" : "accounts"}
                 </p>
               </CardContent>
             </Card>
@@ -245,7 +245,13 @@ export default function DashboardPage() {
                       <span className="flex-1 truncate text-sm font-medium">
                         {b.category?.name ?? "Overall"}
                       </span>
-                      {b.over && <span className="text-xs font-medium text-expense">Over</span>}
+                      {b.over ? (
+                        <span className="shrink-0 text-xs font-medium text-expense">Over</span>
+                      ) : b.percent >= 80 ? (
+                        <span className="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-500">Close</span>
+                      ) : (
+                        <span className="shrink-0 text-xs font-medium text-income">On track</span>
+                      )}
                     </div>
                     <Progress
                       value={Math.min(b.percent, 100)}
@@ -280,7 +286,13 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <CategoryIcon icon={g.icon} color={g.color} size="sm" />
                       <span className="flex-1 truncate text-sm font-medium">{g.name}</span>
-                      <span className="tnum text-xs text-muted-foreground">{g.percent}%</span>
+                      {g.complete ? (
+                        <Badge variant="income" className="shrink-0 text-[10px] font-medium">
+                          Done
+                        </Badge>
+                      ) : (
+                        <span className="tnum shrink-0 text-xs text-muted-foreground">{g.percent}%</span>
+                      )}
                     </div>
                     <Progress value={g.percent} indicatorClassName={g.complete ? "bg-income" : undefined} />
                     <div className="flex justify-between text-xs text-muted-foreground tnum">
