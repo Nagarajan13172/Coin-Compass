@@ -40,3 +40,26 @@ export async function verifyPin(pin: string): Promise<boolean> {
   const { data } = await api.post<{ ok: boolean }>("/settings/pin/verify", { pin });
   return data.ok;
 }
+
+/** Turn on (or change) the wealth lock passcode. */
+export function useSetWealthPasscode() {
+  return useMutation({
+    mutationFn: async (passcode: string) =>
+      (await api.post("/settings/wealth-passcode", { passcode })).data,
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+}
+
+/** Turn off the wealth lock (Net Worth becomes always visible). */
+export function useDisableWealthPasscode() {
+  return useMutation({
+    mutationFn: async () => (await api.delete("/settings/wealth-passcode")).data,
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+}

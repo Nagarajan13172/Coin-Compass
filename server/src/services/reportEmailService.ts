@@ -6,7 +6,7 @@ import { getSummary, getByCategory } from "./reportService";
 import { sendMail } from "../mail/mailer";
 import { startOfMonth, addMonths, addDays, startOfDay } from "../utils/dateRange";
 
-const APP_NAME = "Money Tracker";
+const APP_NAME = "CoinCompass";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",

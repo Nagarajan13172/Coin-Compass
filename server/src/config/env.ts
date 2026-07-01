@@ -45,7 +45,7 @@ export const env = {
     secure: process.env.SMTP_SECURE === "true", // true for 465, false for 587/STARTTLS
     user: process.env.SMTP_USER ?? "",
     pass: process.env.SMTP_PASS ?? "",
-    from: process.env.MAIL_FROM ?? "Money Tracker <no-reply@moneytracker.local>",
+    from: process.env.MAIL_FROM ?? "CoinCompass <no-reply@coincompass.local>",
     get configured() {
       return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
     },

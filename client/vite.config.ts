@@ -17,8 +17,8 @@ export default defineConfig(({ mode }) => {
         includeAssets: ["favicon.svg", "apple-touch-icon.png"],
         manifest: {
           id: "/",
-          name: "Money Tracker — Expense & Budget",
-          short_name: "Money Tracker",
+          name: "CoinCompass — Expense & Budget",
+          short_name: "CoinCompass",
           description: "Track expenses, budgets, and recurring bills.",
           start_url: "/",
           scope: "/",

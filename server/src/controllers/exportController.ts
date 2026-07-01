@@ -14,7 +14,7 @@ export async function exportCsv(req: Request, res: Response) {
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="money-tracker-transactions-${stamp}-${currency}.csv"`
+    `attachment; filename="coincompass-transactions-${stamp}-${currency}.csv"`
   );
   res.send(csv);
 }

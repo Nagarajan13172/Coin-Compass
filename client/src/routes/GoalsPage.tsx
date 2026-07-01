@@ -256,7 +256,16 @@ function GoalCard({
           </DropdownMenu>
         </div>
 
-        <Progress value={g.percent} indicatorClassName={g.complete ? "bg-income" : undefined} />
+        <Progress
+          value={g.percent}
+          indicatorClassName={g.complete ? "bg-income" : undefined}
+          tooltip={
+            <span className="tnum">
+              {formatMoney(g.savedAmount)} of {formatMoney(g.targetAmount)} · {g.percent}%
+              {g.complete ? " · Done" : ` · ${formatMoney(g.remaining)} to go`}
+            </span>
+          }
+        />
 
         {/* status */}
         <div className="flex items-center justify-between text-sm">

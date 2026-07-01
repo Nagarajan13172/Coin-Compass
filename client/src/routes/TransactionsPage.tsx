@@ -201,7 +201,7 @@ export default function TransactionsPage() {
         : `${accountIds.length} accounts`;
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Transactions"
         description={summary}
@@ -212,9 +212,9 @@ export default function TransactionsPage() {
         }
       />
 
-      {/* filters */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[180px] flex-1">
+      {/* filters — search on its own row, then an even 4-up row of dropdowns */}
+      <div className="mb-3 space-y-2">
+        <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -224,77 +224,79 @@ export default function TransactionsPage() {
             className="pl-9"
           />
         </div>
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-[130px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All types</SelectItem>
-            <SelectItem value="expense">Expense</SelectItem>
-            <SelectItem value="income">Income</SelectItem>
-            <SelectItem value="transfer">Transfer</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All types</SelectItem>
+              <SelectItem value="expense">Expense</SelectItem>
+              <SelectItem value="income">Income</SelectItem>
+              <SelectItem value="transfer">Transfer</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {/* multi-select accounts */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-[150px] justify-between font-normal">
-              <span className="truncate">{accountTriggerLabel}</span>
-              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel>Filter by account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {accounts?.map((a) => (
-              <DropdownMenuCheckboxItem
-                key={a._id}
-                checked={accountIds.includes(a._id)}
-                onCheckedChange={() => toggleAccount(a._id)}
-                onSelect={(e) => e.preventDefault()}
-              >
-                {a.name}
-              </DropdownMenuCheckboxItem>
-            ))}
-            {accountIds.length > 0 && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setAccountIds([])}>Clear accounts</DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          {/* multi-select accounts */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between font-normal">
+                <span className="truncate">{accountTriggerLabel}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Filter by account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {accounts?.map((a) => (
+                <DropdownMenuCheckboxItem
+                  key={a._id}
+                  checked={accountIds.includes(a._id)}
+                  onCheckedChange={() => toggleAccount(a._id)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {a.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {accountIds.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setAccountIds([])}>Clear accounts</DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All categories</SelectItem>
-            {categories?.map((c) => (
-              <SelectItem key={c._id} value={c._id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All categories</SelectItem>
+              {categories?.map((c) => (
+                <SelectItem key={c._id} value={c._id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={period} onValueChange={(v) => changePeriod(v as PeriodKey)}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PERIODS.map((p) => (
-              <SelectItem key={p.value} value={p.value}>
-                {p.label}
-              </SelectItem>
-            ))}
-            {period === "custom" && customRange && (
-              <SelectItem value="custom">{rangeLabel(customRange.from, customRange.to)}</SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+          <Select value={period} onValueChange={(v) => changePeriod(v as PeriodKey)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIODS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+              {period === "custom" && customRange && (
+                <SelectItem value="custom">{rangeLabel(customRange.from, customRange.to)}</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* active filter pills */}

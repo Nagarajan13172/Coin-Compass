@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { TrendDatum } from "@/lib/types";
 
 function labelFor(bucket: string) {
@@ -26,12 +27,30 @@ function labelFor(bucket: string) {
 /**
  * Net cash flow (income − expense) per bucket over the selected period. Distinct
  * from the Income vs Expense chart: a single series that dips below zero on the
- * days/months you spent more than you earned.
+ * days/months you spent more than you earned. Clicking a bucket calls
+ * `onSelect(bucket)` to deep-link into that period's transactions.
  */
-export function NetTrendArea({ data }: { data: TrendDatum[] }) {
+export function NetTrendArea({
+  data,
+  onSelect,
+}: {
+  data: TrendDatum[];
+  onSelect?: (bucket: string) => void;
+}) {
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+      <AreaChart
+        data={data}
+        margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+        className={cn(onSelect && "cursor-pointer")}
+        onClick={
+          onSelect
+            ? (state) => {
+                if (state?.activeLabel) onSelect(String(state.activeLabel));
+              }
+            : undefined
+        }
+      >
         <defs>
           <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />

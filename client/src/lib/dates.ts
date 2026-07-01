@@ -6,6 +6,7 @@ import {
   startOfWeek,
   startOfMonth,
   startOfYear,
+  addDays,
   addWeeks,
   addMonths,
   addYears,
@@ -50,6 +51,24 @@ export function formatDateRange(startIso: string, endIso: string) {
   if (sameMonth) return `${format(s, "d")}–${format(e, "d MMM yyyy")}`;
   if (sameYear) return `${format(s, "d MMM")} – ${format(e, "d MMM yyyy")}`;
   return `${format(s, "d MMM yyyy")} – ${format(e, "d MMM yyyy")}`;
+}
+
+/**
+ * Convert a trend chart bucket into an inclusive-from / exclusive-to range for a
+ * Transactions deep link. Buckets are "YYYY-MM-DD" (day) or "YYYY-MM" (month).
+ * Uses the same local-midnight → ISO convention as periodRange, so the range
+ * matches how the rest of the app filters transactions.
+ */
+export function bucketRange(bucket: string): { from: string; to: string } | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
+    const start = parseISO(bucket);
+    return { from: start.toISOString(), to: addDays(start, 1).toISOString() };
+  }
+  if (/^\d{4}-\d{2}$/.test(bucket)) {
+    const start = parseISO(`${bucket}-01`);
+    return { from: start.toISOString(), to: addMonths(start, 1).toISOString() };
+  }
+  return null;
 }
 
 /** Resolve a period key + reference date into a concrete range. */

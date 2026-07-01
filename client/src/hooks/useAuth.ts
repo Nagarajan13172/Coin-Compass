@@ -57,6 +57,30 @@ export function useLogout() {
   });
 }
 
+/** True when the wealth (Net Worth) section should be visible for the current session. */
+export function useCanSeeWealth(): boolean {
+  const { data: me } = useMe();
+  if (!me) return false;
+  return me.mode === "superadmin" || !me.wealthLockEnabled;
+}
+
+/** Enter superadmin (wealth) mode with the passcode. */
+export function useUnlockWealth() {
+  return useMutation({
+    mutationFn: async (passcode: string) =>
+      (await api.post<{ user: AuthUser }>("/auth/unlock-wealth", { passcode })).data.user,
+    onSuccess: (user) => queryClient.setQueryData(["me"], user),
+  });
+}
+
+/** Return to the everyday (user) view, re-hiding wealth. */
+export function useLockWealth() {
+  return useMutation({
+    mutationFn: async () => (await api.post<{ user: AuthUser }>("/auth/lock-wealth")).data.user,
+    onSuccess: (user) => queryClient.setQueryData(["me"], user),
+  });
+}
+
 /** Confirm an email from the link's token; on success the server also signs us in. */
 export function useVerifyEmail() {
   return useMutation({

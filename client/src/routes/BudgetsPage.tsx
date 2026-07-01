@@ -184,7 +184,18 @@ export default function BudgetsPage() {
                         {status.label}
                       </Badge>
 
-                      <Progress value={Math.min(b.percent, 100)} indicatorClassName={status.tone} />
+                      <Progress
+                        value={Math.min(b.percent, 100)}
+                        indicatorClassName={status.tone}
+                        tooltip={
+                          <span className="tnum">
+                            {formatMoney(b.spent)} of {formatMoney(b.amount)} · {b.percent}% used ·{" "}
+                            {b.over
+                              ? `${formatMoney(b.spent - b.amount)} over`
+                              : `${formatMoney(b.remaining)} left`}
+                          </span>
+                        }
+                      />
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="tnum text-muted-foreground">

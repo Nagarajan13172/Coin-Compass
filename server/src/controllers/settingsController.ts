@@ -1,7 +1,9 @@
 import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
-import { getSettings } from "../models/Settings";
+import { getSettings, type SettingsDoc } from "../models/Settings";
 import { settingsUpdateSchema } from "../validators/schemas";
+import { hashPassword } from "../auth/password";
+import { setSessionCookie } from "../auth/cookie";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -9,12 +11,18 @@ function hashPin(pin: string): string {
   return createHash("sha256").update(pin).digest("hex");
 }
 
+/** Strip secret hashes and surface a boolean `wealthLockEnabled` flag instead. */
+function publicSettings(settings: SettingsDoc & { toObject: () => Record<string, unknown> }) {
+  const obj = settings.toObject();
+  const wealthLockEnabled = Boolean(obj.wealthPasscodeHash);
+  delete obj.pinHash;
+  delete obj.wealthPasscodeHash;
+  return { ...obj, wealthLockEnabled };
+}
+
 export async function getSettingsHandler(req: Request, res: Response) {
   const settings = await getSettings(userId(req));
-  const obj = settings.toObject();
-  // never leak the hash to the client
-  delete (obj as Record<string, unknown>).pinHash;
-  res.json(obj);
+  res.json(publicSettings(settings as never));
 }
 
 export async function updateSettingsHandler(req: Request, res: Response) {
@@ -22,9 +30,31 @@ export async function updateSettingsHandler(req: Request, res: Response) {
   const settings = await getSettings(userId(req));
   Object.assign(settings, data);
   await settings.save();
-  const obj = settings.toObject();
-  delete (obj as Record<string, unknown>).pinHash;
-  res.json(obj);
+  res.json(publicSettings(settings as never));
+}
+
+/** Turn on / change the wealth lock. Allowed the first time (no lock yet) or while
+ *  superadmin — the route is guarded by requireWealthAccess. */
+export async function setWealthPasscode(req: Request, res: Response) {
+  const passcode = String(req.body?.passcode ?? "");
+  if (passcode.length < 4 || passcode.length > 32)
+    throw new HttpError(400, "Passcode must be 4-32 characters");
+  const settings = await getSettings(userId(req));
+  settings.wealthPasscodeHash = await hashPassword(passcode);
+  await settings.save();
+  // Turning the lock on (or changing the passcode) must NOT demote the person
+  // doing it — they keep full access this session; only future logins start in
+  // the everyday view. So re-issue the cookie in superadmin mode.
+  setSessionCookie(res, userId(req), "superadmin");
+  res.json({ ok: true, wealthLockEnabled: true });
+}
+
+/** Turn off the wealth lock (route guarded by requireWealthAccess → superadmin only). */
+export async function disableWealthPasscode(req: Request, res: Response) {
+  const settings = await getSettings(userId(req));
+  settings.wealthPasscodeHash = null;
+  await settings.save();
+  res.json({ ok: true, wealthLockEnabled: false });
 }
 
 export async function setPin(req: Request, res: Response) {

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Loan } from "../models/Loan";
 import { loanSchema, loanUpdateSchema, loanPaySchema, loanPrecloseSchema } from "../validators/schemas";
+import { prepaymentCharge } from "../services/loanService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -37,7 +38,7 @@ export async function payLoan(req: Request, res: Response) {
   if (!loan) throw new HttpError(404, "Loan not found");
   const principal = Math.min(amount, loan.outstanding);
   loan.outstanding = Math.max(0, loan.outstanding - amount);
-  loan.chargesPaid = (loan.chargesPaid ?? 0) + Math.round(principal * (chargePct / 100));
+  loan.chargesPaid = (loan.chargesPaid ?? 0) + prepaymentCharge(principal, chargePct);
   if (loan.outstanding === 0) loan.status = "closed";
   await loan.save();
   res.json(loan.toObject());
@@ -50,7 +51,7 @@ export async function precloseLoan(req: Request, res: Response) {
   const loan = await Loan.findOne({ _id: req.params.id, user: uid });
   if (!loan) throw new HttpError(404, "Loan not found");
   loan.foreclosureChargePct = chargePct;
-  loan.chargesPaid = (loan.chargesPaid ?? 0) + Math.round(loan.outstanding * (chargePct / 100));
+  loan.chargesPaid = (loan.chargesPaid ?? 0) + prepaymentCharge(loan.outstanding, chargePct);
   loan.outstanding = 0;
   loan.status = "closed";
   await loan.save();

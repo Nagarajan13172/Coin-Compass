@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -549,16 +550,26 @@ function LiabilitiesTab({ loans }: { loans: Loan[] }) {
                     <span className="tnum shrink-0 text-xs text-muted-foreground">{Math.round(share)}%</span>
                     <span className="tnum shrink-0 font-semibold">{formatMoney(l.outstanding)}</span>
                   </div>
-                  <div
-                    className="h-2 w-full overflow-hidden rounded-full bg-secondary"
-                    role="progressbar"
-                    aria-valuenow={Math.round(share)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`${l.name} — ${Math.round(share)}% of total outstanding`}
-                  >
-                    <div className="h-full rounded-full" style={{ width: `${share}%`, backgroundColor: color }} />
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="h-2 w-full cursor-default overflow-hidden rounded-full bg-secondary"
+                        role="progressbar"
+                        aria-valuenow={Math.round(share)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${l.name} — ${Math.round(share)}% of total outstanding`}
+                      >
+                        <div className="h-full rounded-full" style={{ width: `${share}%`, backgroundColor: color }} />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="text-xs">
+                      <p className="font-medium">{l.name}</p>
+                      <p className="tnum text-background/80">
+                        {formatMoney(l.outstanding)} · {share.toFixed(1)}% of {formatMoney(total)}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
                 </li>
               );
             })}

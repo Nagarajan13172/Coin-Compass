@@ -154,7 +154,7 @@ async function validate(provider: AuthProvider, code: string, codeVerifier: stri
 
 /** GitHub has no id_token; fetch the profile + a verified primary email via its REST API. */
 async function githubProfile(tokens: OAuth2Tokens): Promise<OAuthProfile> {
-  const headers = { Authorization: `Bearer ${tokens.accessToken()}`, "User-Agent": "money-tracker", Accept: "application/vnd.github+json" };
+  const headers = { Authorization: `Bearer ${tokens.accessToken()}`, "User-Agent": "coincompass", Accept: "application/vnd.github+json" };
   const user = (await (await fetch("https://api.github.com/user", { headers })).json()) as Record<string, unknown>;
   let email: string | null = (user.email as string) ?? null;
   let emailVerified = false;

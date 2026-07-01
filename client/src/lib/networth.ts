@@ -49,14 +49,22 @@ export const CHART_PALETTE = [
   "#10B981",
 ];
 
-export const LOAN_TYPE_META: Record<LoanType, { label: string; icon: string }> = {
-  home: { label: "Home", icon: "house" },
-  personal: { label: "Personal", icon: "user" },
-  car: { label: "Car / Vehicle", icon: "car" },
-  education: { label: "Education", icon: "graduation-cap" },
-  gold: { label: "Gold", icon: "gem" },
-  business: { label: "Business", icon: "briefcase" },
-  other: { label: "Other", icon: "landmark" },
+/**
+ * Per-type loan metadata. `typicalChargePct` seeds the prepayment/foreclosure
+ * charge for a new loan of that type — a sensible, editable default, not a rule.
+ * Reflects Indian practice as of 2026: under the RBI (Pre-payment Charges on
+ * Loans) Directions, 2025, floating-rate loans to individuals (home, personal &
+ * education) carry no charge, so those default to 0; fixed-rate car, business &
+ * gold loans still typically levy 1–5% of the prepaid amount (+ GST).
+ */
+export const LOAN_TYPE_META: Record<LoanType, { label: string; icon: string; typicalChargePct: number }> = {
+  home: { label: "Home", icon: "house", typicalChargePct: 0 },
+  personal: { label: "Personal", icon: "user", typicalChargePct: 0 },
+  car: { label: "Car / Vehicle", icon: "car", typicalChargePct: 5 },
+  education: { label: "Education", icon: "graduation-cap", typicalChargePct: 0 },
+  gold: { label: "Gold", icon: "gem", typicalChargePct: 1 },
+  business: { label: "Business", icon: "briefcase", typicalChargePct: 4 },
+  other: { label: "Other", icon: "landmark", typicalChargePct: 2 },
 };
 
 // ---- Loan payoff (amortization) calculator ----
@@ -89,6 +97,17 @@ export function computePayoff(outstanding: number, roiPct: number, monthly: numb
   const months = Math.ceil(-Math.log(1 - (P * i) / monthly) / Math.log(1 + i));
   const totalPaid = monthly * months; // last instalment is smaller — slight overestimate
   return { feasible: true, months, totalPaid, totalInterest: Math.max(0, totalPaid - P) };
+}
+
+/**
+ * The prepayment/foreclosure fee a lender levies on an early payment:
+ * `base` (the prepaid or outstanding amount) × `chargePct`, rounded to the rupee.
+ * Single source of truth shared by the payoff planner, part-payment and preclose
+ * flows so a change to the rounding or formula lands everywhere at once. GST, if
+ * any, is charged on top by the lender and is not included here.
+ */
+export function prepaymentCharge(base: number, chargePct: number): number {
+  return Math.round(Math.max(0, base) * (Math.max(0, chargePct) / 100));
 }
 
 /** "2 yr 4 mo" from a month count. */

@@ -8,7 +8,7 @@ import {
 import { sendReportTo, type ReportKind } from "../services/reportEmailService";
 import { User } from "../models/User";
 import { resolvePeriod, type Period } from "../utils/dateRange";
-import { userId } from "../middleware/auth";
+import { userId, canSeeWealth } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
 /** Resolve a date range from query params: either ?period=month or ?from&to. */
@@ -24,7 +24,12 @@ function rangeFromQuery(query: Request["query"]) {
 }
 
 export async function summaryReport(req: Request, res: Response) {
-  res.json(await getSummary(userId(req), rangeFromQuery(req.query)));
+  const summary = await getSummary(userId(req), rangeFromQuery(req.query));
+  if (!(await canSeeWealth(req))) {
+    summary.netWorth = 0;
+    summary.byCurrency = {};
+  }
+  res.json(summary);
 }
 
 /** Send a report email to the signed-in user right now (to preview/test the scheduled ones). */

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -10,7 +11,10 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { TrendDatum } from "@/lib/types";
+
+const SERIES_LABEL: Record<string, string> = { income: "Income", expense: "Expense" };
 
 function labelFor(bucket: string) {
   try {
@@ -22,10 +26,35 @@ function labelFor(bucket: string) {
   return bucket;
 }
 
-export function IncomeExpenseBar({ data }: { data: TrendDatum[] }) {
+/**
+ * Grouped income vs expense bars. Clicking a bucket calls `onSelect(bucket)`
+ * (deep-link to that period's transactions); clicking a legend entry toggles
+ * that series on/off.
+ */
+export function IncomeExpenseBar({
+  data,
+  onSelect,
+}: {
+  data: TrendDatum[];
+  onSelect?: (bucket: string) => void;
+}) {
+  const [hidden, setHidden] = useState<Record<string, boolean>>({});
+  const toggle = (key: string) => setHidden((h) => ({ ...h, [key]: !h[key] }));
+
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+      <BarChart
+        data={data}
+        margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+        className={cn(onSelect && "cursor-pointer")}
+        onClick={
+          onSelect
+            ? (state) => {
+                if (state?.activeLabel) onSelect(String(state.activeLabel));
+              }
+            : undefined
+        }
+      >
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
         <XAxis
           dataKey="bucket"
@@ -52,17 +81,42 @@ export function IncomeExpenseBar({ data }: { data: TrendDatum[] }) {
             fontSize: 12,
           }}
           labelFormatter={(l) => labelFor(String(l))}
-          formatter={(value: number, name) => [formatMoney(value), name === "income" ? "Income" : "Expense"]}
+          formatter={(value: number, name) => [formatMoney(value), SERIES_LABEL[String(name)] ?? name]}
         />
         <Legend
           iconType="circle"
           iconSize={8}
-          formatter={(v) => (
-            <span className="text-xs text-muted-foreground">{v === "income" ? "Income" : "Expense"}</span>
-          )}
+          onClick={(o) => toggle(String(o.dataKey))}
+          formatter={(value, entry) => {
+            const key = String((entry as { dataKey?: string })?.dataKey ?? value);
+            return (
+              <span
+                className={cn(
+                  "cursor-pointer select-none text-xs text-muted-foreground",
+                  hidden[key] && "text-muted-foreground/50 line-through"
+                )}
+              >
+                {SERIES_LABEL[String(value)] ?? value}
+              </span>
+            );
+          }}
         />
-        <Bar name="income" dataKey="income" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} maxBarSize={28} />
-        <Bar name="expense" dataKey="expense" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} maxBarSize={28} />
+        <Bar
+          name="income"
+          dataKey="income"
+          hide={hidden.income}
+          fill="hsl(var(--income))"
+          radius={[4, 4, 0, 0]}
+          maxBarSize={28}
+        />
+        <Bar
+          name="expense"
+          dataKey="expense"
+          hide={hidden.expense}
+          fill="hsl(var(--expense))"
+          radius={[4, 4, 0, 0]}
+          maxBarSize={28}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

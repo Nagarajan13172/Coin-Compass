@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -10,7 +11,10 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { TrendDatum } from "@/lib/types";
+
+const SERIES_LABEL: Record<string, string> = { income: "Income", expense: "Expense" };
 
 function labelFor(bucket: string) {
   // bucket is YYYY-MM-DD or YYYY-MM
@@ -23,10 +27,35 @@ function labelFor(bucket: string) {
   return bucket;
 }
 
-export function TrendArea({ data }: { data: TrendDatum[] }) {
+/**
+ * Income vs expense areas over time. Clicking a bucket calls `onSelect(bucket)`
+ * (deep-link to that period's transactions); clicking a legend entry toggles
+ * that series on/off.
+ */
+export function TrendArea({
+  data,
+  onSelect,
+}: {
+  data: TrendDatum[];
+  onSelect?: (bucket: string) => void;
+}) {
+  const [hidden, setHidden] = useState<Record<string, boolean>>({});
+  const toggle = (key: string) => setHidden((h) => ({ ...h, [key]: !h[key] }));
+
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+      <AreaChart
+        data={data}
+        margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+        className={cn(onSelect && "cursor-pointer")}
+        onClick={
+          onSelect
+            ? (state) => {
+                if (state?.activeLabel) onSelect(String(state.activeLabel));
+              }
+            : undefined
+        }
+      >
         <defs>
           <linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="hsl(var(--income))" stopOpacity={0.35} />
@@ -62,19 +91,31 @@ export function TrendArea({ data }: { data: TrendDatum[] }) {
             fontSize: 12,
           }}
           labelFormatter={(l) => labelFor(String(l))}
-          formatter={(value: number, name) => [formatMoney(value), name === "income" ? "Income" : "Expense"]}
+          formatter={(value: number, name) => [formatMoney(value), SERIES_LABEL[String(name)] ?? name]}
         />
         <Legend
           iconType="circle"
           iconSize={8}
-          formatter={(v) => (
-            <span className="text-xs text-muted-foreground">{v === "income" ? "Income" : "Expense"}</span>
-          )}
+          onClick={(o) => toggle(String(o.dataKey))}
+          formatter={(value, entry) => {
+            const key = String((entry as { dataKey?: string })?.dataKey ?? value);
+            return (
+              <span
+                className={cn(
+                  "cursor-pointer select-none text-xs text-muted-foreground",
+                  hidden[key] && "text-muted-foreground/50 line-through"
+                )}
+              >
+                {SERIES_LABEL[String(value)] ?? value}
+              </span>
+            );
+          }}
         />
         <Area
           type="monotone"
           name="income"
           dataKey="income"
+          hide={hidden.income}
           stroke="hsl(var(--income))"
           strokeWidth={2}
           fill="url(#incomeFill)"
@@ -83,6 +124,7 @@ export function TrendArea({ data }: { data: TrendDatum[] }) {
           type="monotone"
           name="expense"
           dataKey="expense"
+          hide={hidden.expense}
           stroke="hsl(var(--expense))"
           strokeWidth={2}
           fill="url(#expenseFill)"

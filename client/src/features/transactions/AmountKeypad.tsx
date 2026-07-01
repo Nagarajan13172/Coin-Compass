@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Delete, Divide, Minus, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ function apply(a: number, b: number, op: Op): number {
   }
 }
 
-/** A money-entry calculator keypad (like the Money Tracker app's input pad). */
+/** A money-entry calculator keypad (like the CoinCompass app's input pad). */
 export function AmountKeypad({ onChange, className }: AmountKeypadProps) {
   const [display, setDisplay] = useState("0");
   const [acc, setAcc] = useState<number | null>(null);
@@ -93,6 +93,37 @@ export function AmountKeypad({ onChange, className }: AmountKeypadProps) {
     setDisplay(next);
     emit(next, acc, op);
   }
+
+  // Let the user just type the amount. A ref keeps a single window listener
+  // pointed at the latest handlers (avoids stale-closure bugs without
+  // re-binding every render). We ignore keystrokes aimed at real inputs and
+  // dropdown type-ahead so the note/tags/account fields still work normally.
+  const onKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  onKeyRef.current = (e: KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const el = e.target as HTMLElement | null;
+    if (
+      el?.closest(
+        'input, textarea, select, [contenteditable="true"], [role="listbox"], [role="option"], [role="menu"], [role="combobox"], [role="textbox"]'
+      )
+    )
+      return;
+
+    const k = e.key;
+    if (k >= "0" && k <= "9") inputDigit(k);
+    else if (k === "." || k === ",") inputDot();
+    else if (k === "+" || k === "-" || k === "*" || k === "/") inputOp(k as Op);
+    else if (k === "=") equals();
+    else if (k === "Backspace") backspace();
+    else return; // not ours — let it through
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => onKeyRef.current(e);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const keyCls =
     "flex h-12 items-center justify-center rounded-lg text-lg font-semibold transition-colors active:scale-95 select-none";

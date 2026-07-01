@@ -29,7 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your Money Tracker">
+    <AuthShell title="Welcome back" subtitle="Sign in to your CoinCompass">
       <form onSubmit={submit} className="space-y-4">
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>

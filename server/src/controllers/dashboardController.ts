@@ -7,7 +7,7 @@ import { computeAllBalances } from "../services/balanceService";
 import { categoryIdOf } from "./budgetController";
 import { getSummary, getByCategory, getTrend, getSpentForCategory } from "../services/reportService";
 import { resolvePeriod, addDays, startOfDay, type Period } from "../utils/dateRange";
-import { userId } from "../middleware/auth";
+import { userId, canSeeWealth } from "../middleware/auth";
 
 /** How far ahead (days) a recurring rule counts as "due soon" on the dashboard. */
 const DUE_SOON_DAYS = 7;
@@ -71,10 +71,13 @@ export async function getDashboard(req: Request, res: Response) {
     })
   );
 
+  // Hide the net-worth figure entirely in the everyday (user) view.
+  const showWealth = await canSeeWealth(req);
+
   res.json({
     period,
     range: { start, end },
-    summary,
+    summary: showWealth ? summary : { ...summary, netWorth: 0, byCurrency: {} },
     accounts,
     byCategory: byCategory.slice(0, 6),
     trend,

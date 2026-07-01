@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { LogOut, Plus, Search, Wallet } from "lucide-react";
+import { Compass, LogOut, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,8 @@ import {
 import { ThemeToggle } from "./ThemeToggle";
 import { useUIStore } from "@/stores/ui";
 import { useMe, useLogout } from "@/hooks/useAuth";
+import { useState } from "react";
+import { WealthLockMenuItems, WealthUnlockDialog } from "@/features/settings/WealthLock";
 
 function initials(name: string, email: string) {
   const base = name?.trim() || email;
@@ -24,6 +26,7 @@ function UserMenu() {
   const navigate = useNavigate();
   const { data: me } = useMe();
   const logout = useLogout();
+  const [unlockOpen, setUnlockOpen] = useState(false);
   if (!me) return null;
 
   async function signOut() {
@@ -32,26 +35,30 @@ function UserMenu() {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
-          <Avatar className="h-8 w-8">
-            {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt="" />}
-            <AvatarFallback>{initials(me.name, me.email)}</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col">
-          <span className="truncate font-medium">{me.name || "Account"}</span>
-          <span className="truncate text-xs font-normal text-muted-foreground">{me.email}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={signOut} disabled={logout.isPending}>
-          <LogOut /> Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+            <Avatar className="h-8 w-8">
+              {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt="" />}
+              <AvatarFallback>{initials(me.name, me.email)}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="flex flex-col">
+            <span className="truncate font-medium">{me.name || "Account"}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">{me.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <WealthLockMenuItems onUnlock={() => setUnlockOpen(true)} />
+          <DropdownMenuItem onClick={signOut} disabled={logout.isPending}>
+            <LogOut /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <WealthUnlockDialog open={unlockOpen} onOpenChange={setUnlockOpen} />
+    </>
   );
 }
 
@@ -64,9 +71,9 @@ export function TopBar() {
       {/* mobile brand */}
       <div className="flex items-center gap-2 lg:hidden">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Wallet className="h-4 w-4" />
+          <Compass className="h-4 w-4" />
         </div>
-        <span className="text-sm font-bold">Money Tracker</span>
+        <span className="text-sm font-bold">CoinCompass</span>
       </div>
 
       <Button className="hidden md:inline-flex" onClick={() => openTxnSheet({ type: "expense" })}>

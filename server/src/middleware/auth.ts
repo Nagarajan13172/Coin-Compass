@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { env } from "../config/env";
-import { verifySession } from "../auth/jwt";
+import { verifySession, type SessionMode } from "../auth/jwt";
 import { User } from "../models/User";
+import { Settings } from "../models/Settings";
 import { HttpError } from "./errorHandler";
 
 declare global {
@@ -9,17 +10,35 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      mode?: SessionMode;
     }
   }
 }
 
-/** Gate a route on a valid session cookie; populates req.userId or throws 401. */
+/** Gate a route on a valid session cookie; populates req.userId + req.mode or throws 401. */
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const token = req.cookies?.[env.auth.cookieName];
-  const userId = token ? verifySession(token) : null;
-  if (!userId) throw new HttpError(401, "Not authenticated");
-  req.userId = userId;
+  const session = token ? verifySession(token) : null;
+  if (!session) throw new HttpError(401, "Not authenticated");
+  req.userId = session.sub;
+  req.mode = session.mode;
   next();
+}
+
+/**
+ * Whether the caller may see the wealth (Net Worth) section: true when they're in
+ * `superadmin` mode, OR when they simply haven't turned on the wealth lock.
+ */
+export async function canSeeWealth(req: Request): Promise<boolean> {
+  if (req.mode === "superadmin") return true;
+  const s = await Settings.findOne({ user: userId(req) }).select("wealthPasscodeHash").lean();
+  return !s?.wealthPasscodeHash;
+}
+
+/** Gate wealth routes: 403 when the wealth lock is on and the caller isn't superadmin. */
+export async function requireWealthAccess(req: Request, _res: Response, next: NextFunction) {
+  if (await canSeeWealth(req)) return next();
+  throw new HttpError(403, "The Net Worth section is locked");
 }
 
 /**

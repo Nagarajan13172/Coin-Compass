@@ -10,7 +10,7 @@ import { hashPassword } from "../auth/password";
 /**
  * Seed a user + workspace, optionally with demo transactions.
  *
- *   npm run seed                                          # demo@moneytracker.local / demo1234
+ *   npm run seed                                          # demo@coincompass.local / demo1234
  *   npm run seed -- --demo                                # ...plus ~60 sample transactions
  *   npm run seed -- --email you@example.com --demo        # seed for a specific address
  *   npm run seed -- --email you@example.com --password s3cret --name "You" --demo
@@ -21,7 +21,7 @@ import { hashPassword } from "../auth/password";
  * Google using the same address links to the very same account.
  */
 
-const DEMO_EMAIL = "demo@moneytracker.local";
+const DEMO_EMAIL = "demo@coincompass.local";
 const DEMO_PASSWORD = "demo1234";
 
 /** Read `--flag value` or `--flag=value` from argv. */

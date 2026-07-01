@@ -21,11 +21,13 @@ import { TrendArea } from "@/features/reports/TrendArea";
 import { GoldRateCard } from "@/features/metals/GoldRateCard";
 import { useDashboard } from "@/hooks/useReports";
 import { useGoals } from "@/hooks/useGoals";
+import { useCanSeeWealth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 import { PostRecurringDialog } from "@/features/recurring/PostRecurringDialog";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
-import { formatPeriodRange } from "@/lib/dates";
+import { bucketRange, formatPeriodRange } from "@/lib/dates";
 import { accountTypeLabel } from "@/lib/accounts";
 import type { PeriodKey, Recurring } from "@/lib/types";
 
@@ -42,6 +44,7 @@ export default function DashboardPage() {
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const { data, isLoading } = useDashboard(period);
   const { data: goals } = useGoals();
+  const canSeeWealth = useCanSeeWealth();
 
   // Make the active period explicit, e.g. "This month · 1–31 Jul 2026".
   const description = data
@@ -51,6 +54,12 @@ export default function DashboardPage() {
   // Tapping a category slice/row jumps to its transactions for the period.
   function openCategory(categoryId: string | null) {
     navigate(categoryId ? `/transactions?category=${categoryId}` : "/transactions?type=expense");
+  }
+
+  // Tapping a point on the cash-flow chart opens that day/month's transactions.
+  function openBucket(bucket: string) {
+    const r = bucketRange(bucket);
+    if (r) navigate(`/transactions?from=${encodeURIComponent(r.from)}&to=${encodeURIComponent(r.to)}`);
   }
 
   return (
@@ -73,8 +82,9 @@ export default function DashboardPage() {
         <DashboardSkeleton />
       ) : (
         <div className="space-y-5">
-          {/* hero + summary */}
-          <div className="grid gap-4 lg:grid-cols-3">
+          {/* hero + summary — the net-worth hero is hidden in the everyday view */}
+          <div className={cn("grid gap-4", canSeeWealth ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+            {canSeeWealth && (
             <Card className="surface-gradient lg:col-span-1">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -121,6 +131,7 @@ export default function DashboardPage() {
                 })()}
               </CardContent>
             </Card>
+            )}
 
             <StatCard
               icon={<ArrowDownLeft className="h-5 w-5" />}
@@ -149,7 +160,7 @@ export default function DashboardPage() {
               <CardContent>
                 {data.trend.length ? (
                   <>
-                    <TrendArea data={data.trend} />
+                    <TrendArea data={data.trend} onSelect={openBucket} />
                     <p className="mt-2 text-center text-xs text-muted-foreground">
                       Net this period:{" "}
                       <span
@@ -308,6 +319,14 @@ export default function DashboardPage() {
                       indicatorClassName={
                         b.over ? "bg-expense" : b.percent > 80 ? "bg-amber-500" : "bg-income"
                       }
+                      tooltip={
+                        <span className="tnum">
+                          {formatMoney(b.spent)} of {formatMoney(b.amount)} · {b.percent}% ·{" "}
+                          {b.over
+                            ? `${formatMoney(b.spent - b.amount)} over`
+                            : `${formatMoney(b.amount - b.spent)} left`}
+                        </span>
+                      }
                     />
                     <div className="flex items-center justify-between text-xs tnum">
                       <span className="text-muted-foreground">
@@ -350,7 +369,16 @@ export default function DashboardPage() {
                         <span className="tnum shrink-0 text-xs text-muted-foreground">{g.percent}%</span>
                       )}
                     </div>
-                    <Progress value={g.percent} indicatorClassName={g.complete ? "bg-income" : undefined} />
+                    <Progress
+                      value={g.percent}
+                      indicatorClassName={g.complete ? "bg-income" : undefined}
+                      tooltip={
+                        <span className="tnum">
+                          {formatMoney(g.savedAmount)} of {formatMoney(g.targetAmount)} · {g.percent}%
+                          {g.complete ? " · Done" : ` · ${formatMoney(g.remaining)} to go`}
+                        </span>
+                      }
+                    />
                     <div className="flex justify-between text-xs text-muted-foreground tnum">
                       <span>{formatMoney(g.savedAmount)}</span>
                       <span>{formatMoney(g.targetAmount)}</span>

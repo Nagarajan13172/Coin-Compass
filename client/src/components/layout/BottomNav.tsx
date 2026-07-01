@@ -3,8 +3,9 @@ import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "motion/react";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, BOTTOM_NAV_PRIMARY } from "./nav";
+import { NAV_ITEMS, BOTTOM_NAV_PRIMARY, WEALTH_ONLY_PATHS } from "./nav";
 import { useUIStore } from "@/stores/ui";
+import { useCanSeeWealth } from "@/hooks/useAuth";
 import {
   Sheet,
   SheetContent,
@@ -17,9 +18,14 @@ export function BottomNav() {
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
+  const canSeeWealth = useCanSeeWealth();
 
   const primary = BOTTOM_NAV_PRIMARY.map((to) => NAV_ITEMS.find((n) => n.to === to)!);
-  const moreItems = NAV_ITEMS.filter((n) => !BOTTOM_NAV_PRIMARY.includes(n.to));
+  const moreItems = NAV_ITEMS.filter(
+    (n) =>
+      !BOTTOM_NAV_PRIMARY.includes(n.to) &&
+      (canSeeWealth || !WEALTH_ONLY_PATHS.includes(n.to))
+  );
   const moreActive = moreItems.some((n) => n.to === location.pathname);
 
   return (

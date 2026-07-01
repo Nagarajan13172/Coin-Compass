@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
-import { requireAuth, requireVerified } from "../middleware/auth";
+import { requireAuth, requireVerified, requireWealthAccess } from "../middleware/auth";
 import * as auth from "../controllers/authController";
 import * as oauth from "../controllers/oauthController";
 import * as accounts from "../controllers/accountController";
@@ -47,6 +47,10 @@ router.post("/auth/resend-verification", asyncHandler(auth.resendVerification));
 // ---- Everything below additionally requires a verified email ----
 router.use(asyncHandler(requireVerified));
 
+// Wealth (Net Worth) view: unlock to superadmin with the passcode, or re-lock.
+router.post("/auth/unlock-wealth", asyncHandler(auth.unlockWealth));
+router.post("/auth/lock-wealth", asyncHandler(auth.lockWealth));
+
 // Accounts
 router.get("/accounts", asyncHandler(accounts.listAccounts));
 router.post("/accounts", asyncHandler(accounts.createAccount));
@@ -91,7 +95,11 @@ router.post("/goals/:id/contribute", asyncHandler(goals.contributeGoal));
 router.patch("/goals/:id", asyncHandler(goals.updateGoal));
 router.delete("/goals/:id", asyncHandler(goals.deleteGoal));
 
-// Net worth: holdings (assets) + loans (liabilities)
+// Net worth: holdings (assets) + loans (liabilities). Holdings + net-worth trend are
+// gated by the wealth lock; loans stay visible in the everyday view.
+router.use("/holdings", asyncHandler(requireWealthAccess));
+router.use("/networth", asyncHandler(requireWealthAccess));
+
 router.get("/holdings", asyncHandler(holdings.listHoldings));
 router.post("/holdings", asyncHandler(holdings.createHolding));
 router.patch("/holdings/:id", asyncHandler(holdings.updateHolding));
@@ -127,6 +135,10 @@ router.put("/settings", asyncHandler(settings.updateSettingsHandler));
 router.post("/settings/pin", asyncHandler(settings.setPin));
 router.delete("/settings/pin", asyncHandler(settings.disablePin));
 router.post("/settings/pin/verify", asyncHandler(settings.verifyPin));
+// Wealth lock: setting/changing/disabling the passcode requires wealth access
+// (first-time set passes because no lock exists yet).
+router.post("/settings/wealth-passcode", asyncHandler(requireWealthAccess), asyncHandler(settings.setWealthPasscode));
+router.delete("/settings/wealth-passcode", asyncHandler(requireWealthAccess), asyncHandler(settings.disableWealthPasscode));
 
 // Export / Import
 router.get("/export/csv", asyncHandler(exportCsv));

@@ -1,6 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, Download, Info, Lock, Monitor, Moon, ShieldCheck, Sun, Upload } from "lucide-react";
+import {
+  BadgeCheck,
+  Check,
+  Download,
+  HandCoins,
+  Info,
+  Landmark,
+  Lock,
+  Mail,
+  Monitor,
+  Moon,
+  Shapes,
+  ShieldCheck,
+  Sun,
+  Trophy,
+  Upload,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,10 +42,26 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui";
-import { useDisablePin, useSetPin, useSettings, useUpdateSettings } from "@/hooks/useSettings";
+import {
+  useDisablePin,
+  useSetPin,
+  useSettings,
+  useUpdateSettings,
+  useSetWealthPasscode,
+  useDisableWealthPasscode,
+} from "@/hooks/useSettings";
+import { useMe } from "@/hooks/useAuth";
+import { WealthUnlockDialog } from "@/features/settings/WealthLock";
 import { useSendReportEmail } from "@/hooks/useReports";
 import { useImportFile } from "@/hooks/useImport";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useCategories } from "@/hooks/useCategories";
+import { useGoals } from "@/hooks/useGoals";
+import { useLoans } from "@/hooks/useLoans";
 import type { ImportResult } from "@/lib/types";
 
 const APP_VERSION = "1.0.0";
@@ -47,6 +81,13 @@ export default function SettingsPage() {
   }
   const setPinMut = useSetPin();
   const disablePin = useDisablePin();
+  const { data: me } = useMe();
+  const { data: accounts } = useAccounts();
+  const { data: categories } = useCategories();
+  const { data: goals } = useGoals();
+  const { data: loans } = useLoans();
+  const setWealthPass = useSetWealthPasscode();
+  const disableWealthPass = useDisableWealthPasscode();
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
 
@@ -59,6 +100,11 @@ export default function SettingsPage() {
   const [pinMode, setPinMode] = useState<"set" | "change">("set");
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
+  const [wealthDialogOpen, setWealthDialogOpen] = useState(false);
+  const [wealthMode, setWealthMode] = useState<"set" | "change">("set");
+  const [wealthPass, setWealthPassInput] = useState("");
+  const [wealthConfirm, setWealthConfirm] = useState("");
+  const [wealthUnlockOpen, setWealthUnlockOpen] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
@@ -112,6 +158,41 @@ export default function SettingsPage() {
     toast.success(pinMode === "change" ? "PIN changed" : "PIN lock enabled");
   }
 
+  function openWealthDialog(mode: "set" | "change") {
+    setWealthMode(mode);
+    setWealthPassInput("");
+    setWealthConfirm("");
+    setWealthDialogOpen(true);
+  }
+
+  async function toggleWealthLock(enabled: boolean) {
+    if (enabled) openWealthDialog("set");
+    else {
+      await disableWealthPass.mutateAsync();
+      toast.success("Net Worth lock disabled", {
+        description: "The Net Worth section is visible on every login now.",
+      });
+    }
+  }
+
+  async function confirmWealthPasscode() {
+    if (wealthPass.length < 4 || wealthPass.length > 32)
+      return toast.error("Passcode must be 4–32 characters");
+    if (wealthPass !== wealthConfirm) return toast.error("Passcodes don't match");
+    try {
+      await setWealthPass.mutateAsync(wealthPass);
+      setWealthDialogOpen(false);
+      toast.success(wealthMode === "change" ? "Wealth passcode changed" : "Net Worth lock enabled", {
+        description:
+          wealthMode === "change"
+            ? undefined
+            : "New logins start in the everyday view; unlock with your passcode to reveal Net Worth.",
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't update passcode");
+    }
+  }
+
   const exportHref = useMemo(() => {
     const p = new URLSearchParams();
     if (exportFrom) p.set("from", exportFrom);
@@ -141,16 +222,73 @@ export default function SettingsPage() {
   ] as const;
 
   const pinEnabled = settings?.pinEnabled ?? false;
+  const wealthLockEnabled = settings?.wealthLockEnabled ?? false;
+  // Managing (change / disable) the passcode is only possible from the wealth
+  // view — the everyday login can't touch it. Enabling it the first time is
+  // always allowed (there's nothing to unlock yet).
+  const canManageWealthLock = me?.mode === "superadmin" || !wealthLockEnabled;
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-5xl">
       <PageHeader title="Settings" description="Preferences & data" />
 
       <div className="space-y-5">
-        {/* Profile */}
+        {/* Account hero — who's signed in, at a glance */}
+        {me && (
+          <Card className="surface-gradient">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16 border">
+                  {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt="" />}
+                  <AvatarFallback className="text-lg font-semibold">
+                    {initials(me.name, me.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate text-lg font-bold">{me.name || "Your account"}</h2>
+                    {me.emailVerified ? (
+                      <Badge variant="income" className="gap-1">
+                        <BadgeCheck className="h-3 w-3" /> Verified
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Unverified</Badge>
+                    )}
+                    {me.mode === "superadmin" && (
+                      <Badge variant="secondary" className="gap-1">
+                        <ShieldCheck className="h-3 w-3" /> Wealth view
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{me.email}</span>
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {me.hasPassword ? "Email & password" : "Google account"}
+                    {me.createdAt && <> · Member since {format(new Date(me.createdAt), "MMMM yyyy")}</>}
+                  </p>
+                </div>
+              </div>
+
+              {/* Your data at a glance */}
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <Stat icon={Wallet} label="Accounts" value={accounts?.length} />
+                <Stat icon={Shapes} label="Categories" value={categories?.length} />
+                <Stat icon={Trophy} label="Goals" value={goals?.length} />
+                <Stat icon={HandCoins} label="Loans" value={loans?.length} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Remaining cards flow into two balanced columns on desktop so the page
+            fills the width instead of stacking in one narrow strip. */}
+        <div className="gap-5 lg:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
+        {/* Wallet */}
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
+            <CardTitle>Wallet</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
@@ -328,6 +466,73 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Wealth lock */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Net Worth lock</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-lg",
+                    wealthLockEnabled ? "bg-primary/10 text-primary" : "bg-muted"
+                  )}
+                >
+                  <Landmark className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium">Hide Net Worth behind a passcode</p>
+                  <p className="text-xs text-muted-foreground">
+                    {wealthLockEnabled
+                      ? "Logins open in the everyday view; the Net Worth section stays hidden until unlocked."
+                      : "Require a separate passcode to reveal the Net Worth section."}
+                  </p>
+                </div>
+              </div>
+              {wealthLockEnabled ? (
+                canManageWealthLock ? (
+                  <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openWealthDialog("change")}>
+                      Change
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleWealthLock(false)}
+                      disabled={disableWealthPass.isPending}
+                    >
+                      Disable
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setWealthUnlockOpen(true)}
+                  >
+                    <ShieldCheck /> Unlock to manage
+                  </Button>
+                )
+              ) : (
+                <Switch
+                  checked={false}
+                  onCheckedChange={toggleWealthLock}
+                  aria-label="Enable Net Worth lock"
+                />
+              )}
+            </div>
+            <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3 w-3 shrink-0" />
+              {wealthLockEnabled && !canManageWealthLock
+                ? "Unlock Net Worth from the account menu to change or disable this passcode."
+                : "The everyday login can be shared safely — Net Worth (holdings & net-worth totals) stays hidden until the passcode is entered. Income, expenses and cash flow are always visible."}
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Data */}
         <Card>
           <CardHeader>
@@ -339,7 +544,7 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 All transactions across every account. Optionally limit to a date range. Saved as{" "}
                 <code className="rounded bg-muted px-1 py-0.5">
-                  money-tracker-transactions-YYYY-MM-DD-{settings?.baseCurrency ?? "INR"}.csv
+                  coincompass-transactions-YYYY-MM-DD-{settings?.baseCurrency ?? "INR"}.csv
                 </code>
                 .
               </p>
@@ -433,7 +638,7 @@ export default function SettingsPage() {
             <CardTitle>App info</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <InfoRow label="App" value="Money Tracker" />
+            <InfoRow label="App" value="CoinCompass" />
             <InfoRow label="Version" value={APP_VERSION} />
             <InfoRow label="Build" value="Local build · Single user" />
             <InfoRow
@@ -442,6 +647,7 @@ export default function SettingsPage() {
             />
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Import result dialog */}
@@ -558,6 +764,59 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Set / change wealth passcode dialog */}
+      <Dialog open={wealthDialogOpen} onOpenChange={setWealthDialogOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              {wealthMode === "change" ? "Change wealth passcode" : "Set a wealth passcode"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="set-wealth">Passcode (4–32 characters)</Label>
+              <Input
+                id="set-wealth"
+                type="password"
+                autoComplete="new-password"
+                maxLength={32}
+                value={wealthPass}
+                onChange={(e) => setWealthPassInput(e.target.value)}
+                placeholder="••••••••"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-wealth">Confirm passcode</Label>
+              <Input
+                id="confirm-wealth"
+                type="password"
+                autoComplete="new-password"
+                maxLength={32}
+                value={wealthConfirm}
+                onChange={(e) => setWealthConfirm(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && confirmWealthPasscode()}
+                placeholder="••••••••"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Keep this separate from your login password. Anyone with just the login sees everyday
+              spending — never your Net Worth.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setWealthDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmWealthPasscode} disabled={setWealthPass.isPending}>
+              <Check /> {wealthMode === "change" ? "Update" : "Enable"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <WealthUnlockDialog open={wealthUnlockOpen} onOpenChange={setWealthUnlockOpen} />
     </div>
   );
 }
@@ -567,6 +826,23 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+/** Two-letter avatar fallback from a name (or email when unnamed). */
+function initials(name: string, email: string) {
+  const base = name?.trim() || email;
+  return base.slice(0, 2).toUpperCase();
+}
+
+/** A compact "your data at a glance" tile. */
+function Stat({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number | undefined }) {
+  return (
+    <div className="rounded-xl border bg-background/50 p-3">
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <p className="tnum mt-1.5 text-2xl font-bold leading-none">{value ?? "—"}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
 }

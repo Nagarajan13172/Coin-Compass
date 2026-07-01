@@ -207,12 +207,22 @@ export interface MetalsLatest {
   silver: MetalPrice | null;
 }
 
+export type ViewMode = "user" | "superadmin";
+
 export interface AuthUser {
   id: string;
   email: string;
   name: string;
   avatarUrl: string;
   emailVerified: boolean;
+  /** ISO date the account was created (for "member since"). */
+  createdAt: string | null;
+  /** True for password accounts; false for OAuth-only sign-ins. */
+  hasPassword: boolean;
+  /** Current view mode; `superadmin` may see the wealth (Net Worth) section. */
+  mode: ViewMode;
+  /** Whether the wealth lock is turned on for this account. */
+  wealthLockEnabled: boolean;
 }
 
 export interface OAuthProviders {
@@ -249,6 +259,7 @@ export interface Settings {
   currencies: CurrencyConfig[];
   pinEnabled: boolean;
   emailReports: boolean;
+  wealthLockEnabled: boolean;
 }
 
 export interface Summary {

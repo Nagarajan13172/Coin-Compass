@@ -5,6 +5,15 @@ export function monthlyInterest(outstanding: number, roiPct: number): number {
   return outstanding * (roiPct / 12 / 100);
 }
 
+/**
+ * Prepayment/foreclosure fee: `base` (prepaid or outstanding amount) × `chargePct`,
+ * rounded to the rupee. Single source of truth for part-payment and preclosure so
+ * the recorded charge stays consistent (mirrors the client's `prepaymentCharge`).
+ */
+export function prepaymentCharge(base: number, chargePct: number): number {
+  return Math.round(Math.max(0, base) * (Math.max(0, chargePct) / 100));
+}
+
 /** Split a payment into { principal, interest } given the current balance and rate. */
 export function splitPayment(
   outstanding: number,

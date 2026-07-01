@@ -65,6 +65,12 @@ export const NAV_GROUPS: NavGroup[] = [
 /** Settings lives in the sidebar footer, separate from the grouped nav. */
 export const SETTINGS_ITEM: NavItem = { to: "/settings", label: "Settings", icon: Settings };
 
+/**
+ * Destinations that reveal net-worth figures. Hidden from the nav (and blocked
+ * at the route) in the everyday "user" view when the wealth lock is engaged.
+ */
+export const WEALTH_ONLY_PATHS = ["/net-worth"];
+
 /** Flat list of every destination — used by the mobile bottom nav. */
 export const NAV_ITEMS: NavItem[] = [...NAV_GROUPS.flatMap((g) => g.items), SETTINGS_ITEM];
 

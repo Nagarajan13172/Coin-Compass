@@ -32,7 +32,7 @@ import { LoanFormDialog } from "@/features/networth/LoanFormDialog";
 import { LoanCalculatorDialog } from "@/features/networth/LoanCalculatorDialog";
 import { useLoans, useDeleteLoan, usePayLoan, usePrecloseLoan } from "@/hooks/useLoans";
 import { formatMoney } from "@/lib/format";
-import { CHART_PALETTE, LOAN_TYPE_META, computePayoff, formatMonths } from "@/lib/networth";
+import { CHART_PALETTE, LOAN_TYPE_META, computePayoff, formatMonths, prepaymentCharge } from "@/lib/networth";
 import type { Loan } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -180,7 +180,7 @@ function PartPaymentDialog({ loan, onClose }: { loan: Loan | null; onClose: () =
   // A lump-sum prepayment goes entirely to principal; the charge is an extra fee on it.
   const chargePct = pct === "" ? loan?.foreclosureChargePct ?? 0 : Number(pct) || 0;
   const principal = Math.min(amt, outstanding);
-  const charge = Math.round(principal * (chargePct / 100));
+  const charge = prepaymentCharge(principal, chargePct);
   const total = amt + charge;
   const remaining = Math.max(0, outstanding - amt);
 
@@ -268,7 +268,7 @@ function PrecloseDialog({ loan, onClose }: { loan: Loan | null; onClose: () => v
   // default the charge % from the loan when it opens
   const chargePct = pct === "" ? loan?.foreclosureChargePct ?? 0 : Number(pct) || 0;
   const outstanding = loan?.outstanding ?? 0;
-  const charge = Math.round(outstanding * (chargePct / 100));
+  const charge = prepaymentCharge(outstanding, chargePct);
   const total = outstanding + charge;
 
   async function submit() {

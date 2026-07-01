@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
 import { format, parseISO } from "date-fns";
 import { Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,16 +19,37 @@ function asOf(date: string) {
   }
 }
 
+function SparkTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: MetalPrice }[];
+}) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md">
+      <p className="tnum font-semibold">{formatMoney(p.pricePerGram22k, { currency: "INR" })}</p>
+      <p className="text-muted-foreground">{asOf(p.date)}</p>
+    </div>
+  );
+}
+
 function Sparkline({ data, color }: { data: MetalPrice[]; color: string }) {
   return (
     <ResponsiveContainer width="100%" height={44}>
-      <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+      <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="goldSpark" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.3} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
+        <Tooltip
+          content={<SparkTooltip />}
+          cursor={{ stroke: color, strokeOpacity: 0.35, strokeDasharray: "3 3" }}
+        />
         <Area
           type="monotone"
           dataKey="pricePerGram22k"
@@ -37,6 +58,7 @@ function Sparkline({ data, color }: { data: MetalPrice[]; color: string }) {
           fill="url(#goldSpark)"
           isAnimationActive={false}
           dot={false}
+          activeDot={{ r: 3, fill: color, strokeWidth: 0 }}
         />
       </AreaChart>
     </ResponsiveContainer>

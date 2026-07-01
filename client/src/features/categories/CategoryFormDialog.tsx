@@ -21,9 +21,11 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   category?: Category | null;
   defaultType: CategoryType;
+  /** Called with the freshly created category (e.g. to auto-select it). */
+  onCreated?: (category: Category) => void;
 }
 
-export function CategoryFormDialog({ open, onOpenChange, category, defaultType }: Props) {
+export function CategoryFormDialog({ open, onOpenChange, category, defaultType, onCreated }: Props) {
   const create = useCreateCategory();
   const update = useUpdateCategory();
   const isEdit = Boolean(category);
@@ -47,8 +49,9 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType }
         await update.mutateAsync({ id: category._id, ...payload });
         toast.success("Category updated");
       } else {
-        await create.mutateAsync(payload);
+        const created = (await create.mutateAsync(payload)) as Category;
         toast.success("Category created");
+        onCreated?.(created);
       }
       onOpenChange(false);
     } catch (e) {

@@ -33,6 +33,9 @@ const settingsSchema = new Schema(
     pinHash: { type: String, default: null },
     // Email a summary report on the 1st (last month) and 15th (month-to-date).
     emailReports: { type: Boolean, default: true },
+    // When set, the Net Worth section is hidden ("user" view) until the passcode is
+    // entered ("superadmin" view). Null = wealth lock off (Net Worth always visible).
+    wealthPasscodeHash: { type: String, default: null },
   },
   { timestamps: true }
 );

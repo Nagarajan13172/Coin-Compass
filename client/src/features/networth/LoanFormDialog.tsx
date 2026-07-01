@@ -30,6 +30,12 @@ interface Props {
 
 const LOAN_TYPE_ENTRIES = Object.entries(LOAN_TYPE_META) as [LoanType, { label: string }][];
 
+/** The typical prepay/preclose charge for a loan type, as an input string ("" when nil). */
+function chargeDefault(type: LoanType): string {
+  const pct = LOAN_TYPE_META[type].typicalChargePct;
+  return pct ? String(pct) : "";
+}
+
 export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
   const { data: settings } = useSettings();
   const create = useCreateLoan();
@@ -44,8 +50,10 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
   const [roi, setRoi] = useState("");
   const [emi, setEmi] = useState("");
   const [foreclosureChargePct, setForeclosureChargePct] = useState("");
+  // Track whether the user has hand-edited the charge, so switching loan type
+  // only re-seeds a default they haven't touched.
+  const [chargeTouched, setChargeTouched] = useState(false);
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState<LoanStatus>("active");
 
   useEffect(() => {
@@ -57,11 +65,20 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
     setPrincipal(loan?.principal ? String(loan.principal) : "");
     setRoi(loan?.roi ? String(loan.roi) : "");
     setEmi(loan?.emi ? String(loan.emi) : "");
-    setForeclosureChargePct(loan?.foreclosureChargePct ? String(loan.foreclosureChargePct) : "");
+    // Existing loan keeps its saved charge; a new one is seeded from its type's typical rate.
+    setForeclosureChargePct(
+      loan ? (loan.foreclosureChargePct ? String(loan.foreclosureChargePct) : "") : chargeDefault("personal")
+    );
+    setChargeTouched(false);
     setStartDate(loan?.startDate ? loan.startDate.slice(0, 10) : "");
-    setEndDate(loan?.endDate ? loan.endDate.slice(0, 10) : "");
     setStatus(loan?.status ?? "active");
   }, [open, loan]);
+
+  // Picking a type re-seeds the charge default (new loans only, until edited by hand).
+  function onTypeChange(v: LoanType) {
+    setType(v);
+    if (!isEdit && !chargeTouched) setForeclosureChargePct(chargeDefault(v));
+  }
 
   async function submit() {
     if (!name.trim()) return toast.error("Enter a loan name");
@@ -77,7 +94,6 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
       emi: Number(emi) || 0,
       foreclosureChargePct: Number(foreclosureChargePct) || 0,
       startDate: startDate ? new Date(startDate).toISOString() : null,
-      endDate: endDate ? new Date(endDate).toISOString() : null,
       status,
       currency: settings?.baseCurrency ?? "INR",
     };
@@ -115,7 +131,7 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Type</Label>
-              <Select value={type} onValueChange={(v) => setType(v as LoanType)}>
+              <Select value={type} onValueChange={(v) => onTypeChange(v as LoanType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -163,18 +179,25 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="loan-foreclose">Preclosure charge (%)</Label>
-              <Input id="loan-foreclose" type="number" inputMode="decimal" value={foreclosureChargePct} onChange={(e) => setForeclosureChargePct(e.target.value)} placeholder="e.g. 2" />
+              <Label htmlFor="loan-foreclose">Prepay / preclose charge (%)</Label>
+              <Input
+                id="loan-foreclose"
+                type="number"
+                inputMode="decimal"
+                value={foreclosureChargePct}
+                onChange={(e) => {
+                  setForeclosureChargePct(e.target.value);
+                  setChargeTouched(true);
+                }}
+                placeholder="e.g. 2"
+              />
+              <p className="text-xs text-muted-foreground">
+                Typical for {LOAN_TYPE_META[type].label.toLowerCase()}: {LOAN_TYPE_META[type].typicalChargePct}%
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="loan-start">Start date</Label>
               <Input id="loan-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="loan-end">End date</Label>
-              <Input id="loan-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
         </div>

@@ -30,16 +30,16 @@ export async function sendVerificationEmail(user: UserDoc & { _id: Types.ObjectI
   const name = user.name?.trim() || "there";
   await sendMail({
     to: user.email,
-    subject: "Verify your email for Money Tracker",
+    subject: "Verify your email for CoinCompass",
     text:
       `Hi ${name},\n\n` +
-      `Confirm your email address to finish setting up your Money Tracker account:\n\n` +
+      `Confirm your email address to finish setting up your CoinCompass account:\n\n` +
       `${link}\n\n` +
       `This link expires in ${env.auth.emailTokenTtlHours} hours. ` +
       `If you didn't create this account, you can ignore this email.`,
     html:
       `<p>Hi ${name},</p>` +
-      `<p>Confirm your email address to finish setting up your Money Tracker account:</p>` +
+      `<p>Confirm your email address to finish setting up your CoinCompass account:</p>` +
       `<p><a href="${link}">Verify my email</a></p>` +
       `<p style="color:#64748b;font-size:13px">This link expires in ${env.auth.emailTokenTtlHours} hours. ` +
       `If you didn't create this account, you can ignore this email.</p>`,

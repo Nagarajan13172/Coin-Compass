@@ -1,6 +1,6 @@
 import { useNavigate, NavLink } from "react-router-dom";
 import { motion } from "motion/react";
-import { ChevronsUpDown, LogOut, PanelLeft, PanelLeftClose, Plus, Wallet } from "lucide-react";
+import { ChevronsUpDown, Compass, LogOut, PanelLeft, PanelLeftClose, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,14 +12,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { NAV_GROUPS, SETTINGS_ITEM, type NavItem } from "./nav";
+import { useState } from "react";
+import { NAV_GROUPS, SETTINGS_ITEM, WEALTH_ONLY_PATHS, type NavItem } from "./nav";
 import { useUIStore } from "@/stores/ui";
-import { useMe, useLogout } from "@/hooks/useAuth";
+import { useMe, useLogout, useCanSeeWealth } from "@/hooks/useAuth";
+import { WealthLockMenuItems, WealthUnlockDialog } from "@/features/settings/WealthLock";
 
 export function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggle = useUIStore((s) => s.toggleSidebar);
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
+  const canSeeWealth = useCanSeeWealth();
+  // In the everyday (user) view the Net Worth destination is hidden entirely.
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => canSeeWealth || !WEALTH_ONLY_PATHS.includes(i.to)),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <aside
@@ -36,15 +44,15 @@ export function Sidebar() {
             aria-label="Expand sidebar"
             className="group mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <Wallet className="h-5 w-5 group-hover:hidden" />
+            <Compass className="h-5 w-5 group-hover:hidden" />
             <PanelLeft className="hidden h-5 w-5 group-hover:block" />
           </button>
         ) : (
           <>
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Wallet className="h-5 w-5" />
+              <Compass className="h-5 w-5" />
             </div>
-            <span className="truncate text-base font-bold tracking-tight">Money Tracker</span>
+            <span className="truncate text-base font-bold tracking-tight">CoinCompass</span>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -71,7 +79,7 @@ export function Sidebar() {
 
       {/* Grouped navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 no-scrollbar">
-        {NAV_GROUPS.map((group, gi) => (
+        {groups.map((group, gi) => (
           <div key={group.label} className={cn("space-y-1", gi > 0 && "pt-4")}>
             {collapsed
               ? gi > 0 && <div className="mx-2 mb-3 h-px bg-border/60" />
@@ -137,6 +145,7 @@ function SidebarUser({ collapsed }: { collapsed: boolean }) {
   const navigate = useNavigate();
   const { data: me } = useMe();
   const logout = useLogout();
+  const [unlockOpen, setUnlockOpen] = useState(false);
   if (!me) return null;
 
   async function signOut() {
@@ -152,37 +161,41 @@ function SidebarUser({ collapsed }: { collapsed: boolean }) {
   );
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          className={cn(
-            "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent",
-            collapsed && "justify-center p-1.5"
-          )}
-          aria-label="Account menu"
-        >
-          {avatar}
-          {!collapsed && (
-            <>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{me.name || "Account"}</span>
-                <span className="block truncate text-xs text-muted-foreground">{me.email}</span>
-              </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="w-56">
-        <DropdownMenuLabel className="flex flex-col">
-          <span className="truncate font-medium">{me.name || "Account"}</span>
-          <span className="truncate text-xs font-normal text-muted-foreground">{me.email}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={signOut} disabled={logout.isPending}>
-          <LogOut /> Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent",
+              collapsed && "justify-center p-1.5"
+            )}
+            aria-label="Account menu"
+          >
+            {avatar}
+            {!collapsed && (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{me.name || "Account"}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{me.email}</span>
+                </span>
+                <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" className="w-56">
+          <DropdownMenuLabel className="flex flex-col">
+            <span className="truncate font-medium">{me.name || "Account"}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">{me.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <WealthLockMenuItems onUnlock={() => setUnlockOpen(true)} />
+          <DropdownMenuItem onClick={signOut} disabled={logout.isPending}>
+            <LogOut /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <WealthUnlockDialog open={unlockOpen} onOpenChange={setUnlockOpen} />
+    </>
   );
 }

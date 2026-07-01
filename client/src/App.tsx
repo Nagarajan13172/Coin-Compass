@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { useUIStore } from "@/stores/ui";
 import { useSettings } from "@/hooks/useSettings";
-import { useMe } from "@/hooks/useAuth";
+import { useMe, useCanSeeWealth } from "@/hooks/useAuth";
 import { PinLock } from "@/features/settings/PinLock";
 
 import DashboardPage from "@/routes/DashboardPage";
@@ -76,6 +76,13 @@ function RequireAuth() {
   );
 }
 
+/** Block wealth-only routes (Net Worth) in the everyday user view. */
+function RequireWealth() {
+  const canSeeWealth = useCanSeeWealth();
+  if (!canSeeWealth) return <Navigate to="/" replace />;
+  return <Outlet />;
+}
+
 export function App() {
   const applyTheme = useUIStore((s) => s.applyTheme);
 
@@ -102,7 +109,9 @@ export function App() {
             <Route path="/accounts/:id" element={<AccountDetailPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
             <Route path="/goals" element={<GoalsPage />} />
-            <Route path="/net-worth" element={<NetWorthPage />} />
+            <Route element={<RequireWealth />}>
+              <Route path="/net-worth" element={<NetWorthPage />} />
+            </Route>
             <Route path="/loans" element={<LoansPage />} />
             <Route path="/gold" element={<GoldPage />} />
             <Route path="/reports" element={<ReportsPage />} />

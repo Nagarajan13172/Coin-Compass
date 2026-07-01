@@ -16,7 +16,7 @@ import { IncomeExpenseBar } from "@/features/reports/IncomeExpenseBar";
 import { ByAccountList } from "@/features/reports/ByAccountList";
 import { ExportMenu } from "@/features/reports/ExportMenu";
 import { useByAccount, useByCategory, useSummary, useTrend } from "@/hooks/useReports";
-import { periodRange, shiftPeriod, periodLabel } from "@/lib/dates";
+import { bucketRange, periodRange, shiftPeriod, periodLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PeriodKey } from "@/lib/types";
@@ -85,6 +85,12 @@ export default function ReportsPage() {
     const sp = new URLSearchParams({ from: range.from, to: range.to });
     for (const [k, v] of Object.entries(params)) if (v) sp.set(k, v);
     navigate(`/transactions?${sp.toString()}`);
+  }
+
+  /** Drill into a single chart bucket (a day or month) worth of transactions. */
+  function openBucket(bucket: string) {
+    const r = bucketRange(bucket);
+    if (r) openTxns({ from: r.from, to: r.to });
   }
 
   return (
@@ -255,7 +261,7 @@ export default function ReportsPage() {
             {trend.isLoading ? (
               <Skeleton className="h-[240px] w-full" />
             ) : trend.data?.length ? (
-              <IncomeExpenseBar data={trend.data} />
+              <IncomeExpenseBar data={trend.data} onSelect={openBucket} />
             ) : (
               <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
                 No data for this period
@@ -293,7 +299,7 @@ export default function ReportsPage() {
             {trend.isLoading ? (
               <Skeleton className="h-[240px] w-full" />
             ) : trend.data?.length ? (
-              <NetTrendArea data={trend.data} />
+              <NetTrendArea data={trend.data} onSelect={openBucket} />
             ) : (
               <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
                 No data for this period
