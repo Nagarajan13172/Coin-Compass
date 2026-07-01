@@ -2,14 +2,15 @@ import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
 import { getSettings } from "../models/Settings";
 import { settingsUpdateSchema } from "../validators/schemas";
+import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
 function hashPin(pin: string): string {
   return createHash("sha256").update(pin).digest("hex");
 }
 
-export async function getSettingsHandler(_req: Request, res: Response) {
-  const settings = await getSettings();
+export async function getSettingsHandler(req: Request, res: Response) {
+  const settings = await getSettings(userId(req));
   const obj = settings.toObject();
   // never leak the hash to the client
   delete (obj as Record<string, unknown>).pinHash;
@@ -18,7 +19,7 @@ export async function getSettingsHandler(_req: Request, res: Response) {
 
 export async function updateSettingsHandler(req: Request, res: Response) {
   const data = settingsUpdateSchema.parse(req.body);
-  const settings = await getSettings();
+  const settings = await getSettings(userId(req));
   Object.assign(settings, data);
   await settings.save();
   const obj = settings.toObject();
@@ -29,15 +30,15 @@ export async function updateSettingsHandler(req: Request, res: Response) {
 export async function setPin(req: Request, res: Response) {
   const pin = String(req.body?.pin ?? "");
   if (!/^\d{4,8}$/.test(pin)) throw new HttpError(400, "PIN must be 4-8 digits");
-  const settings = await getSettings();
+  const settings = await getSettings(userId(req));
   settings.pinHash = hashPin(pin);
   settings.pinEnabled = true;
   await settings.save();
   res.json({ ok: true, pinEnabled: true });
 }
 
-export async function disablePin(_req: Request, res: Response) {
-  const settings = await getSettings();
+export async function disablePin(req: Request, res: Response) {
+  const settings = await getSettings(userId(req));
   settings.pinHash = null;
   settings.pinEnabled = false;
   await settings.save();
@@ -46,7 +47,7 @@ export async function disablePin(_req: Request, res: Response) {
 
 export async function verifyPin(req: Request, res: Response) {
   const pin = String(req.body?.pin ?? "");
-  const settings = await getSettings();
+  const settings = await getSettings(userId(req));
   if (!settings.pinEnabled || !settings.pinHash) {
     return res.json({ ok: true });
   }

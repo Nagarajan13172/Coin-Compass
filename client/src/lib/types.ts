@@ -102,6 +102,21 @@ export interface Recurring {
   upcoming?: string[];
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl: string;
+  emailVerified: boolean;
+}
+
+export interface OAuthProviders {
+  google: boolean;
+  github: boolean;
+  microsoft: boolean;
+  apple: boolean;
+}
+
 export interface ImportResult {
   total: number;
   imported: number;

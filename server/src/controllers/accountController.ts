@@ -3,13 +3,15 @@ import { Account } from "../models/Account";
 import { Transaction } from "../models/Transaction";
 import { computeAllBalances } from "../services/balanceService";
 import { accountSchema, accountUpdateSchema } from "../validators/schemas";
+import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
 export async function listAccounts(req: Request, res: Response) {
+  const uid = userId(req);
   const includeArchived = req.query.includeArchived === "true";
-  const filter = includeArchived ? {} : { archived: false };
+  const filter = includeArchived ? { user: uid } : { user: uid, archived: false };
   const accounts = await Account.find(filter).sort({ order: 1, createdAt: 1 }).lean();
-  const balances = await computeAllBalances();
+  const balances = await computeAllBalances(uid);
 
   const withBalances = accounts.map((a) => ({
     ...a,
@@ -20,30 +22,33 @@ export async function listAccounts(req: Request, res: Response) {
 }
 
 export async function getAccount(req: Request, res: Response) {
-  const account = await Account.findById(req.params.id).lean();
+  const uid = userId(req);
+  const account = await Account.findOne({ _id: req.params.id, user: uid }).lean();
   if (!account) throw new HttpError(404, "Account not found");
-  const balances = await computeAllBalances();
+  const balances = await computeAllBalances(uid);
   res.json({ ...account, balance: balances.get(String(account._id))?.balance ?? 0 });
 }
 
 export async function createAccount(req: Request, res: Response) {
+  const uid = userId(req);
   const data = accountSchema.parse(req.body);
-  const account = await Account.create(data);
+  const account = await Account.create({ ...data, user: uid });
   res.status(201).json(account);
 }
 
 export async function updateAccount(req: Request, res: Response) {
+  const uid = userId(req);
   const data = accountUpdateSchema.parse(req.body);
-  const account = await Account.findByIdAndUpdate(req.params.id, data, { new: true });
+  const account = await Account.findOneAndUpdate({ _id: req.params.id, user: uid }, data, { new: true });
   if (!account) throw new HttpError(404, "Account not found");
   res.json(account);
 }
 
 export async function deleteAccount(req: Request, res: Response) {
+  const uid = userId(req);
   const id = req.params.id;
-  const txnCount = await Transaction.countDocuments({
-    $or: [{ account: id }, { toAccount: id }],
-  });
+  const ownership = { user: uid, $or: [{ account: id }, { toAccount: id }] };
+  const txnCount = await Transaction.countDocuments(ownership);
   if (txnCount > 0 && req.query.force !== "true") {
     throw new HttpError(
       409,
@@ -51,9 +56,9 @@ export async function deleteAccount(req: Request, res: Response) {
     );
   }
   if (req.query.force === "true") {
-    await Transaction.deleteMany({ $or: [{ account: id }, { toAccount: id }] });
+    await Transaction.deleteMany(ownership);
   }
-  const account = await Account.findByIdAndDelete(id);
+  const account = await Account.findOneAndDelete({ _id: id, user: uid });
   if (!account) throw new HttpError(404, "Account not found");
   res.json({ ok: true });
 }

@@ -4,6 +4,7 @@ export const BUDGET_PERIODS = ["weekly", "monthly", "yearly"] as const;
 
 const budgetSchema = new Schema(
   {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     category: { type: Schema.Types.ObjectId, ref: "Category", default: null }, // null = overall budget
     amount: { type: Number, required: true, min: 0 },
     period: { type: String, enum: BUDGET_PERIODS, default: "monthly" },

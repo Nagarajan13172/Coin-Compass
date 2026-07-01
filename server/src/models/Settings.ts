@@ -12,6 +12,7 @@ const currencySchema = new Schema(
 
 const settingsSchema = new Schema(
   {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
     name: { type: String, default: "My Wallet" },
     baseCurrency: { type: String, default: "INR" },
     theme: { type: String, enum: ["light", "dark", "system"], default: "system" },
@@ -36,9 +37,9 @@ const settingsSchema = new Schema(
 export type SettingsDoc = InferSchemaType<typeof settingsSchema>;
 export const Settings = model("Settings", settingsSchema);
 
-/** There is only ever one settings document. */
-export async function getSettings() {
-  let doc = await Settings.findOne();
-  if (!doc) doc = await Settings.create({});
+/** Each user has exactly one settings document; create it lazily if missing. */
+export async function getSettings(userId: string) {
+  let doc = await Settings.findOne({ user: userId });
+  if (!doc) doc = await Settings.create({ user: userId });
   return doc;
 }

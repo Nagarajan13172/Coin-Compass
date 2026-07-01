@@ -14,11 +14,12 @@ export interface AccountBalance {
 }
 
 /**
- * Compute live balances for every account from its transactions.
+ * Compute live balances for every account of a user from its transactions.
  * Returns a map keyed by account id (string).
  */
-export async function computeAllBalances(): Promise<Map<string, AccountBalance>> {
-  const accounts = await Account.find().lean();
+export async function computeAllBalances(userId: string): Promise<Map<string, AccountBalance>> {
+  const user = new Types.ObjectId(userId);
+  const accounts = await Account.find({ user }).lean();
   const map = new Map<string, AccountBalance>();
   for (const a of accounts) {
     map.set(String(a._id), {
@@ -37,6 +38,7 @@ export async function computeAllBalances(): Promise<Map<string, AccountBalance>>
     _id: { account: Types.ObjectId; type: string };
     total: number;
   }>([
+    { $match: { user } },
     { $group: { _id: { account: "$account", type: "$type" }, total: { $sum: "$amount" } } },
   ]);
 
@@ -51,7 +53,7 @@ export async function computeAllBalances(): Promise<Map<string, AccountBalance>>
 
   // Transfers IN, grouped by destination account.
   const toAgg = await Transaction.aggregate<{ _id: Types.ObjectId; total: number }>([
-    { $match: { type: "transfer", toAccount: { $ne: null } } },
+    { $match: { user, type: "transfer", toAccount: { $ne: null } } },
     { $group: { _id: "$toAccount", total: { $sum: "$amount" } } },
   ]);
 
@@ -69,15 +71,15 @@ export async function computeAllBalances(): Promise<Map<string, AccountBalance>>
   return map;
 }
 
-export async function computeBalance(accountId: string): Promise<AccountBalance | null> {
-  const all = await computeAllBalances();
+export async function computeBalance(userId: string, accountId: string): Promise<AccountBalance | null> {
+  const all = await computeAllBalances(userId);
   return all.get(String(accountId)) ?? null;
 }
 
 /** Total net worth across accounts that are flagged includeInTotal. */
-export async function computeNetWorth(): Promise<{ netWorth: number; byCurrency: Record<string, number> }> {
-  const accounts = await Account.find({ includeInTotal: true, archived: false }).lean();
-  const balances = await computeAllBalances();
+export async function computeNetWorth(userId: string): Promise<{ netWorth: number; byCurrency: Record<string, number> }> {
+  const accounts = await Account.find({ user: new Types.ObjectId(userId), includeInTotal: true, archived: false }).lean();
+  const balances = await computeAllBalances(userId);
   const byCurrency: Record<string, number> = {};
   let netWorth = 0;
   for (const a of accounts) {

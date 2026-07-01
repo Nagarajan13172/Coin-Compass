@@ -4,6 +4,7 @@ export const RECURRENCE_FREQUENCIES = ["daily", "weekly", "monthly", "yearly"] a
 
 const recurringSchema = new Schema(
   {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     // transaction template
     type: { type: String, enum: ["income", "expense", "transfer"], required: true },
     amount: { type: Number, required: true, min: 0 },

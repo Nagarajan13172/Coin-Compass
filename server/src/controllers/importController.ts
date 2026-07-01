@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { getSettings } from "../models/Settings";
 import { importTransactionsCsv, importTransactionsXlsx } from "../services/importService";
+import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
 /** .xlsx (and .docx/.zip) files start with the ZIP local-file signature "PK\x03\x04". */
@@ -17,12 +18,13 @@ export async function importFile(req: Request, res: Response) {
       : Buffer.alloc(0);
   if (buf.length === 0) throw new HttpError(400, "No file content provided");
 
-  const settings = await getSettings();
+  const uid = userId(req);
+  const settings = await getSettings(uid);
   const currency = settings.baseCurrency ?? "INR";
 
   const result = isXlsx(buf)
-    ? await importTransactionsXlsx(buf, currency)
-    : await importTransactionsCsv(buf.toString("utf8"), currency);
+    ? await importTransactionsXlsx(buf, uid, currency)
+    : await importTransactionsCsv(buf.toString("utf8"), uid, currency);
 
   res.json(result);
 }

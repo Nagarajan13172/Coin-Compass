@@ -75,6 +75,7 @@ async function postDueForRule(rule: RuleDoc, now: Date): Promise<number> {
     if (rule.endDate && next > rule.endDate) break;
 
     await Transaction.create({
+      user: rule.user,
       type: rule.type,
       amount: rule.amount,
       account: rule.account,
@@ -99,12 +100,15 @@ async function postDueForRule(rule: RuleDoc, now: Date): Promise<number> {
 }
 
 /**
- * Materialize every recurring rule whose nextRun is due (<= now).
- * A rule can generate several transactions if it has been due multiple times.
+ * Materialize recurring rules whose nextRun is due (<= now). The hourly cron calls this
+ * with no userId (all users, stamping each posted txn with its rule's owner); the
+ * user-facing "Run due" button passes a userId to process only that user's rules.
  * Returns the number of transactions created.
  */
-export async function processDueRecurring(now: Date = new Date()): Promise<number> {
-  const due = await RecurringTransaction.find({ active: true, nextRun: { $lte: now } });
+export async function processDueRecurring(now: Date = new Date(), userId?: string): Promise<number> {
+  const filter: Record<string, unknown> = { active: true, nextRun: { $lte: now } };
+  if (userId) filter.user = userId;
+  const due = await RecurringTransaction.find(filter);
   let created = 0;
 
   for (const rule of due) {
@@ -116,11 +120,11 @@ export async function processDueRecurring(now: Date = new Date()): Promise<numbe
 }
 
 /**
- * Post the due occurrences for a single rule (used by the "run now" per-rule action).
- * Returns the number of transactions created, or null if the rule doesn't exist.
+ * Post the due occurrences for a single rule owned by the user (per-rule "run now").
+ * Returns the number of transactions created, or null if the rule doesn't exist / isn't theirs.
  */
-export async function runRule(id: string, now: Date = new Date()): Promise<number | null> {
-  const rule = await RecurringTransaction.findById(id);
+export async function runRule(id: string, userId: string, now: Date = new Date()): Promise<number | null> {
+  const rule = await RecurringTransaction.findOne({ _id: id, user: userId });
   if (!rule) return null;
   const created = await postDueForRule(rule as unknown as RuleDoc, now);
   await rule.save();
@@ -128,12 +132,12 @@ export async function runRule(id: string, now: Date = new Date()): Promise<numbe
 }
 
 /**
- * Skip the next scheduled occurrence of a rule without posting a transaction:
+ * Skip the next scheduled occurrence of a user's rule without posting a transaction:
  * advance nextRun by one interval (deactivating if that passes endDate).
- * Returns the updated rule, or null if it doesn't exist.
+ * Returns the updated rule, or null if it doesn't exist / isn't theirs.
  */
-export async function skipNextOccurrence(id: string): Promise<RuleDoc | null> {
-  const rule = await RecurringTransaction.findById(id);
+export async function skipNextOccurrence(id: string, userId: string): Promise<RuleDoc | null> {
+  const rule = await RecurringTransaction.findOne({ _id: id, user: userId });
   if (!rule) return null;
   const next = advance(new Date(rule.nextRun), rule.frequency, rule.interval);
   rule.nextRun = next;

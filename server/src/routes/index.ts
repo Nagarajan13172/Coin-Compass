@@ -1,5 +1,8 @@
 import express, { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
+import { requireAuth, requireVerified } from "../middleware/auth";
+import * as auth from "../controllers/authController";
+import * as oauth from "../controllers/oauthController";
 import * as accounts from "../controllers/accountController";
 import * as categories from "../controllers/categoryController";
 import * as transactions from "../controllers/transactionController";
@@ -14,6 +17,30 @@ import { importFile } from "../controllers/importController";
 const router = Router();
 
 router.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
+// ---- Public auth routes ----
+router.post("/auth/signup", asyncHandler(auth.signup));
+router.post("/auth/signin", asyncHandler(auth.signin));
+router.post("/auth/logout", asyncHandler(auth.logout));
+router.post("/auth/verify-email", asyncHandler(auth.verifyEmail));
+router.get("/auth/providers", auth.providersStatus);
+router.get("/auth/oauth/:provider", asyncHandler(oauth.oauthStart));
+// Google/GitHub/Microsoft return via GET; Apple posts back (form_post) — accept both.
+router.get("/auth/oauth/:provider/callback", asyncHandler(oauth.oauthCallback));
+router.post(
+  "/auth/oauth/:provider/callback",
+  express.urlencoded({ extended: false }),
+  asyncHandler(oauth.oauthCallback)
+);
+
+// ---- Requires a valid session (verified or not) ----
+router.use(requireAuth);
+
+router.get("/auth/me", asyncHandler(auth.me));
+router.post("/auth/resend-verification", asyncHandler(auth.resendVerification));
+
+// ---- Everything below additionally requires a verified email ----
+router.use(asyncHandler(requireVerified));
 
 // Accounts
 router.get("/accounts", asyncHandler(accounts.listAccounts));

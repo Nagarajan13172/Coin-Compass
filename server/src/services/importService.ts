@@ -151,21 +151,24 @@ export async function xlsxToRows(buffer: Buffer): Promise<string[][]> {
  */
 export async function importTransactionsCsv(
   text: string,
+  userId: string,
   defaultCurrency = "INR"
 ): Promise<ImportResult> {
-  return importRows(parseCsv(text), defaultCurrency);
+  return importRows(parseCsv(text), userId, defaultCurrency);
 }
 
 /** Import transactions from a raw .xlsx workbook buffer. */
 export async function importTransactionsXlsx(
   buffer: Buffer,
+  userId: string,
   defaultCurrency = "INR"
 ): Promise<ImportResult> {
-  return importRows(await xlsxToRows(buffer), defaultCurrency);
+  return importRows(await xlsxToRows(buffer), userId, defaultCurrency);
 }
 
-/** Shared core: map a header + data-row matrix into transactions. */
-async function importRows(rows: string[][], defaultCurrency = "INR"): Promise<ImportResult> {
+/** Shared core: map a header + data-row matrix into a user's transactions. */
+async function importRows(rows: string[][], userId: string, defaultCurrency = "INR"): Promise<ImportResult> {
+  const user = new Types.ObjectId(userId);
   if (rows.length < 2) {
     throw new HttpError(400, "The file has a header row but no data rows");
   }
@@ -186,8 +189,8 @@ async function importRows(rows: string[][], defaultCurrency = "INR"): Promise<Im
   }
 
   const [accounts, categories] = await Promise.all([
-    Account.find().select("name").lean(),
-    Category.find().select("name type").lean(),
+    Account.find({ user }).select("name").lean(),
+    Category.find({ user }).select("name type").lean(),
   ]);
   const accountByName = new Map<string, Types.ObjectId>(
     accounts.map((a) => [a.name.trim().toLowerCase(), a._id as Types.ObjectId])
@@ -203,7 +206,7 @@ async function importRows(rows: string[][], defaultCurrency = "INR"): Promise<Im
     const key = name.trim().toLowerCase();
     const existing = accountByName.get(key);
     if (existing) return existing;
-    const acc = await Account.create({ name: name.trim(), type: "cash" });
+    const acc = await Account.create({ user, name: name.trim(), type: "cash" });
     accountByName.set(key, acc._id as Types.ObjectId);
     createdAccounts.push(name.trim());
     return acc._id as Types.ObjectId;
@@ -214,7 +217,7 @@ async function importRows(rows: string[][], defaultCurrency = "INR"): Promise<Im
     const existing = categoryByKey.get(key);
     if (existing) return existing;
     const color = CATEGORY_COLORS[createdCategories.length % CATEGORY_COLORS.length];
-    const cat = await Category.create({ name: name.trim(), type, color });
+    const cat = await Category.create({ user, name: name.trim(), type, color });
     categoryByKey.set(key, cat._id as Types.ObjectId);
     createdCategories.push(name.trim());
     return cat._id as Types.ObjectId;
@@ -261,6 +264,7 @@ async function importRows(rows: string[][], defaultCurrency = "INR"): Promise<Im
       const tags = tagsRaw ? tagsRaw.split(/[\s,]+/).filter(Boolean) : [];
 
       docs.push({
+        user,
         type,
         amount,
         account,

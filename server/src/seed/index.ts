@@ -3,69 +3,49 @@ import { connectDB } from "../config/db";
 import { Category } from "../models/Category";
 import { Account } from "../models/Account";
 import { Transaction } from "../models/Transaction";
-import { getSettings } from "../models/Settings";
-import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from "./defaults";
+import { User } from "../models/User";
+import { provisionUser } from "../services/authService";
+import { hashPassword } from "../auth/password";
 
 const demo = process.argv.includes("--demo");
+
+// A ready-to-use local login so you can sign in immediately after seeding.
+const DEMO_EMAIL = "demo@moneytracker.local";
+const DEMO_PASSWORD = "demo1234";
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-async function seedCategories() {
-  const count = await Category.countDocuments();
-  if (count > 0) {
-    console.log(`• Categories already exist (${count}), skipping.`);
-    return;
+/** Ensure the demo user exists and is provisioned (settings + default categories + Cash account). */
+async function seedDemoUser() {
+  let user = await User.findOne({ email: DEMO_EMAIL });
+  if (user) {
+    console.log(`• Demo user already exists (${DEMO_EMAIL}).`);
+    return user;
   }
-  const expense = DEFAULT_EXPENSE_CATEGORIES.map((c, i) => ({
-    ...c,
-    type: "expense" as const,
-    order: i,
-    isDefault: true,
-  }));
-  const income = DEFAULT_INCOME_CATEGORIES.map((c, i) => ({
-    ...c,
-    type: "income" as const,
-    order: i,
-    isDefault: true,
-  }));
-  await Category.insertMany([...expense, ...income]);
-  console.log(`✓ Seeded ${expense.length + income.length} categories.`);
-}
-
-async function seedSettings() {
-  await getSettings();
-  console.log("✓ Settings singleton ready.");
-}
-
-async function seedStarterAccount() {
-  const count = await Account.countDocuments();
-  if (count > 0) {
-    console.log(`• Accounts already exist (${count}), skipping starter account.`);
-    return null;
-  }
-  const cash = await Account.create({
-    name: "Cash",
-    type: "cash",
-    initialBalance: 0,
-    currency: "INR",
-    color: "#22C55E",
-    icon: "wallet",
+  user = await User.create({
+    email: DEMO_EMAIL,
+    name: "Demo",
+    passwordHash: await hashPassword(DEMO_PASSWORD),
+    emailVerified: true,
   });
-  console.log("✓ Created starter 'Cash' account.");
-  return cash;
+  await provisionUser(user._id);
+  console.log(`✓ Created demo user and workspace.`);
+  console.log(`  Login → ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+  return user;
 }
 
-async function seedDemoData() {
+async function seedDemoData(userId: mongoose.Types.ObjectId) {
   if (!demo) return;
-  const txnCount = await Transaction.countDocuments();
+  const txnCount = await Transaction.countDocuments({ user: userId });
   if (txnCount > 0) {
-    console.log(`• Transactions already exist (${txnCount}), skipping demo data.`);
+    console.log(`• Demo user already has transactions (${txnCount}), skipping demo data.`);
     return;
   }
 
   const bank = await Account.create({
+    user: userId,
     name: "Bank Account",
     type: "bank",
     initialBalance: 50000,
@@ -73,22 +53,22 @@ async function seedDemoData() {
     color: "#3B82F6",
     icon: "landmark",
   });
-  const cash = (await Account.findOne({ name: "Cash" })) ?? bank;
+  const cash = (await Account.findOne({ user: userId, name: "Cash" })) ?? bank;
 
-  const expenseCats = await Category.find({ type: "expense" });
-  const incomeCats = await Category.find({ type: "income" });
+  const expenseCats = await Category.find({ user: userId, type: "expense" });
+  const incomeCats = await Category.find({ user: userId, type: "income" });
 
   const now = new Date();
   const txns: Record<string, unknown>[] = [];
 
-  // a few salary credits + many expenses across the last 60 days
   for (let monthBack = 0; monthBack < 2; monthBack++) {
     const d = new Date(now.getFullYear(), now.getMonth() - monthBack, 1);
     txns.push({
+      user: userId,
       type: "income",
       amount: 65000,
       account: bank._id,
-      category: incomeCats.find((c) => c.name === "Salary")?._id ?? incomeCats[0]._id,
+      category: incomeCats.find((c) => c.name === "Salary")?._id ?? incomeCats[0]?._id,
       date: d,
       note: "Monthly salary",
       currency: "INR",
@@ -100,6 +80,7 @@ async function seedDemoData() {
     const day = new Date(now);
     day.setDate(now.getDate() - randomInt(0, 55));
     txns.push({
+      user: userId,
       type: "expense",
       amount: randomInt(80, 4500),
       account: Math.random() > 0.5 ? cash._id : bank._id,
@@ -116,10 +97,8 @@ async function seedDemoData() {
 
 async function main() {
   await connectDB();
-  await seedSettings();
-  await seedCategories();
-  await seedStarterAccount();
-  await seedDemoData();
+  const user = await seedDemoUser();
+  await seedDemoData(user._id as mongoose.Types.ObjectId);
   await mongoose.disconnect();
   console.log("✓ Seed complete.");
   process.exit(0);

@@ -60,7 +60,8 @@ npm run dev
 - API: http://localhost:4000/api
 - DB inspector (optional): http://localhost:8081
 
-> If port 5173 is busy, Vite picks the next free port — check the terminal output.
+> OAuth callbacks are port-specific, so keep the client on `http://localhost:5173`
+> when testing social sign-in.
 
 ---
 

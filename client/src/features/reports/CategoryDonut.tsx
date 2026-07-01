@@ -42,18 +42,18 @@ export function CategoryDonut({ data, total, onSelect }: CategoryDonutProps) {
         </div>
       </div>
 
-      <ul className="grid w-full flex-1 gap-1.5">
+      <ul className="flex min-w-0 flex-1 flex-col gap-1.5">
         {data.map((d) => (
           <li key={d.categoryId ?? d.name}>
             <button
               type="button"
               onClick={() => onSelect?.(d.categoryId)}
-              className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent"
+              className="flex w-full min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent"
             >
               <CategoryIcon icon={d.icon} color={d.color} size="sm" />
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{d.name}</span>
-              <span className="tnum text-xs text-muted-foreground">{d.percent}%</span>
-              <span className="tnum w-24 text-right text-sm font-semibold">
+              <span className="tnum shrink-0 text-xs text-muted-foreground">{d.percent}%</span>
+              <span className="tnum w-24 shrink-0 whitespace-nowrap text-right text-sm font-semibold">
                 {formatMoney(d.total)}
               </span>
             </button>

@@ -8,9 +8,10 @@ interface RangeArgs {
 }
 
 /** Income / expense / net for a date range, plus current net worth. */
-export async function getSummary({ start, end }: RangeArgs) {
+export async function getSummary(userId: string, { start, end }: RangeArgs) {
+  const user = new Types.ObjectId(userId);
   const agg = await Transaction.aggregate<{ _id: string; total: number; count: number }>([
-    { $match: { date: { $gte: start, $lt: end }, type: { $in: ["income", "expense"] } } },
+    { $match: { user, date: { $gte: start, $lt: end }, type: { $in: ["income", "expense"] } } },
     { $group: { _id: "$type", total: { $sum: "$amount" }, count: { $sum: 1 } } },
   ]);
 
@@ -28,7 +29,7 @@ export async function getSummary({ start, end }: RangeArgs) {
     }
   }
 
-  const { netWorth, byCurrency } = await computeNetWorth();
+  const { netWorth, byCurrency } = await computeNetWorth(userId);
 
   return {
     income,
@@ -43,13 +44,13 @@ export async function getSummary({ start, end }: RangeArgs) {
 }
 
 /** Spending (or income) grouped by category, for a donut chart. */
-export async function getByCategory({
-  start,
-  end,
-  type = "expense",
-}: RangeArgs & { type?: "income" | "expense" }) {
+export async function getByCategory(
+  userId: string,
+  { start, end, type = "expense" }: RangeArgs & { type?: "income" | "expense" }
+) {
+  const user = new Types.ObjectId(userId);
   const rows = await Transaction.aggregate([
-    { $match: { date: { $gte: start, $lt: end }, type } },
+    { $match: { user, date: { $gte: start, $lt: end }, type } },
     { $group: { _id: "$category", total: { $sum: "$amount" }, count: { $sum: 1 } } },
     { $sort: { total: -1 } },
     {
@@ -82,11 +83,11 @@ export async function getByCategory({
 }
 
 /** Income vs expense bucketed over time (day/week/month) for a trend chart. */
-export async function getTrend({
-  start,
-  end,
-  granularity = "day",
-}: RangeArgs & { granularity?: "day" | "week" | "month" }) {
+export async function getTrend(
+  userId: string,
+  { start, end, granularity = "day" }: RangeArgs & { granularity?: "day" | "week" | "month" }
+) {
+  const user = new Types.ObjectId(userId);
   const format =
     granularity === "month" ? "%Y-%m" : granularity === "week" ? "%G-W%V" : "%Y-%m-%d";
 
@@ -94,7 +95,7 @@ export async function getTrend({
     _id: { bucket: string; type: string };
     total: number;
   }>([
-    { $match: { date: { $gte: start, $lt: end }, type: { $in: ["income", "expense"] } } },
+    { $match: { user, date: { $gte: start, $lt: end }, type: { $in: ["income", "expense"] } } },
     {
       $group: {
         _id: {
@@ -121,9 +122,10 @@ export async function getTrend({
 }
 
 /** Per-account income/expense totals for a date range. */
-export async function getByAccount({ start, end }: RangeArgs) {
+export async function getByAccount(userId: string, { start, end }: RangeArgs) {
+  const user = new Types.ObjectId(userId);
   const rows = await Transaction.aggregate([
-    { $match: { date: { $gte: start, $lt: end } } },
+    { $match: { user, date: { $gte: start, $lt: end } } },
     { $group: { _id: { account: "$account", type: "$type" }, total: { $sum: "$amount" } } },
     {
       $lookup: {
@@ -150,11 +152,13 @@ export async function getByAccount({ start, end }: RangeArgs) {
 
 /** Spent amount for a category within a range (used by budget progress). */
 export async function getSpentForCategory(
+  userId: string,
   categoryId: string | null,
   start: Date,
   end: Date
 ): Promise<number> {
   const match: Record<string, unknown> = {
+    user: new Types.ObjectId(userId),
     date: { $gte: start, $lt: end },
     type: "expense",
   };

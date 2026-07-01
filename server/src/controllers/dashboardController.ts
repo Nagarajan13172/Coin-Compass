@@ -6,32 +6,35 @@ import { RecurringTransaction } from "../models/RecurringTransaction";
 import { computeAllBalances } from "../services/balanceService";
 import { getSummary, getByCategory, getTrend, getSpentForCategory } from "../services/reportService";
 import { resolvePeriod, addDays, startOfDay, type Period } from "../utils/dateRange";
+import { userId } from "../middleware/auth";
 
 /** How far ahead (days) a recurring rule counts as "due soon" on the dashboard. */
 const DUE_SOON_DAYS = 7;
 
 /** One aggregated payload powering the dashboard overview screen. */
 export async function getDashboard(req: Request, res: Response) {
+  const uid = userId(req);
   const period = (String(req.query.period ?? "month") as Period) || "month";
   const { start, end } = resolvePeriod(period);
   const dueSoonBefore = addDays(new Date(), DUE_SOON_DAYS);
 
   const [summary, accountsRaw, balances, byCategory, trend, recent, budgets, upcoming] =
     await Promise.all([
-      getSummary({ start, end }),
-      Account.find({ archived: false }).sort({ order: 1, createdAt: 1 }).lean(),
-      computeAllBalances(),
-      getByCategory({ start, end, type: "expense" }),
-      getTrend({ start, end, granularity: period === "year" ? "month" : "day" }),
-      Transaction.find()
+      getSummary(uid, { start, end }),
+      Account.find({ user: uid, archived: false }).sort({ order: 1, createdAt: 1 }).lean(),
+      computeAllBalances(uid),
+      getByCategory(uid, { start, end, type: "expense" }),
+      getTrend(uid, { start, end, granularity: period === "year" ? "month" : "day" }),
+      Transaction.find({ user: uid })
         .sort({ date: -1, createdAt: -1 })
         .limit(8)
         .populate("account", "name color icon")
         .populate("toAccount", "name color icon")
         .populate("category", "name color icon type")
         .lean(),
-      Budget.find().populate("category", "name color icon").lean(),
+      Budget.find({ user: uid }).populate("category", "name color icon").lean(),
       RecurringTransaction.find({
+        user: uid,
         active: true,
         nextRun: { $lte: dueSoonBefore },
         // Exclude rules whose end date has already passed but haven't been
@@ -57,7 +60,7 @@ export async function getDashboard(req: Request, res: Response) {
       const pr = resolvePeriod(
         b.period === "weekly" ? "week" : b.period === "yearly" ? "year" : "month"
       );
-      const spent = await getSpentForCategory(b.category ? String(b.category) : null, pr.start, pr.end);
+      const spent = await getSpentForCategory(uid, b.category ? String(b.category) : null, pr.start, pr.end);
       return {
         ...b,
         spent,

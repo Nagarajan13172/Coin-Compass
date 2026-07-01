@@ -2,31 +2,36 @@ import type { Request, Response } from "express";
 import { Category } from "../models/Category";
 import { Transaction } from "../models/Transaction";
 import { categorySchema, categoryUpdateSchema } from "../validators/schemas";
+import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
 export async function listCategories(req: Request, res: Response) {
-  const filter: Record<string, unknown> = {};
+  const uid = userId(req);
+  const filter: Record<string, unknown> = { user: uid };
   if (req.query.type) filter.type = req.query.type;
   const categories = await Category.find(filter).sort({ order: 1, name: 1 }).lean();
   res.json(categories);
 }
 
 export async function createCategory(req: Request, res: Response) {
+  const uid = userId(req);
   const data = categorySchema.parse(req.body);
-  const category = await Category.create(data);
+  const category = await Category.create({ ...data, user: uid });
   res.status(201).json(category);
 }
 
 export async function updateCategory(req: Request, res: Response) {
+  const uid = userId(req);
   const data = categoryUpdateSchema.parse(req.body);
-  const category = await Category.findByIdAndUpdate(req.params.id, data, { new: true });
+  const category = await Category.findOneAndUpdate({ _id: req.params.id, user: uid }, data, { new: true });
   if (!category) throw new HttpError(404, "Category not found");
   res.json(category);
 }
 
 export async function deleteCategory(req: Request, res: Response) {
+  const uid = userId(req);
   const id = req.params.id;
-  const inUse = await Transaction.countDocuments({ category: id });
+  const inUse = await Transaction.countDocuments({ user: uid, category: id });
   if (inUse > 0 && req.query.force !== "true") {
     throw new HttpError(
       409,
@@ -34,11 +39,11 @@ export async function deleteCategory(req: Request, res: Response) {
     );
   }
   if (req.query.force === "true") {
-    await Transaction.updateMany({ category: id }, { $set: { category: null } });
+    await Transaction.updateMany({ user: uid, category: id }, { $set: { category: null } });
   }
-  const category = await Category.findByIdAndDelete(id);
+  const category = await Category.findOneAndDelete({ _id: id, user: uid });
   if (!category) throw new HttpError(404, "Category not found");
   // also detach subcategories
-  await Category.updateMany({ parent: id }, { $set: { parent: null } });
+  await Category.updateMany({ user: uid, parent: id }, { $set: { parent: null } });
   res.json({ ok: true });
 }

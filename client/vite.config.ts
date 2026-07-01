@@ -12,12 +12,12 @@ export default defineConfig({
   server: {
     host: true, // expose on the local network (0.0.0.0) — prints a Network URL
     port: 5173,
+    strictPort: true, // OAuth redirect URIs are exact, so silently shifting ports breaks sign-in.
     proxy: {
       "/api": {
-        // Vite runs on the dev machine, so localhost:4000 resolves correctly
-        // even when the client is opened from another device on the LAN.
+        // Keep /api on the same browser origin as the app so auth cookies and
+        // OAuth callbacks round-trip through the Vite proxy consistently.
         target: process.env.VITE_API_PROXY ?? "http://localhost:4000",
-        changeOrigin: true,
       },
     },
   },

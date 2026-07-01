@@ -4,6 +4,7 @@ export const ACCOUNT_TYPES = ["cash", "bank", "card", "wallet", "savings"] as co
 
 const accountSchema = new Schema(
   {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: true, trim: true },
     type: { type: String, enum: ACCOUNT_TYPES, default: "cash" },
     initialBalance: { type: Number, default: 0 },

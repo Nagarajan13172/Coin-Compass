@@ -6,6 +6,7 @@ import {
   getByAccount,
 } from "../services/reportService";
 import { resolvePeriod, type Period } from "../utils/dateRange";
+import { userId } from "../middleware/auth";
 
 /** Resolve a date range from query params: either ?period=month or ?from&to. */
 function rangeFromQuery(query: Request["query"]) {
@@ -20,13 +21,13 @@ function rangeFromQuery(query: Request["query"]) {
 }
 
 export async function summaryReport(req: Request, res: Response) {
-  res.json(await getSummary(rangeFromQuery(req.query)));
+  res.json(await getSummary(userId(req), rangeFromQuery(req.query)));
 }
 
 export async function byCategoryReport(req: Request, res: Response) {
   const { start, end } = rangeFromQuery(req.query);
   const type = (req.query.type === "income" ? "income" : "expense") as "income" | "expense";
-  res.json(await getByCategory({ start, end, type }));
+  res.json(await getByCategory(userId(req), { start, end, type }));
 }
 
 export async function trendReport(req: Request, res: Response) {
@@ -34,9 +35,9 @@ export async function trendReport(req: Request, res: Response) {
   const granularity = ["day", "week", "month"].includes(String(req.query.granularity))
     ? (req.query.granularity as "day" | "week" | "month")
     : "day";
-  res.json(await getTrend({ start, end, granularity }));
+  res.json(await getTrend(userId(req), { start, end, granularity }));
 }
 
 export async function byAccountReport(req: Request, res: Response) {
-  res.json(await getByAccount(rangeFromQuery(req.query)));
+  res.json(await getByAccount(userId(req), rangeFromQuery(req.query)));
 }

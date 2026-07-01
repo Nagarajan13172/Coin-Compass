@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
+import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
 function buildFilter(query: Request["query"]): Record<string, unknown> {
@@ -27,7 +28,7 @@ function buildFilter(query: Request["query"]): Record<string, unknown> {
 export async function listTransactions(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page ?? 1));
   const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 50)));
-  const filter = buildFilter(req.query);
+  const filter = { ...buildFilter(req.query), user: userId(req) };
 
   const [items, total] = await Promise.all([
     Transaction.find(filter)
@@ -52,7 +53,7 @@ export async function listTransactions(req: Request, res: Response) {
 }
 
 export async function getTransaction(req: Request, res: Response) {
-  const txn = await Transaction.findById(req.params.id)
+  const txn = await Transaction.findOne({ _id: req.params.id, user: userId(req) })
     .populate("account", "name color icon currency")
     .populate("toAccount", "name color icon currency")
     .populate("category", "name color icon type")
@@ -65,7 +66,7 @@ export async function createTransaction(req: Request, res: Response) {
   const data = transactionSchema.parse(req.body);
   if (data.type !== "transfer") data.toAccount = null;
   if (data.type === "transfer") data.category = null;
-  const txn = await Transaction.create(data);
+  const txn = await Transaction.create({ ...data, user: userId(req) });
   const populated = await txn.populate([
     { path: "account", select: "name color icon currency" },
     { path: "toAccount", select: "name color icon currency" },
@@ -78,7 +79,9 @@ export async function updateTransaction(req: Request, res: Response) {
   const data = transactionUpdateSchema.parse(req.body);
   if (data.type && data.type !== "transfer") data.toAccount = null;
   if (data.type === "transfer") data.category = null;
-  const txn = await Transaction.findByIdAndUpdate(req.params.id, data, { new: true }).populate([
+  const txn = await Transaction.findOneAndUpdate({ _id: req.params.id, user: userId(req) }, data, {
+    new: true,
+  }).populate([
     { path: "account", select: "name color icon currency" },
     { path: "toAccount", select: "name color icon currency" },
     { path: "category", select: "name color icon type" },
@@ -88,7 +91,7 @@ export async function updateTransaction(req: Request, res: Response) {
 }
 
 export async function deleteTransaction(req: Request, res: Response) {
-  const txn = await Transaction.findByIdAndDelete(req.params.id);
+  const txn = await Transaction.findOneAndDelete({ _id: req.params.id, user: userId(req) });
   if (!txn) throw new HttpError(404, "Transaction not found");
   res.json({ ok: true });
 }

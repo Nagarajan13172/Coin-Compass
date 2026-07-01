@@ -3,6 +3,21 @@ import { z } from "zod";
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid id");
 const optionalObjectId = objectId.nullish();
 
+export const signupSchema = z.object({
+  email: z.string().email().max(200),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  name: z.string().max(80).optional(),
+});
+
+export const signinSchema = z.object({
+  email: z.string().email().max(200),
+  password: z.string().min(1).max(200),
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, "Missing verification token").max(400),
+});
+
 export const accountSchema = z.object({
   name: z.string().min(1).max(60),
   type: z.enum(["cash", "bank", "card", "wallet", "savings"]).default("cash"),

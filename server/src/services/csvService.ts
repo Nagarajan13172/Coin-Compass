@@ -6,9 +6,9 @@ function escapeCsv(value: unknown): string {
   return s;
 }
 
-/** Build a CSV string of transactions in a date range. */
-export async function exportTransactionsCsv(start: Date, end: Date): Promise<string> {
-  const txns = await Transaction.find({ date: { $gte: start, $lt: end } })
+/** Build a CSV string of a user's transactions in a date range. */
+export async function exportTransactionsCsv(userId: string, start: Date, end: Date): Promise<string> {
+  const txns = await Transaction.find({ user: userId, date: { $gte: start, $lt: end } })
     .sort({ date: -1 })
     .populate("account", "name")
     .populate("toAccount", "name")
