@@ -1,7 +1,19 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { motion } from "motion/react";
-import { MoreVertical, Pause, Pencil, Play, Plus, Repeat, RefreshCw, Trash2 } from "lucide-react";
+import {
+  History,
+  MoreVertical,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Repeat,
+  RefreshCw,
+  SkipForward,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +24,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
@@ -20,9 +33,12 @@ import {
   useDeleteRecurring,
   useRecurring,
   useRunRecurring,
+  useRunRecurringOne,
+  useSkipRecurring,
   useUpdateRecurring,
 } from "@/hooks/useRecurring";
 import { RecurringFormDialog } from "@/features/recurring/RecurringFormDialog";
+import { RecurringOccurrencesDialog } from "@/features/recurring/RecurringOccurrencesDialog";
 import type { Recurring } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -36,8 +52,11 @@ export default function RecurringPage() {
   const del = useDeleteRecurring();
   const update = useUpdateRecurring();
   const run = useRunRecurring();
+  const runOne = useRunRecurringOne();
+  const skip = useSkipRecurring();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Recurring | null>(null);
+  const [historyFor, setHistoryFor] = useState<Recurring | null>(null);
 
   function openNew() {
     setEditing(null);
@@ -51,6 +70,16 @@ export default function RecurringPage() {
   async function runNow() {
     const res = await run.mutateAsync();
     toast.success(res.created ? `Posted ${res.created} due transaction(s)` : "Nothing due right now");
+  }
+
+  async function runOneNow(r: Recurring) {
+    const res = await runOne.mutateAsync(r._id);
+    toast.success(res.created ? `Posted ${res.created} transaction(s)` : "Nothing due for this rule");
+  }
+
+  async function skipNext(r: Recurring) {
+    await skip.mutateAsync(r._id);
+    toast.success("Skipped the next occurrence");
   }
 
   return (
@@ -78,64 +107,80 @@ export default function RecurringPage() {
         </div>
       ) : items && items.length > 0 ? (
         <div className="space-y-3">
-          {items.map((r, i) => (
-            <motion.div
-              key={r._id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.3) }}
-            >
-              <Card>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <CategoryIcon
-                    icon={r.type === "transfer" ? "repeat" : r.category?.icon}
-                    color={r.type === "transfer" ? "#3B82F6" : r.category?.color}
-                    size="md"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-medium">
-                        {r.type === "transfer" ? "Transfer" : r.category?.name ?? (r.note || "Recurring")}
+          {items.map((r, i) => {
+            const overdue = r.active && new Date(r.nextRun) <= new Date();
+            return (
+              <motion.div
+                key={r._id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.3) }}
+              >
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <CategoryIcon
+                      icon={r.type === "transfer" ? "repeat" : r.category?.icon}
+                      color={r.type === "transfer" ? "#3B82F6" : r.category?.color}
+                      size="md"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-medium">
+                          {r.type === "transfer" ? "Transfer" : r.category?.name ?? (r.note || "Recurring")}
+                        </p>
+                        {!r.active && <Badge variant="secondary">Paused</Badge>}
+                        {overdue && <Badge className="bg-amber-500 text-white hover:bg-amber-500">Due</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {freqLabel(r)} · {r.account?.name} ·{" "}
+                        {r.active ? "Next" : "Paused ·"} {format(new Date(r.nextRun), "dd MMM yyyy")}
+                        {r.endDate ? ` · Ends ${format(new Date(r.endDate), "dd MMM yyyy")}` : ""}
                       </p>
-                      {!r.active && <Badge variant="secondary">Paused</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {freqLabel(r)} · {r.account?.name} · Next {format(new Date(r.nextRun), "dd MMM yyyy")}
-                    </p>
-                  </div>
-                  <Money amount={r.amount} type={r.type} signed className="text-sm" />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" aria-label="Recurring actions">
-                        <MoreVertical />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(r)}>
-                        <Pencil /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => update.mutate({ id: r._id, active: !r.active })}
-                      >
-                        {r.active ? <Pause /> : <Play />} {r.active ? "Pause" : "Resume"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={async () => {
-                          if (confirm("Delete this recurring rule?")) {
-                            await del.mutateAsync(r._id);
-                            toast.success("Deleted");
-                          }
-                        }}
-                      >
-                        <Trash2 /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                    <Money amount={r.amount} type={r.type} signed className="text-sm" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label="Recurring actions">
+                          <MoreVertical />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(r)}>
+                          <Pencil /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => runOneNow(r)} disabled={runOne.isPending}>
+                          <Zap /> Run now
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => skipNext(r)} disabled={skip.isPending}>
+                          <SkipForward /> Skip next
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => update.mutate({ id: r._id, active: !r.active })}
+                        >
+                          {r.active ? <Pause /> : <Play />} {r.active ? "Pause" : "Resume"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setHistoryFor(r)}>
+                          <History /> View posted
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={async () => {
+                            if (confirm("Delete this recurring rule?")) {
+                              await del.mutateAsync(r._id);
+                              toast.success("Deleted");
+                            }
+                          }}
+                        >
+                          <Trash2 /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
       ) : (
         <EmptyState
@@ -151,6 +196,11 @@ export default function RecurringPage() {
       )}
 
       <RecurringFormDialog open={dialogOpen} onOpenChange={setDialogOpen} recurring={editing} />
+      <RecurringOccurrencesDialog
+        open={Boolean(historyFor)}
+        onOpenChange={(o) => !o && setHistoryFor(null)}
+        recurring={historyFor}
+      />
     </div>
   );
 }

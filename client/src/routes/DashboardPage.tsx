@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { ArrowDownLeft, ArrowUpRight, Plus, Receipt, Wallet } from "lucide-react";
+import { format, isToday, isPast } from "date-fns";
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, Plus, Receipt, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,10 +16,12 @@ import { TransactionRow } from "@/features/transactions/TransactionRow";
 import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { TrendArea } from "@/features/reports/TrendArea";
 import { useDashboard } from "@/hooks/useReports";
+import { useRunRecurringOne } from "@/hooks/useRecurring";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
-import type { PeriodKey } from "@/lib/types";
+import type { PeriodKey, Recurring } from "@/lib/types";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const period = useUIStore((s) => s.period);
@@ -184,6 +187,9 @@ export default function DashboardPage() {
             </Card>
           </div>
 
+          {/* upcoming recurring */}
+          {data.upcoming.length > 0 && <UpcomingRecurring items={data.upcoming} />}
+
           {/* budgets */}
           {data.budgets.length > 0 && (
             <Card>
@@ -225,6 +231,60 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function UpcomingRecurring({ items }: { items: Recurring[] }) {
+  const runOne = useRunRecurringOne();
+
+  async function post(r: Recurring) {
+    const res = await runOne.mutateAsync(r._id);
+    toast.success(res.created ? `Posted ${res.created} transaction(s)` : "Nothing due yet");
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-muted-foreground" /> Due soon
+        </CardTitle>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/recurring">Manage</Link>
+        </Button>
+      </CardHeader>
+      <CardContent className="grid gap-2 sm:grid-cols-2">
+        {items.map((r) => {
+          const next = new Date(r.nextRun);
+          const due = isToday(next) || isPast(next);
+          return (
+            <div key={r._id} className="flex items-center gap-3 rounded-lg border p-3">
+              <CategoryIcon
+                icon={r.type === "transfer" ? "repeat" : r.category?.icon}
+                color={r.type === "transfer" ? "#3B82F6" : r.category?.color}
+                size="md"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {r.type === "transfer" ? "Transfer" : r.category?.name ?? (r.note || "Recurring")}
+                </p>
+                <p className={`text-xs ${due ? "font-medium text-amber-600 dark:text-amber-500" : "text-muted-foreground"}`}>
+                  {due ? "Due now" : `Due ${format(next, "dd MMM")}`}
+                </p>
+              </div>
+              <Money amount={r.amount} type={r.type} signed className="text-sm" />
+              <Button
+                size="sm"
+                variant={due ? "default" : "outline"}
+                disabled={runOne.isPending}
+                onClick={() => post(r)}
+              >
+                Post
+              </Button>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }
 

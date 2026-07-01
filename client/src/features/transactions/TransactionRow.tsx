@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Repeat } from "lucide-react";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { Money } from "@/components/common/Money";
 import { useUIStore } from "@/stores/ui";
@@ -38,7 +38,15 @@ export function TransactionRow({ txn }: { txn: Transaction }) {
     >
       <CategoryIcon icon={icon} color={color} size="md" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{title}</p>
+        <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+          <span className="truncate">{title}</span>
+          {txn.recurring && (
+            <Repeat
+              className="h-3 w-3 shrink-0 text-muted-foreground"
+              aria-label="Auto-posted by a recurring rule"
+            />
+          )}
+        </p>
         <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
       </div>
       <Money amount={txn.amount} type={txn.type} signed currency={txn.currency} className="text-sm" />

@@ -1,0 +1,6 @@
+Date,Type,Amount,Currency,Account,To Account,Category,Payee,Note,Tags
+2026-01-01,income,50000,INR,Salary Account,,Salary,Acme Corp,January salary,
+2026-01-03,expense,1200,INR,Cash,,Groceries,More Supermarket,Weekly groceries,food essentials
+2026-01-05,expense,300,INR,Card,,Coffee,Starbucks,,treats
+2026-01-07,transfer,10000,INR,Salary Account,Savings,,,Monthly savings,
+2026-01-10,expense,2500,INR,Card,,Electricity,State Board,January bill,bills utilities

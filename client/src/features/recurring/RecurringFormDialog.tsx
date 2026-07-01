@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { addDays, addMonths, addYears, format, startOfDay } from "date-fns";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -30,6 +30,53 @@ interface Props {
   recurring?: Recurring | null;
 }
 
+function step(d: Date, frequency: Frequency, n: number): Date {
+  if (frequency === "daily") return addDays(d, n);
+  if (frequency === "weekly") return addDays(d, 7 * n);
+  if (frequency === "monthly") return addMonths(d, n);
+  return addYears(d, n);
+}
+
+/** Parse a `yyyy-MM-dd` input value as a LOCAL calendar date (not UTC midnight). */
+function parseLocalDate(s: string): Date | null {
+  const [y, m, d] = s.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+/**
+ * Client-side mirror of the server schedule, for a live preview of upcoming runs.
+ * Looks forward from today so editing an old rule shows future dates, not past ones.
+ * All dates are handled in local time so the chips match the date the user sees.
+ */
+function upcomingRuns(
+  startISO: string,
+  frequency: Frequency,
+  interval: number,
+  endISO: string,
+  count = 5
+): Date[] {
+  const out: Date[] = [];
+  const start = parseLocalDate(startISO);
+  if (!start) return out;
+  const end = endISO ? parseLocalDate(endISO) : null;
+  const n = Math.max(1, interval);
+  const today = startOfDay(new Date());
+
+  let d = start;
+  let guard = 0;
+  while (d < today && guard < 10000) {
+    d = step(d, frequency, n);
+    guard += 1;
+  }
+  for (let i = 0; i < count; i += 1) {
+    if (end && d > end) break;
+    out.push(new Date(d));
+    d = step(d, frequency, n);
+  }
+  return out;
+}
+
 export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const { data: accounts } = useAccounts();
   const create = useCreateRecurring();
@@ -44,7 +91,13 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const [frequency, setFrequency] = useState<Frequency>("monthly");
   const [interval, setInterval] = useState("1");
   const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState("");
+  const [payee, setPayee] = useState("");
   const [note, setNote] = useState("");
+  // The date strings as first loaded, so an edit only re-sends them when the user
+  // actually changed them — this keeps a metadata-only edit from re-anchoring the schedule.
+  const [initialStart, setInitialStart] = useState("");
+  const [initialEnd, setInitialEnd] = useState("");
 
   const { data: categories } = useCategories(type === "transfer" ? undefined : type);
 
@@ -57,9 +110,20 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
     setCategory(recurring?.category?._id ?? "");
     setFrequency(recurring?.frequency ?? "monthly");
     setInterval(String(recurring?.interval ?? 1));
-    setStartDate(format(new Date(recurring?.startDate ?? new Date()), "yyyy-MM-dd"));
+    const start = format(new Date(recurring?.startDate ?? new Date()), "yyyy-MM-dd");
+    const end = recurring?.endDate ? format(new Date(recurring.endDate), "yyyy-MM-dd") : "";
+    setStartDate(start);
+    setEndDate(end);
+    setInitialStart(start);
+    setInitialEnd(end);
+    setPayee(recurring?.payee ?? "");
     setNote(recurring?.note ?? "");
   }, [open, recurring, accounts]);
+
+  const preview = useMemo(
+    () => upcomingRuns(startDate, frequency, Number(interval) || 1, endDate),
+    [startDate, frequency, interval, endDate]
+  );
 
   async function submit() {
     const amt = Number(amount);
@@ -68,8 +132,10 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
     if (type === "transfer" && account === toAccount)
       return toast.error("Accounts must differ");
     if (type !== "transfer" && !category) return toast.error("Pick a category");
+    if (endDate && new Date(endDate) < new Date(startDate))
+      return toast.error("End date must be after the start date");
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       type,
       amount: amt,
       account,
@@ -77,16 +143,24 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
       category: type === "transfer" ? null : category,
       frequency,
       interval: Number(interval) || 1,
-      startDate: new Date(startDate).toISOString(),
-      nextRun: new Date(startDate).toISOString(),
+      payee,
       note,
     };
+    // Only send the calendar dates when they actually changed. On edit this keeps a
+    // metadata-only save from being misread as a start-date change (which would
+    // re-anchor the schedule); on create both are always sent.
+    if (!isEdit || startDate !== initialStart)
+      payload.startDate = new Date(startDate).toISOString();
+    if (!isEdit || endDate !== initialEnd)
+      payload.endDate = endDate ? new Date(endDate).toISOString() : null;
+
     try {
       if (isEdit && recurring) {
+        // nextRun is deliberately never sent on edit — the server owns the schedule position.
         await update.mutateAsync({ id: recurring._id, ...payload });
         toast.success("Recurring updated");
       } else {
-        await create.mutateAsync(payload);
+        await create.mutateAsync({ ...payload, nextRun: new Date(startDate).toISOString() });
         toast.success("Recurring created");
       }
       onOpenChange(false);
@@ -182,10 +256,37 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="rec-end">Ends (optional)</Label>
+              <Input id="rec-end" type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rec-payee">Payee</Label>
+              <Input id="rec-payee" value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="Optional" />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="rec-note">Note</Label>
             <Input id="rec-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
           </div>
+
+          {preview.length > 0 && (
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Next occurrences</p>
+              <div className="flex flex-wrap gap-1.5">
+                {preview.map((d, i) => (
+                  <span
+                    key={i}
+                    className="rounded-md bg-background px-2 py-1 text-xs tabular-nums shadow-sm"
+                  >
+                    {format(d, "dd MMM yyyy")}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

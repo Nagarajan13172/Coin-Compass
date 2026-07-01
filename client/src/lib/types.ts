@@ -52,6 +52,8 @@ export interface Transaction {
   payee: string;
   tags: string[];
   currency: string;
+  /** Set when the transaction was auto-posted by a recurring rule. */
+  recurring?: string | null;
   createdAt?: string;
 }
 
@@ -96,6 +98,16 @@ export interface Recurring {
   endDate?: string | null;
   lastRun?: string | null;
   active: boolean;
+  /** Next few scheduled run dates (ISO), computed server-side. */
+  upcoming?: string[];
+}
+
+export interface ImportResult {
+  total: number;
+  imported: number;
+  failed: { row: number; error: string }[];
+  createdCategories: string[];
+  createdAccounts: string[];
 }
 
 export interface CurrencyConfig {
@@ -154,4 +166,5 @@ export interface Dashboard {
   trend: TrendDatum[];
   recent: Transaction[];
   budgets: (Budget & { spent: number; percent: number; over: boolean })[];
+  upcoming: Recurring[];
 }

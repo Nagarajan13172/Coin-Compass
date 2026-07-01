@@ -14,6 +14,8 @@ const transactionSchema = new Schema(
     payee: { type: String, default: "", trim: true },
     tags: { type: [String], default: [] },
     currency: { type: String, default: "INR" },
+    // Set when this transaction was auto-posted by a recurring rule (null for manual entries).
+    recurring: { type: Schema.Types.ObjectId, ref: "RecurringTransaction", default: null },
   },
   { timestamps: true }
 );
@@ -22,6 +24,7 @@ transactionSchema.index({ date: -1 });
 transactionSchema.index({ account: 1 });
 transactionSchema.index({ category: 1 });
 transactionSchema.index({ type: 1 });
+transactionSchema.index({ recurring: 1 });
 
 export type TransactionDoc = InferSchemaType<typeof transactionSchema>;
 export const Transaction = model("Transaction", transactionSchema);
