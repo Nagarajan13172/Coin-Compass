@@ -197,8 +197,9 @@ export async function sendReportTo(user: UserDoc & { _id: Types.ObjectId | unkno
  * per day (User.lastReportKey), so a cron + boot double-run can't send twice.
  */
 export async function sendDueReports(now = new Date()): Promise<{ kind: ReportKind | null; sent: number }> {
+  // Email the full previous-month report on BOTH the 1st and the 15th.
   const day = now.getDate();
-  const kind: ReportKind | null = day === 1 ? "monthly" : day === 15 ? "midmonth" : null;
+  const kind: ReportKind | null = day === 1 || day === 15 ? "monthly" : null;
   if (!kind) return { kind: null, sent: 0 };
 
   const key = ymd(now);

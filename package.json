@@ -8,11 +8,8 @@
     "docker:down": "docker compose down",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install",
     "seed": "npm --prefix server run seed",
-    "dev": "concurrently -n server,client -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev": "node scripts/dev.mjs",
     "build": "npm --prefix server run build && npm --prefix client run build",
     "start": "npm --prefix server run start"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.0"
   }
 }

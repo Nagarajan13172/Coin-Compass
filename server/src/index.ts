@@ -1,13 +1,13 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import cron from "node-cron";
 import { env } from "./config/env";
 import { connectDB } from "./config/db";
 import apiRouter from "./routes/index";
 import { notFound, errorHandler } from "./middleware/errorHandler";
+import { requestLogger } from "./middleware/requestLogger";
 import { processDueRecurring } from "./services/recurringService";
 import { refreshMetalPrices } from "./services/metalPriceService";
 import { sendDueReports } from "./services/reportEmailService";
@@ -20,7 +20,7 @@ async function bootstrap() {
   app.use(cors({ origin: env.clientUrl, credentials: true }));
   app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
-  if (!env.isProd) app.use(morgan("dev"));
+  app.use(requestLogger);
 
   app.use("/api", apiRouter);
   app.use(notFound);
