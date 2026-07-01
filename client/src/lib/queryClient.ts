@@ -17,4 +17,5 @@ export function invalidateMoney() {
   queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   queryClient.invalidateQueries({ queryKey: ["reports"] });
   queryClient.invalidateQueries({ queryKey: ["budgets"] });
+  queryClient.invalidateQueries({ queryKey: ["networth"] });
 }

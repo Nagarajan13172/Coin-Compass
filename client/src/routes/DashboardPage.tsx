@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { format, differenceInCalendarDays } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, CalendarClock, Plus, Receipt, Trophy, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, Info, Landmark, Plus, Receipt, Trophy, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,14 +21,13 @@ import { TrendArea } from "@/features/reports/TrendArea";
 import { GoldRateCard } from "@/features/metals/GoldRateCard";
 import { useDashboard } from "@/hooks/useReports";
 import { useGoals } from "@/hooks/useGoals";
-import { useRunRecurringOne } from "@/hooks/useRecurring";
+import { PostRecurringDialog } from "@/features/recurring/PostRecurringDialog";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
 import { formatPeriodRange } from "@/lib/dates";
 import { accountTypeLabel } from "@/lib/accounts";
 import type { PeriodKey, Recurring } from "@/lib/types";
-import { toast } from "sonner";
 
 const PERIOD_NOUN: Record<PeriodKey, string> = {
   week: "This week",
@@ -75,19 +76,49 @@ export default function DashboardPage() {
           {/* hero + summary */}
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="surface-gradient lg:col-span-1">
-              <CardHeader className="pb-2">
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   Net worth
                 </CardTitle>
+                <Button asChild variant="ghost" size="sm" className="-mr-2 h-7 text-xs">
+                  <Link to="/net-worth">Breakdown</Link>
+                </Button>
               </CardHeader>
               <CardContent>
                 <CountUp
                   value={data.summary.netWorth}
                   className="tnum block text-3xl font-extrabold tracking-tight"
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Sum of {data.accounts.length} {data.accounts.length === 1 ? "account" : "accounts"}
-                </p>
+                {(() => {
+                  const included = data.accounts.filter((a) => a.includeInTotal);
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="mt-1 flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          Sum of {included.length} {included.length === 1 ? "account" : "accounts"}
+                          <Info className="h-3 w-3 shrink-0" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent align="start" className="max-w-[240px]">
+                        <p className="mb-1 font-medium">Included in net worth</p>
+                        <ul className="space-y-1">
+                          {included.map((a) => (
+                            <li key={a._id} className="flex items-center justify-between gap-4">
+                              <span className="truncate">{a.name}</span>
+                              <span className="tnum">
+                                {formatMoney(a.balance ?? 0, { currency: a.currency })}
+                              </span>
+                            </li>
+                          ))}
+                          {included.length === 0 && <li className="text-muted-foreground">No accounts included</li>}
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -117,7 +148,19 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {data.trend.length ? (
-                  <TrendArea data={data.trend} />
+                  <>
+                    <TrendArea data={data.trend} />
+                    <p className="mt-2 text-center text-xs text-muted-foreground">
+                      Net this period:{" "}
+                      <span
+                        className={`tnum font-semibold ${data.summary.net >= 0 ? "text-income" : "text-expense"}`}
+                      >
+                        {data.summary.net >= 0 ? "+" : "−"}
+                        {formatMoney(Math.abs(data.summary.net))}
+                      </span>{" "}
+                      (income − expense)
+                    </p>
+                  </>
                 ) : (
                   <EmptyChart />
                 )}
@@ -139,7 +182,7 @@ export default function DashboardPage() {
                   return (
                     <Link
                       key={a._id}
-                      to="/accounts"
+                      to={`/accounts/${a._id}`}
                       className="flex items-center gap-3 rounded-lg py-1.5 transition-colors hover:bg-accent"
                     >
                       <span
@@ -170,8 +213,11 @@ export default function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             {/* spending donut */}
             <Card className="lg:col-span-2">
-              <CardHeader>
+              <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>Spending by category</CardTitle>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/reports">View in Reports</Link>
+                </Button>
               </CardHeader>
               <CardContent>
                 {data.byCategory.length ? (
@@ -235,7 +281,11 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.budgets.map((b) => (
-                  <div key={b._id} className="space-y-2 rounded-lg border p-3">
+                  <Link
+                    key={b._id}
+                    to="/budgets"
+                    className="block space-y-2 rounded-lg border p-3 transition-colors hover:bg-accent"
+                  >
                     <div className="flex items-center gap-2">
                       <CategoryIcon
                         icon={b.category?.icon}
@@ -259,11 +309,17 @@ export default function DashboardPage() {
                         b.over ? "bg-expense" : b.percent > 80 ? "bg-amber-500" : "bg-income"
                       }
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground tnum">
-                      <span>{formatMoney(b.spent)}</span>
-                      <span>{formatMoney(b.amount)}</span>
+                    <div className="flex items-center justify-between text-xs tnum">
+                      <span className="text-muted-foreground">
+                        {formatMoney(b.spent)} of {formatMoney(b.amount)}
+                      </span>
+                      <span className={`font-medium ${b.over ? "text-expense" : "text-income"}`}>
+                        {b.over
+                          ? `${formatMoney(b.spent - b.amount)} over`
+                          : `${formatMoney(b.amount - b.spent)} left`}
+                      </span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </CardContent>
             </Card>
@@ -311,12 +367,7 @@ export default function DashboardPage() {
 }
 
 function UpcomingRecurring({ items }: { items: Recurring[] }) {
-  const runOne = useRunRecurringOne();
-
-  async function post(r: Recurring) {
-    const res = await runOne.mutateAsync(r._id);
-    toast.success(res.created ? `Posted ${res.created} transaction(s)` : "Nothing due yet");
-  }
+  const [posting, setPosting] = useState<Recurring | null>(null);
 
   return (
     <Card>
@@ -360,24 +411,25 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
                   <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
                     {freqLabel(r)}
                   </Badge>
+                  {r.loan && (
+                    <Badge variant="secondary" className="shrink-0 gap-0.5 text-[10px] font-normal">
+                      <Landmark className="h-2.5 w-2.5" /> {r.loan.name}
+                    </Badge>
+                  )}
                 </p>
                 <p className={`truncate text-xs font-medium ${countdownTone}`}>
                   {countdown} · {format(next, "dd MMM")}
                 </p>
               </div>
               <Money amount={r.amount} type={r.type} signed className="text-sm" />
-              <Button
-                size="sm"
-                variant={due ? "default" : "outline"}
-                disabled={runOne.isPending}
-                onClick={() => post(r)}
-              >
+              <Button size="sm" variant={due ? "default" : "outline"} onClick={() => setPosting(r)}>
                 Post
               </Button>
             </div>
           );
         })}
       </CardContent>
+      <PostRecurringDialog rule={posting} onClose={() => setPosting(null)} />
     </Card>
   );
 }

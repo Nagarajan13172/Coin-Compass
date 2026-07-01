@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Receipt, Search, X } from "lucide-react";
+import { addDays, addMonths, addYears, startOfDay, startOfMonth, startOfYear, subDays } from "date-fns";
+import { ChevronDown, Plus, Receipt, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -13,24 +14,59 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TransactionList } from "@/features/transactions/TransactionList";
 import { useTransactions, type TxnFilters } from "@/hooks/useTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useUIStore } from "@/stores/ui";
+import type { TxnType } from "@/lib/types";
 
 const ALL = "__all__";
+
+type PeriodKey = "all" | "month" | "30d" | "year";
+const PERIODS: { value: PeriodKey; label: string }[] = [
+  { value: "all", label: "All time" },
+  { value: "month", label: "This month" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "year", label: "This year" },
+];
+const PERIOD_KEYS = PERIODS.map((p) => p.value);
+
+function initialPeriod(raw: string | null): PeriodKey {
+  return raw && (PERIOD_KEYS as string[]).includes(raw) ? (raw as PeriodKey) : "all";
+}
+const TYPE_LABELS: Record<string, string> = { expense: "Expense", income: "Income", transfer: "Transfer" };
+
+/** Resolve a period key to an inclusive-from / exclusive-to date range (server uses $gte / $lt). */
+function periodRange(p: PeriodKey): { from?: string; to?: string } {
+  if (p === "all") return {};
+  const now = new Date();
+  if (p === "month") return { from: startOfMonth(now).toISOString(), to: startOfMonth(addMonths(now, 1)).toISOString() };
+  if (p === "year") return { from: startOfYear(now).toISOString(), to: startOfYear(addYears(now, 1)).toISOString() };
+  // last 30 days, including today
+  return { from: startOfDay(subDays(now, 29)).toISOString(), to: startOfDay(addDays(now, 1)).toISOString() };
+}
 
 export default function TransactionsPage() {
   const [params, setParams] = useSearchParams();
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
 
   // Initial filters can be deep-linked (e.g. dashboard "Spending by category" → a
-  // category's transactions, or the search box → ?search=).
+  // category's transactions, or the global search box → ?search=).
   const [search, setSearch] = useState(params.get("search") ?? "");
   const [type, setType] = useState<string>(params.get("type") ?? ALL);
-  const [account, setAccount] = useState<string>(params.get("account") ?? ALL);
+  const [accountIds, setAccountIds] = useState<string[]>(params.get("account") ? [params.get("account")!] : []);
   const [category, setCategory] = useState<string>(params.get("category") ?? ALL);
+  const [period, setPeriod] = useState<PeriodKey>(initialPeriod(params.get("period")));
 
   // debounce the search input
   const [debounced, setDebounced] = useState(search);
@@ -48,14 +84,17 @@ export default function TransactionsPage() {
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
 
+  const range = useMemo(() => periodRange(period), [period]);
   const filters: TxnFilters = useMemo(
     () => ({
       search: debounced || undefined,
       type: type === ALL ? undefined : type,
-      account: account === ALL ? undefined : account,
+      account: accountIds.length ? accountIds.join(",") : undefined,
       category: category === ALL ? undefined : category,
+      from: range.from,
+      to: range.to,
     }),
-    [debounced, type, account, category]
+    [debounced, type, accountIds, category, range]
   );
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -79,36 +118,80 @@ export default function TransactionsPage() {
     return () => obs.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const hasFilters = type !== ALL || account !== ALL || category !== ALL || !!debounced;
+  const accountName = (id: string) => accounts?.find((a) => a._id === id)?.name ?? "Account";
+  const categoryName =
+    category !== ALL ? categories?.find((c) => c._id === category)?.name ?? "Category" : "";
 
+  const hasFilters =
+    type !== ALL || accountIds.length > 0 || category !== ALL || !!debounced || period !== "all";
+
+  function toggleAccount(id: string) {
+    setAccountIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
   function clearFilters() {
     setType(ALL);
-    setAccount(ALL);
+    setAccountIds([]);
     setCategory(ALL);
     setSearch("");
+    setPeriod("all");
     setParams({});
   }
+
+  // Context-aware Add: prefill the sheet from whatever is currently filtered.
+  function addTransaction() {
+    openTxnSheet({
+      type: type !== ALL ? (type as TxnType) : undefined,
+      prefill: {
+        account: accountIds.length === 1 ? accountIds[0] : undefined,
+        category: category !== ALL ? category : undefined,
+      },
+    });
+  }
+
+  // Removable pills for the active fine-grained filters (period lives in its own select + summary).
+  const pills: { key: string; label: string; onRemove: () => void }[] = [];
+  if (type !== ALL) pills.push({ key: "type", label: TYPE_LABELS[type] ?? type, onRemove: () => setType(ALL) });
+  accountIds.forEach((id) =>
+    pills.push({ key: `acc-${id}`, label: accountName(id), onRemove: () => toggleAccount(id) })
+  );
+  if (category !== ALL) pills.push({ key: "cat", label: categoryName, onRemove: () => setCategory(ALL) });
+  if (debounced) pills.push({ key: "search", label: `“${debounced}”`, onRemove: () => setSearch("") });
+
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label ?? "All time";
+  const summary = total
+    ? `${total} transaction${total === 1 ? "" : "s"}${period !== "all" ? ` · ${periodLabel}` : ""}`
+    : hasFilters
+      ? "No transactions match these filters"
+      : "All your transactions";
+
+  const accountTriggerLabel =
+    accountIds.length === 0
+      ? "All accounts"
+      : accountIds.length === 1
+        ? accountName(accountIds[0])
+        : `${accountIds.length} accounts`;
 
   return (
     <div>
       <PageHeader
         title="Transactions"
-        description={total ? `${total} transaction${total === 1 ? "" : "s"}` : "All your transactions"}
+        description={summary}
         actions={
-          <Button onClick={() => openTxnSheet({ type: "expense" })}>
+          <Button onClick={addTransaction}>
             <Plus /> Add
           </Button>
         }
       />
 
       {/* filters */}
-      <div className="mb-5 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[180px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search note, payee, tag…"
+            aria-label="Filter this list by note, payee, or tag"
+            placeholder="Filter this list by note, payee, or tag…"
             className="pl-9"
           />
         </div>
@@ -123,19 +206,37 @@ export default function TransactionsPage() {
             <SelectItem value="transfer">Transfer</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={account} onValueChange={setAccount}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Account" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All accounts</SelectItem>
+
+        {/* multi-select accounts */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-[150px] justify-between font-normal">
+              <span className="truncate">{accountTriggerLabel}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel>Filter by account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
             {accounts?.map((a) => (
-              <SelectItem key={a._id} value={a._id}>
+              <DropdownMenuCheckboxItem
+                key={a._id}
+                checked={accountIds.includes(a._id)}
+                onCheckedChange={() => toggleAccount(a._id)}
+                onSelect={(e) => e.preventDefault()}
+              >
                 {a.name}
-              </SelectItem>
+              </DropdownMenuCheckboxItem>
             ))}
-          </SelectContent>
-        </Select>
+            {accountIds.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setAccountIds([])}>Clear accounts</DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Select value={category} onValueChange={setCategory}>
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Category" />
@@ -149,12 +250,42 @@ export default function TransactionsPage() {
             ))}
           </SelectContent>
         </Select>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X /> Clear
-          </Button>
-        )}
+
+        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PERIODS.map((p) => (
+              <SelectItem key={p.value} value={p.value}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* active filter pills */}
+      {pills.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-1.5">
+          <span className="mr-0.5 text-xs text-muted-foreground">Filters:</span>
+          {pills.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={p.onRemove}
+              aria-label={`Remove filter ${p.label}`}
+              className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/70"
+            >
+              {p.label}
+              <X className="h-3 w-3" />
+            </button>
+          ))}
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
+            Reset all
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -185,7 +316,7 @@ export default function TransactionsPage() {
                 Clear filters
               </Button>
             ) : (
-              <Button onClick={() => openTxnSheet({ type: "expense" })}>
+              <Button onClick={addTransaction}>
                 <Plus /> Add transaction
               </Button>
             )

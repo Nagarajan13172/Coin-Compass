@@ -13,47 +13,73 @@ interface TransactionListProps {
 /** Transactions grouped by day with a per-day net total header. */
 export function TransactionList({ transactions }: TransactionListProps) {
   const groups = useMemo(() => {
-    const map = new Map<string, { label: string; items: Transaction[]; net: number }>();
+    type Group = {
+      label: string;
+      items: Transaction[];
+      income: number;
+      expense: number;
+      transfers: number;
+    };
+    const map = new Map<string, Group>();
     for (const t of transactions) {
       const key = dayKey(t.date);
-      if (!map.has(key)) map.set(key, { label: dateGroupLabel(t.date), items: [], net: 0 });
+      if (!map.has(key))
+        map.set(key, { label: dateGroupLabel(t.date), items: [], income: 0, expense: 0, transfers: 0 });
       const g = map.get(key)!;
       g.items.push(t);
-      g.net += t.type === "income" ? t.amount : t.type === "expense" ? -t.amount : 0;
+      if (t.type === "income") g.income += t.amount;
+      else if (t.type === "expense") g.expense += t.amount;
+      else g.transfers += 1;
     }
     return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [transactions]);
 
   return (
-    <div className="space-y-5">
-      {groups.map(([key, group], gi) => (
-        <motion.div
-          key={key}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, delay: Math.min(gi * 0.03, 0.2) }}
-        >
-          <div className="flex items-center justify-between px-2 pb-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {group.label}
-            </span>
-            <span
-              className={`tnum text-xs font-medium ${
-                group.net >= 0 ? "text-income" : "text-expense"
-              }`}
-            >
-              {group.net >= 0 ? "+" : "−"}
-              {formatMoney(Math.abs(group.net))}
-            </span>
-          </div>
-          <Separator className="mb-1" />
-          <div className="space-y-0.5">
-            {group.items.map((t) => (
-              <TransactionRow key={t._id} txn={t} />
-            ))}
-          </div>
-        </motion.div>
-      ))}
+    <div className="space-y-7">
+      {groups.map(([key, group], gi) => {
+        const net = group.income - group.expense;
+        const hasFlow = group.income > 0 || group.expense > 0;
+        const mixed = group.income > 0 && group.expense > 0;
+        return (
+          <motion.div
+            key={key}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: Math.min(gi * 0.03, 0.2) }}
+          >
+            <div className="flex items-end justify-between gap-3 px-1 pb-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                {(mixed || group.transfers > 0) && (
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tnum text-muted-foreground">
+                    {group.income > 0 && <span className="text-income">+{formatMoney(group.income)} in</span>}
+                    {group.expense > 0 && <span className="text-expense">−{formatMoney(group.expense)} out</span>}
+                    {group.transfers > 0 && (
+                      <span>
+                        {group.transfers} transfer{group.transfers === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+              {hasFlow && (
+                <span
+                  className={`tnum shrink-0 text-sm font-semibold ${net >= 0 ? "text-income" : "text-expense"}`}
+                >
+                  Net {net >= 0 ? "+" : "−"}
+                  {formatMoney(Math.abs(net))}
+                </span>
+              )}
+            </div>
+            <Separator className="mb-1.5" />
+            <div className="space-y-0.5">
+              {group.items.map((t) => (
+                <TransactionRow key={t._id} txn={t} />
+              ))}
+            </div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

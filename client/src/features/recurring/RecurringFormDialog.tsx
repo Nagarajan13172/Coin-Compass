@@ -19,10 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
+import { useLoans } from "@/hooks/useLoans";
 import { useCreateRecurring, useUpdateRecurring } from "@/hooks/useRecurring";
 import type { Frequency, Recurring, TxnType } from "@/lib/types";
+
+const NO_LOAN = "__none__";
 
 interface Props {
   open: boolean;
@@ -79,6 +83,7 @@ function upcomingRuns(
 
 export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const { data: accounts } = useAccounts();
+  const { data: loans } = useLoans();
   const create = useCreateRecurring();
   const update = useUpdateRecurring();
   const isEdit = Boolean(recurring);
@@ -94,6 +99,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const [endDate, setEndDate] = useState("");
   const [payee, setPayee] = useState("");
   const [note, setNote] = useState("");
+  const [loanId, setLoanId] = useState("");
   // The date strings as first loaded, so an edit only re-sends them when the user
   // actually changed them — this keeps a metadata-only edit from re-anchoring the schedule.
   const [initialStart, setInitialStart] = useState("");
@@ -118,6 +124,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
     setInitialEnd(end);
     setPayee(recurring?.payee ?? "");
     setNote(recurring?.note ?? "");
+    setLoanId(recurring?.loan?._id ?? "");
   }, [open, recurring, accounts]);
 
   const preview = useMemo(
@@ -145,6 +152,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
       interval: Number(interval) || 1,
       payee,
       note,
+      loan: type !== "income" && loanId ? loanId : null,
     };
     // Only send the calendar dates when they actually changed. On edit this keeps a
     // metadata-only save from being misread as a start-date change (which would
@@ -271,6 +279,52 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
             <Label htmlFor="rec-note">Note</Label>
             <Input id="rec-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
           </div>
+
+          {/* Loan EMI — each posted occurrence reduces the loan's outstanding. */}
+          {type !== "income" &&
+            (() => {
+              const options = (loans ?? []).filter((l) => l.status === "active" || l._id === loanId);
+              if (options.length === 0) return null;
+              return (
+                <div className="space-y-1.5">
+                  <Label>Apply to loan (EMI)</Label>
+                  <Select value={loanId || NO_LOAN} onValueChange={(v) => setLoanId(v === NO_LOAN ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_LOAN}>None</SelectItem>
+                      {options.map((l) => (
+                        <SelectItem key={l._id} value={l._id}>
+                          {l.name} · {formatMoney(l.outstanding)} left
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {loanId &&
+                    (() => {
+                      const l = options.find((o) => o._id === loanId);
+                      const amt = Number(amount) || 0;
+                      if (!l) return null;
+                      const interest = Math.max(0, Math.round(l.outstanding * (l.roi / 12 / 100)));
+                      const principal = amt > 0 ? Math.max(0, Math.min(l.outstanding, amt - interest)) : 0;
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          {amt > 0 ? (
+                            <>
+                              Each EMI: ≈{" "}
+                              <span className="font-medium text-foreground">{formatMoney(principal)}</span> to
+                              principal · {formatMoney(Math.min(interest, amt))} interest.
+                            </>
+                          ) : (
+                            "Each posted EMI reduces the loan's balance by its principal portion."
+                          )}
+                        </p>
+                      );
+                    })()}
+                </div>
+              );
+            })()}
 
           {preview.length > 0 && (
             <div className="rounded-lg border bg-muted/30 p-3">

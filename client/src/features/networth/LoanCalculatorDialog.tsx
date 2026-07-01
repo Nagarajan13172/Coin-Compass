@@ -13,28 +13,39 @@ import { formatMoney } from "@/lib/format";
 import { computePayoff, formatMonths } from "@/lib/networth";
 import type { Loan } from "@/lib/types";
 
-/** "What if I pay more each month?" — reducing-balance payoff comparison. */
+/** "What if I pay more each month or drop a lump sum?" — reducing-balance payoff comparison. */
 export function LoanCalculatorDialog({ loan, onClose }: { loan: Loan | null; onClose: () => void }) {
   const [extra, setExtra] = useState("");
+  const [lump, setLump] = useState("");
 
   const result = useMemo(() => {
     if (!loan) return null;
     const extraN = Math.max(0, Number(extra) || 0);
+    const lumpN = Math.min(loan.outstanding, Math.max(0, Number(lump) || 0));
     const base = computePayoff(loan.outstanding, loan.roi, loan.emi);
-    const boosted = computePayoff(loan.outstanding, loan.roi, loan.emi + extraN);
+    // Lump sum pays down principal now; extra raises the monthly payment.
+    const boosted = computePayoff(Math.max(0, loan.outstanding - lumpN), loan.roi, loan.emi + extraN);
     const monthsSaved = base.feasible && boosted.feasible ? base.months - boosted.months : 0;
     const interestSaved =
       base.feasible && boosted.feasible ? Math.max(0, base.totalInterest - boosted.totalInterest) : 0;
-    return { base, boosted, extraN, monthsSaved, interestSaved };
-  }, [loan, extra]);
+    return { base, boosted, extraN, lumpN, monthsSaved, interestSaved };
+  }, [loan, extra, lump]);
 
   if (!loan) return null;
 
+  const hasPlan = result != null && (result.extraN > 0 || result.lumpN > 0);
+  const planParts = result
+    ? [
+        result.lumpN > 0 ? `${formatMoney(result.lumpN)} now` : "",
+        result.extraN > 0 ? `${formatMoney(result.extraN)} more each month` : "",
+      ].filter(Boolean)
+    : [];
+
   return (
-    <Dialog open={Boolean(loan)} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={Boolean(loan)} onOpenChange={(o) => !o && (setExtra(""), setLump(""), onClose())}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Payoff calculator · {loan.name}</DialogTitle>
+          <DialogTitle>Early payoff planner · {loan.name}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -54,17 +65,30 @@ export function LoanCalculatorDialog({ loan, onClose }: { loan: Loan | null; onC
             </div>
           ) : (
             <>
-              <div className="space-y-1.5">
-                <Label htmlFor="loan-extra">Extra per month</Label>
-                <Input
-                  id="loan-extra"
-                  type="number"
-                  inputMode="decimal"
-                  value={extra}
-                  onChange={(e) => setExtra(e.target.value)}
-                  placeholder="e.g. 5000"
-                  autoFocus
-                />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="loan-extra">Extra per month</Label>
+                  <Input
+                    id="loan-extra"
+                    type="number"
+                    inputMode="decimal"
+                    value={extra}
+                    onChange={(e) => setExtra(e.target.value)}
+                    placeholder="e.g. 5000"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="loan-lump">One-time lump sum</Label>
+                  <Input
+                    id="loan-lump"
+                    type="number"
+                    inputMode="decimal"
+                    value={lump}
+                    onChange={(e) => setLump(e.target.value)}
+                    placeholder="e.g. 100000"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -75,22 +99,21 @@ export function LoanCalculatorDialog({ loan, onClose }: { loan: Loan | null; onC
                   sub={`~${formatMoney(result.base.totalInterest)} interest`}
                 />
                 <Panel
-                  title={result.extraN > 0 ? `+${formatMoney(result.extraN)}/mo` : "With extra"}
+                  title={hasPlan ? "With plan" : "With early payoff"}
                   primary={formatMonths(result.boosted.months)}
                   date={endDateLabel(result.boosted.months)}
                   sub={`~${formatMoney(result.boosted.totalInterest)} interest`}
-                  highlight={result.extraN > 0}
+                  highlight={hasPlan}
                 />
               </div>
 
-              {result.extraN > 0 && result.monthsSaved > 0 && (
+              {hasPlan && result.monthsSaved > 0 && (
                 <div className="flex items-center gap-2 rounded-lg border border-income/40 bg-income/5 p-3 text-sm">
                   <TrendingDown className="h-4 w-4 shrink-0 text-income" />
                   <p>
-                    Paying <span className="font-semibold">{formatMoney(result.extraN)}</span> more each month
-                    clears it <span className="font-semibold">{formatMonths(result.monthsSaved)}</span> sooner and
-                    saves about <span className="font-semibold text-income">{formatMoney(result.interestSaved)}</span> in
-                    interest.
+                    Paying <span className="font-semibold">{planParts.join(" and ")}</span> clears it{" "}
+                    <span className="font-semibold">{formatMonths(result.monthsSaved)}</span> sooner and saves about{" "}
+                    <span className="font-semibold text-income">{formatMoney(result.interestSaved)}</span> in interest.
                   </p>
                 </div>
               )}

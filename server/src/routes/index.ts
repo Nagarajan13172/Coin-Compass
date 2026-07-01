@@ -10,6 +10,7 @@ import * as budgets from "../controllers/budgetController";
 import * as goals from "../controllers/goalController";
 import * as holdings from "../controllers/holdingController";
 import * as loans from "../controllers/loanController";
+import * as networth from "../controllers/networthController";
 import * as recurring from "../controllers/recurringController";
 import * as reports from "../controllers/reportController";
 import * as metals from "../controllers/metalController";
@@ -78,6 +79,7 @@ router.post("/recurring", asyncHandler(recurring.createRecurring));
 router.post("/recurring/run", asyncHandler(recurring.runRecurring));
 router.get("/recurring/:id/transactions", asyncHandler(recurring.listRecurringTransactions));
 router.post("/recurring/:id/run", asyncHandler(recurring.runRecurringOne));
+router.post("/recurring/:id/post-one", asyncHandler(recurring.postOneRecurring));
 router.post("/recurring/:id/skip", asyncHandler(recurring.skipRecurring));
 router.patch("/recurring/:id", asyncHandler(recurring.updateRecurring));
 router.delete("/recurring/:id", asyncHandler(recurring.deleteRecurring));
@@ -101,6 +103,9 @@ router.post("/loans/:id/pay", asyncHandler(loans.payLoan));
 router.post("/loans/:id/preclose", asyncHandler(loans.precloseLoan));
 router.patch("/loans/:id", asyncHandler(loans.updateLoan));
 router.delete("/loans/:id", asyncHandler(loans.deleteLoan));
+
+// Net-worth trend: one snapshot per day, accumulated as the user visits.
+router.get("/networth/history", asyncHandler(networth.netWorthHistory));
 
 // Precious metals (gold/silver) — global daily rates
 router.get("/metals/latest", asyncHandler(metals.latestMetals));

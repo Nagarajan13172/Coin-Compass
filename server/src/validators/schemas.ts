@@ -53,6 +53,7 @@ export const transactionSchema = z
     payee: z.string().max(120).default(""),
     tags: z.array(z.string()).default([]),
     currency: z.string().default("INR"),
+    loan: optionalObjectId,
   })
   .refine((d) => d.type !== "transfer" || !!d.toAccount, {
     message: "Transfers require a destination account",
@@ -74,6 +75,7 @@ export const transactionUpdateSchema = z.object({
   payee: z.string().max(120).optional(),
   tags: z.array(z.string()).optional(),
   currency: z.string().optional(),
+  loan: optionalObjectId,
 });
 
 export const budgetSchema = z.object({
@@ -96,6 +98,7 @@ export const recurringSchema = z.object({
   payee: z.string().max(120).default(""),
   tags: z.array(z.string()).default([]),
   currency: z.string().default("INR"),
+  loan: optionalObjectId,
   frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).default("monthly"),
   interval: z.number().int().positive().default(1),
   startDate: z.coerce.date().default(() => new Date()),
@@ -104,6 +107,10 @@ export const recurringSchema = z.object({
   active: z.boolean().default(true),
 });
 export const recurringUpdateSchema = recurringSchema.partial();
+export const recurringPostOneSchema = z.object({
+  amount: z.number().positive().optional(),
+  date: z.coerce.date().optional(),
+});
 
 export const goalSchema = z.object({
   name: z.string().min(1).max(80),
@@ -161,11 +168,15 @@ export const loanSchema = z.object({
   currency: z.string().default("INR"),
 });
 export const loanUpdateSchema = loanSchema.partial();
-export const loanPaySchema = z.object({ amount: z.number().positive() });
+export const loanPaySchema = z.object({
+  amount: z.number().positive(),
+  chargePct: z.number().min(0).max(100).optional(),
+});
 export const loanPrecloseSchema = z.object({ chargePct: z.number().min(0).max(100).default(0) });
 
 export const settingsUpdateSchema = z.object({
   name: z.string().max(60).optional(),
+  description: z.string().max(120).optional(),
   baseCurrency: z.string().optional(),
   theme: z.enum(["light", "dark", "system"]).optional(),
   locale: z.string().optional(),

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { ArrowRightLeft, MoreVertical, Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -127,13 +128,15 @@ export default function AccountsPage() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                      <p className="mt-4 truncate font-semibold">{a.name}</p>
-                      <p className="text-xs capitalize text-muted-foreground">{a.type}</p>
-                      <p
-                        className={`tnum mt-2 text-2xl font-bold ${negative ? "text-expense" : ""}`}
-                      >
-                        {formatMoney(a.balance ?? 0, { currency: a.currency })}
-                      </p>
+                      <Link to={`/accounts/${a._id}`} className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <p className="mt-4 truncate font-semibold hover:underline">{a.name}</p>
+                        <p className="text-xs capitalize text-muted-foreground">{a.type}</p>
+                        <p
+                          className={`tnum mt-2 text-2xl font-bold ${negative ? "text-expense" : ""}`}
+                        >
+                          {formatMoney(a.balance ?? 0, { currency: a.currency })}
+                        </p>
+                      </Link>
                     </CardContent>
                   </Card>
                 </motion.div>

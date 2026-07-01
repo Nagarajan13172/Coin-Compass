@@ -25,25 +25,32 @@ export async function updateLoan(req: Request, res: Response) {
   res.json(loan.toObject());
 }
 
-/** Record a part payment: reduce the outstanding balance; auto-close when it hits 0. */
+/**
+ * Record a part payment (prepayment): the full amount goes to principal (a lump-sum
+ * prepayment carries no interest), plus an optional prepayment charge % on the amount
+ * that's tracked in the loan's lifetime `chargesPaid`. Auto-closes when it hits 0.
+ */
 export async function payLoan(req: Request, res: Response) {
   const uid = userId(req);
-  const { amount } = loanPaySchema.parse(req.body);
+  const { amount, chargePct = 0 } = loanPaySchema.parse(req.body);
   const loan = await Loan.findOne({ _id: req.params.id, user: uid });
   if (!loan) throw new HttpError(404, "Loan not found");
+  const principal = Math.min(amount, loan.outstanding);
   loan.outstanding = Math.max(0, loan.outstanding - amount);
+  loan.chargesPaid = (loan.chargesPaid ?? 0) + Math.round(principal * (chargePct / 100));
   if (loan.outstanding === 0) loan.status = "closed";
   await loan.save();
   res.json(loan.toObject());
 }
 
-/** Preclose (foreclose) the loan: record the charge %, zero the balance, mark closed. */
+/** Preclose (foreclose) the loan: record the charge, zero the balance, mark closed. */
 export async function precloseLoan(req: Request, res: Response) {
   const uid = userId(req);
   const { chargePct } = loanPrecloseSchema.parse(req.body);
   const loan = await Loan.findOne({ _id: req.params.id, user: uid });
   if (!loan) throw new HttpError(404, "Loan not found");
   loan.foreclosureChargePct = chargePct;
+  loan.chargesPaid = (loan.chargesPaid ?? 0) + Math.round(loan.outstanding * (chargePct / 100));
   loan.outstanding = 0;
   loan.status = "closed";
   await loan.save();

@@ -15,6 +15,8 @@ const recurringSchema = new Schema(
     payee: { type: String, default: "" },
     tags: { type: [String], default: [] },
     currency: { type: String, default: "INR" },
+    // When set, each posted occurrence reduces this loan's outstanding (e.g. an EMI).
+    loan: { type: Schema.Types.ObjectId, ref: "Loan", default: null },
     // recurrence rule
     frequency: { type: String, enum: RECURRENCE_FREQUENCIES, default: "monthly" },
     interval: { type: Number, default: 1, min: 1 }, // every N frequency units

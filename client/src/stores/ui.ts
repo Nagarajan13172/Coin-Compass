@@ -29,7 +29,13 @@ interface UIState {
   txnSheetOpen: boolean;
   editingTxn: Transaction | null;
   defaultTxnType: TxnType;
-  openTxnSheet: (opts?: { txn?: Transaction; type?: TxnType }) => void;
+  /** Prefill for a brand-new transaction (e.g. context-aware Add from active filters). */
+  txnPrefill: { account?: string | null; category?: string | null } | null;
+  openTxnSheet: (opts?: {
+    txn?: Transaction;
+    type?: TxnType;
+    prefill?: { account?: string | null; category?: string | null };
+  }) => void;
   closeTxnSheet: () => void;
 
   // pin lock
@@ -73,13 +79,15 @@ export const useUIStore = create<UIState>()(
       txnSheetOpen: false,
       editingTxn: null,
       defaultTxnType: "expense",
+      txnPrefill: null,
       openTxnSheet: (opts) =>
         set({
           txnSheetOpen: true,
           editingTxn: opts?.txn ?? null,
           defaultTxnType: opts?.txn?.type ?? opts?.type ?? "expense",
+          txnPrefill: opts?.txn ? null : opts?.prefill ?? null,
         }),
-      closeTxnSheet: () => set({ txnSheetOpen: false, editingTxn: null }),
+      closeTxnSheet: () => set({ txnSheetOpen: false, editingTxn: null, txnPrefill: null }),
 
       locked: false,
       setLocked: (b) => set({ locked: b }),

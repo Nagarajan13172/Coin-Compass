@@ -9,7 +9,7 @@ import { useMetalHistory, useMetalsLatest } from "@/hooks/useMetals";
 import type { MetalPrice } from "@/lib/types";
 import { METAL_META } from "./meta";
 import { MetalChange } from "./MetalChange";
-import { DEFAULT_CITY, findCity, localRate } from "./cities";
+import { DEFAULT_CITY, findCity, resolveCityRate } from "./cities";
 
 function asOf(date: string) {
   try {
@@ -58,7 +58,7 @@ export function GoldRateCard() {
   if (!latest?.configured || !gold) return null;
 
   const city = findCity(DEFAULT_CITY);
-  const local22k = localRate(gold.pricePerGram22k, city.premiumPct);
+  const rate = resolveCityRate(gold, city);
 
   return (
     <Card>
@@ -77,10 +77,12 @@ export function GoldRateCard() {
               Gold · 22K / gram · {city.label}
             </p>
             <p className="tnum text-2xl font-bold">
-              {formatMoney(local22k, { currency: "INR" })}
+              {formatMoney(rate.gram22k, { currency: "INR" })}
             </p>
             <p className="tnum text-xs text-muted-foreground">
-              Spot 22K {formatMoney(gold.pricePerGram22k, { currency: "INR" })}
+              {rate.approx
+                ? `Spot 22K ${formatMoney(gold.pricePerGram22k, { currency: "INR" })}`
+                : rate.source}
             </p>
           </div>
           <div className="text-right">

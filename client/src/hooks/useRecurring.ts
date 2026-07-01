@@ -70,6 +70,18 @@ export function useRunRecurringOne() {
   });
 }
 
+/** Post ONE occurrence now (optionally overriding amount/date) and advance the schedule. */
+export function usePostRecurringOne() {
+  return useMutation({
+    mutationFn: async ({ id, amount, date }: { id: string; amount?: number; date?: string }) =>
+      (await api.post(`/recurring/${id}/post-one`, { amount, date })).data,
+    onSuccess: () => {
+      invalidate();
+      invalidateMoney();
+    },
+  });
+}
+
 /** Skip a rule's next occurrence without posting a transaction. */
 export function useSkipRecurring() {
   return useMutation({

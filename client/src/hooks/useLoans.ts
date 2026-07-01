@@ -12,6 +12,7 @@ export function useLoans() {
 
 function invalidate() {
   queryClient.invalidateQueries({ queryKey: ["loans"] });
+  queryClient.invalidateQueries({ queryKey: ["networth"] });
 }
 
 export function useCreateLoan() {
@@ -29,11 +30,11 @@ export function useUpdateLoan() {
   });
 }
 
-/** Part payment: reduce the outstanding balance by an amount. */
+/** Part payment: reduce the outstanding balance, with an optional prepayment charge %. */
 export function usePayLoan() {
   return useMutation({
-    mutationFn: async ({ id, amount }: { id: string; amount: number }) =>
-      (await api.post(`/loans/${id}/pay`, { amount })).data,
+    mutationFn: async ({ id, amount, chargePct }: { id: string; amount: number; chargePct?: number }) =>
+      (await api.post(`/loans/${id}/pay`, { amount, chargePct })).data,
     onSuccess: invalidate,
   });
 }

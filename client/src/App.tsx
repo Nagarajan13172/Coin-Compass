@@ -11,6 +11,7 @@ import { PinLock } from "@/features/settings/PinLock";
 import DashboardPage from "@/routes/DashboardPage";
 import TransactionsPage from "@/routes/TransactionsPage";
 import AccountsPage from "@/routes/AccountsPage";
+import AccountDetailPage from "@/routes/AccountDetailPage";
 import BudgetsPage from "@/routes/BudgetsPage";
 import GoalsPage from "@/routes/GoalsPage";
 import NetWorthPage from "@/routes/NetWorthPage";
@@ -98,6 +99,7 @@ export function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/accounts/:id" element={<AccountDetailPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
             <Route path="/goals" element={<GoalsPage />} />
             <Route path="/net-worth" element={<NetWorthPage />} />

@@ -26,7 +26,8 @@ export async function getAccount(req: Request, res: Response) {
   const account = await Account.findOne({ _id: req.params.id, user: uid }).lean();
   if (!account) throw new HttpError(404, "Account not found");
   const balances = await computeAllBalances(uid);
-  res.json({ ...account, balance: balances.get(String(account._id))?.balance ?? 0 });
+  const stats = balances.get(String(account._id)) ?? null;
+  res.json({ ...account, balance: stats?.balance ?? account.initialBalance ?? 0, stats });
 }
 
 export async function createAccount(req: Request, res: Response) {

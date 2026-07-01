@@ -14,6 +14,7 @@ const settingsSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
     name: { type: String, default: "My Wallet" },
+    description: { type: String, default: "" }, // optional label/tag, e.g. "Personal finances"
     baseCurrency: { type: String, default: "INR" },
     theme: { type: String, enum: ["light", "dark", "system"], default: "system" },
     locale: { type: String, default: "en-IN" },

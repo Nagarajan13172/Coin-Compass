@@ -16,6 +16,9 @@ const loanSchema = new Schema(
     roi: { type: Number, default: 0, min: 0 }, // annual interest rate (%)
     emi: { type: Number, default: 0, min: 0 }, // monthly repayment amount
     foreclosureChargePct: { type: Number, default: 0, min: 0 }, // % penalty on preclosure
+    // Running lifetime totals, accumulated as payments are recorded.
+    interestPaid: { type: Number, default: 0, min: 0 }, // interest portion of EMIs paid
+    chargesPaid: { type: Number, default: 0, min: 0 }, // prepayment/foreclosure charges paid
     startDate: { type: Date, default: null },
     endDate: { type: Date, default: null },
     status: { type: String, enum: LOAN_STATUS, default: "active" },

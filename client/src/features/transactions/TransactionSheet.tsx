@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { useUIStore } from "@/stores/ui";
 import { useAccounts } from "@/hooks/useAccounts";
+import { useLoans } from "@/hooks/useLoans";
 import {
   useCreateTransaction,
   useDeleteTransaction,
@@ -31,6 +33,8 @@ import {
 import type { RefLite, TxnType } from "@/lib/types";
 import { AmountKeypad } from "./AmountKeypad";
 import { CategoryPicker } from "./CategoryPicker";
+
+const NO_LOAN = "__none__";
 
 const TYPE_TABS: { value: TxnType; label: string; cls: string }[] = [
   { value: "expense", label: "Expense", cls: "data-[active=true]:bg-expense data-[active=true]:text-expense-foreground" },
@@ -48,8 +52,10 @@ export function TransactionSheet() {
   const close = useUIStore((s) => s.closeTxnSheet);
   const editing = useUIStore((s) => s.editingTxn);
   const defaultType = useUIStore((s) => s.defaultTxnType);
+  const prefill = useUIStore((s) => s.txnPrefill);
 
   const { data: accounts } = useAccounts();
+  const { data: loans } = useLoans();
   const createTxn = useCreateTransaction();
   const updateTxn = useUpdateTransaction();
   const deleteTxn = useDeleteTransaction();
@@ -63,6 +69,7 @@ export function TransactionSheet() {
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [loanId, setLoanId] = useState("");
 
   const isEdit = Boolean(editing);
 
@@ -92,16 +99,22 @@ export function TransactionSheet() {
       setDate(format(new Date(editing.date), "yyyy-MM-dd"));
       setNote(editing.note ?? "");
       setTags(editing.tags ?? []);
+      setLoanId(refId(editing.loan) ?? "");
     } else {
+      // New transaction — seed from any context-aware prefill (e.g. active filters),
+      // else fall back to the first account (the accounts-load effect covers the
+      // case where accounts arrive after the sheet is already open).
       setType(defaultType);
       setAmount(0);
-      setCategoryId(null);
+      setAccountId(prefill?.account ?? accounts?.[0]?._id ?? "");
+      setCategoryId(prefill?.category ?? null);
       setNote("");
       setDate(format(new Date(), "yyyy-MM-dd"));
       setTags([]);
+      setLoanId("");
     }
     setTagInput("");
-  }, [open, editing, defaultType]);
+  }, [open, editing, defaultType, prefill]);
 
   // default the account selection once accounts load
   useEffect(() => {
@@ -132,6 +145,8 @@ export function TransactionSheet() {
       note,
       tags: tagInput.trim() ? [...tags, tagInput.trim()] : tags,
       currency: activeAccount?.currency ?? "INR",
+      // Loan repayments only make sense for money leaving an account.
+      loan: type !== "income" && loanId ? loanId : null,
     };
 
     try {
@@ -274,6 +289,55 @@ export function TransactionSheet() {
                 </div>
               )}
             </div>
+
+            {/* Loan repayment — reduces the chosen loan's outstanding balance. */}
+            {type !== "income" &&
+              (() => {
+                const options = (loans ?? []).filter((l) => l.status === "active" || l._id === loanId);
+                if (options.length === 0) return null;
+                return (
+                  <div className="space-y-1.5">
+                    <Label>Apply to loan (repayment)</Label>
+                    <Select
+                      value={loanId || NO_LOAN}
+                      onValueChange={(v) => setLoanId(v === NO_LOAN ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_LOAN}>None</SelectItem>
+                        {options.map((l) => (
+                          <SelectItem key={l._id} value={l._id}>
+                            {l.name} · {formatMoney(l.outstanding)} left
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {loanId &&
+                      (() => {
+                        const l = options.find((o) => o._id === loanId);
+                        if (!l) return null;
+                        const interest = Math.max(0, Math.round(l.outstanding * (l.roi / 12 / 100)));
+                        const principal =
+                          amount > 0 ? Math.max(0, Math.min(l.outstanding, amount - interest)) : 0;
+                        return (
+                          <p className="text-xs text-muted-foreground">
+                            {amount > 0 ? (
+                              <>
+                                ≈ <span className="font-medium text-foreground">{formatMoney(principal)}</span> to
+                                principal · {formatMoney(Math.min(interest, amount))} interest — reduces the balance
+                                &amp; tenure.
+                              </>
+                            ) : (
+                              "Only the principal portion (payment minus interest) reduces the balance."
+                            )}
+                          </p>
+                        );
+                      })()}
+                  </div>
+                );
+              })()}
           </div>
         </ScrollArea>
 

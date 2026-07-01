@@ -20,7 +20,13 @@ import type { Metal, MetalPrice } from "@/lib/types";
 import { METAL_META } from "@/features/metals/meta";
 import { MetalChange } from "@/features/metals/MetalChange";
 import { MetalHistoryChart } from "@/features/metals/MetalHistoryChart";
-import { DEFAULT_CITY, findCity, GOLD_CITIES, localRate, type GoldCity } from "@/features/metals/cities";
+import {
+  DEFAULT_CITY,
+  findCity,
+  GOLD_CITIES,
+  resolveCityRate,
+  type GoldCity,
+} from "@/features/metals/cities";
 
 /** Today's date (YYYY-MM-DD) in IST, to detect a stale (weekend/holiday) rate. */
 function istToday() {
@@ -48,17 +54,18 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
   const meta = METAL_META[metal];
   const stale = price.date !== istToday();
   const isGold = metal === "gold";
-  // For gold, headline the selected city's approximate local 22K rate; keep the
-  // exact international spot values below as the honest reference.
-  const headline = isGold && city ? localRate(price.pricePerGram22k, city.premiumPct) : price.pricePerGram24k;
+  // For gold, headline the selected city's 22K rate — GRT's actual counter rate
+  // when we have it, else spot + premium. Spot values stay below as reference.
+  const resolved = isGold && city ? resolveCityRate(price, city) : null;
+  const headline = resolved ? resolved.gram22k : price.pricePerGram24k;
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2">
           <Coins className="h-4 w-4" style={{ color: meta.color }} /> {meta.label}
-          {isGold && city && (
+          {resolved && city && (
             <Badge variant="secondary" className="font-normal">
-              {city.label} · approx
+              {city.label} · {resolved.approx ? "approx" : "GRT"}
             </Badge>
           )}
         </CardTitle>
@@ -70,16 +77,18 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
           <p className="tnum text-3xl font-extrabold tracking-tight">
             {formatMoney(headline, { currency: "INR" })}
           </p>
-          {isGold && city && (
+          {resolved && city && (
             <p className="tnum mt-0.5 text-[11px] text-muted-foreground">
-              Spot 22K {formatMoney(price.pricePerGram22k, { currency: "INR" })} · +{city.premiumPct}% est. (duty, GST, margin)
+              {resolved.approx
+                ? `≈ spot 22K ${formatMoney(price.pricePerGram22k, { currency: "INR" })} · +${city.premiumPct}% (duty, GST, margin)`
+                : `${resolved.source} · spot 22K ${formatMoney(price.pricePerGram22k, { currency: "INR" })}`}
             </p>
           )}
         </div>
-        {isGold && (
+        {isGold && resolved && (
           <div className="grid grid-cols-2 gap-2">
-            <Stat label="24K / gram (spot)" value={price.pricePerGram24k} />
-            <Stat label="18K / gram (spot)" value={price.pricePerGram18k} />
+            <Stat label="24K / gram" value={resolved.gram24k} />
+            <Stat label="18K / gram" value={resolved.gram18k} />
           </div>
         )}
         <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
@@ -185,9 +194,9 @@ export default function GoldPage() {
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">
-            Spot rates sourced from goldapi.io (international spot × ₹), refreshed daily. City
-            figures add an estimated local premium (import duty, GST &amp; dealer margin) over spot
-            and exclude making charges — indicative, not a live counter quote.
+            Spot from goldapi.io (international spot × ₹). Chennai shows GRT Jewellers’ published
+            counter rate (from grtjewels.com); other cities estimate spot + a local premium (duty,
+            GST &amp; margin) and exclude making charges. Refreshed daily.
           </p>
         </div>
       )}

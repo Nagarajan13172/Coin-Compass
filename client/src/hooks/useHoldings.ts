@@ -12,6 +12,7 @@ export function useHoldings() {
 
 function invalidate() {
   queryClient.invalidateQueries({ queryKey: ["holdings"] });
+  queryClient.invalidateQueries({ queryKey: ["networth"] });
 }
 
 export function useCreateHolding() {

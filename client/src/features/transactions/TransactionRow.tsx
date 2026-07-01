@@ -26,12 +26,24 @@ export function TransactionRow({ txn, showDate = false }: { txn: Transaction; sh
   const icon = isTransfer ? "repeat" : category?.icon;
   const color = isTransfer ? "#3B82F6" : category?.color;
 
+  // A free-text detail for the row — the note (unless it just echoes the category,
+  // which would render the category twice), otherwise the payee.
+  const note = txn.note?.trim();
+  const noteIsCategory = note && category?.name && note.toLowerCase() === category.name.toLowerCase();
+  const detail = (note && !noteIsCategory ? note : "") || txn.payee?.trim() || "";
+
+  // Every row surfaces its account so multi-account books stay legible at a glance.
   const subtitle = isTransfer ? (
-    <span className="flex items-center gap-1">
-      {account?.name} <ArrowRight className="h-3 w-3" /> {toAccount?.name}
+    <span className="flex items-center gap-1 truncate">
+      <AccountBadge name={account?.name} />
+      <ArrowRight className="h-3 w-3 shrink-0" />
+      <AccountBadge name={toAccount?.name} />
     </span>
   ) : (
-    <span>{txn.note?.trim() ? txn.note : account?.name}</span>
+    <span className="flex min-w-0 items-center gap-1.5 truncate">
+      <AccountBadge name={account?.name} />
+      {detail && <span className="truncate">{detail}</span>}
+    </span>
   );
 
   return (
@@ -56,11 +68,28 @@ export function TransactionRow({ txn, showDate = false }: { txn: Transaction; sh
         <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex flex-col items-end">
-        <Money amount={txn.amount} type={txn.type} signed currency={txn.currency} className="text-sm" />
+        {/* Transfers move money between accounts — show a neutral amount, no +/− sign. */}
+        <Money
+          amount={txn.amount}
+          type={txn.type}
+          signed={!isTransfer}
+          currency={txn.currency}
+          className="text-sm"
+        />
         {showDate && (
           <span className="tnum text-[11px] text-muted-foreground">{fmtDate(txn.date, "dd MMM")}</span>
         )}
       </div>
     </button>
+  );
+}
+
+/** Small muted chip identifying which account a transaction belongs to. */
+function AccountBadge({ name }: { name?: string }) {
+  if (!name) return null;
+  return (
+    <span className="inline-flex shrink-0 items-center rounded bg-secondary px-1.5 py-px text-[11px] font-medium text-secondary-foreground">
+      {name}
+    </span>
   );
 }

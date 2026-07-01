@@ -27,9 +27,12 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   budget?: Budget | null;
+  /** Defaults for a brand-new budget (e.g. from the active period scope or a spend suggestion). */
+  defaultCategory?: string | null;
+  defaultPeriod?: BudgetPeriod;
 }
 
-export function BudgetFormDialog({ open, onOpenChange, budget }: Props) {
+export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, defaultPeriod }: Props) {
   const { data: categories } = useCategories("expense");
   const create = useCreateBudget();
   const update = useUpdateBudget();
@@ -41,10 +44,10 @@ export function BudgetFormDialog({ open, onOpenChange, budget }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    setCategory(budget?.category?._id ?? OVERALL);
+    setCategory(budget?.category?._id ?? defaultCategory ?? OVERALL);
     setAmount(budget ? String(budget.amount) : "");
-    setPeriod(budget?.period ?? "monthly");
-  }, [open, budget]);
+    setPeriod(budget?.period ?? defaultPeriod ?? "monthly");
+  }, [open, budget, defaultCategory, defaultPeriod]);
 
   async function submit() {
     const amt = Number(amount);

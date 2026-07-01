@@ -1,12 +1,13 @@
 import type { Request, Response } from "express";
 import { RecurringTransaction } from "../models/RecurringTransaction";
 import { Transaction } from "../models/Transaction";
-import { recurringSchema, recurringUpdateSchema } from "../validators/schemas";
+import { recurringSchema, recurringUpdateSchema, recurringPostOneSchema } from "../validators/schemas";
 import {
   processDueRecurring,
   previewOccurrences,
   nextRunFrom,
   runRule,
+  postOneOccurrence,
   skipNextOccurrence,
 } from "../services/recurringService";
 import { userId } from "../middleware/auth";
@@ -16,6 +17,7 @@ const populate = [
   { path: "account", select: "name color icon currency" },
   { path: "toAccount", select: "name color icon currency" },
   { path: "category", select: "name color icon type" },
+  { path: "loan", select: "name" },
 ];
 
 /** Attach the next few scheduled run dates so the client can preview upcoming occurrences. */
@@ -95,6 +97,15 @@ export async function runRecurringOne(req: Request, res: Response) {
   const created = await runRule(req.params.id, userId(req));
   if (created === null) throw new HttpError(404, "Recurring transaction not found");
   res.json({ created });
+}
+
+/** Post one occurrence now (optionally overriding amount/date) and advance the schedule. */
+export async function postOneRecurring(req: Request, res: Response) {
+  const { amount, date } = recurringPostOneSchema.parse(req.body);
+  const item = await postOneOccurrence(req.params.id, userId(req), { amount, date });
+  if (!item) throw new HttpError(404, "Recurring transaction not found");
+  await (item as unknown as { populate: (p: unknown) => Promise<unknown> }).populate(populate);
+  res.json(withUpcoming((item as unknown as { toObject: () => Record<string, unknown> }).toObject()));
 }
 
 /** Skip the next scheduled occurrence without posting a transaction. */

@@ -15,6 +15,15 @@ export function useAccounts(includeArchived = false) {
   });
 }
 
+/** A single account with its balance + income/expense/transfer stats. */
+export function useAccount(id: string | undefined) {
+  return useQuery({
+    queryKey: ["accounts", id],
+    enabled: Boolean(id),
+    queryFn: async () => (await api.get<Account>(`/accounts/${id}`)).data,
+  });
+}
+
 export function useCreateAccount() {
   return useMutation({
     mutationFn: async (payload: Partial<Account>) => (await api.post("/accounts", payload)).data,

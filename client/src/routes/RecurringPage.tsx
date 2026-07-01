@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { motion } from "motion/react";
 import {
@@ -32,13 +32,15 @@ import { Money } from "@/components/common/Money";
 import {
   useDeleteRecurring,
   useRecurring,
-  useRunRecurring,
   useRunRecurringOne,
   useSkipRecurring,
   useUpdateRecurring,
 } from "@/hooks/useRecurring";
 import { RecurringFormDialog } from "@/features/recurring/RecurringFormDialog";
 import { RecurringOccurrencesDialog } from "@/features/recurring/RecurringOccurrencesDialog";
+import { RunDueDialog } from "@/features/recurring/RunDueDialog";
+import { isDue, isEnded, monthlyAmount, ruleTitle } from "@/lib/recurring";
+import { formatMoney } from "@/lib/format";
 import type { Recurring } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -47,16 +49,60 @@ function freqLabel(r: Recurring) {
   return r.interval === 1 ? `Every ${unit}` : `Every ${r.interval} ${unit}s`;
 }
 
+/** Normalized per-month cash-flow across all active rules, for the overview strip. */
+function MonthlySummary({ items }: { items: Recurring[] }) {
+  const { income, expense } = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const r of items) {
+      if (!r.active) continue;
+      if (r.type === "income") income += monthlyAmount(r);
+      else if (r.type === "expense") expense += monthlyAmount(r);
+    }
+    return { income, expense };
+  }, [items]);
+
+  if (income === 0 && expense === 0) return null;
+  const net = income - expense;
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="grid grid-cols-3 divide-x p-0 text-center">
+        <div className="p-3">
+          <p className="text-xs text-muted-foreground">Monthly income</p>
+          <p className="mt-0.5 font-semibold tnum text-income">+{formatMoney(income)}</p>
+        </div>
+        <div className="p-3">
+          <p className="text-xs text-muted-foreground">Monthly expenses</p>
+          <p className="mt-0.5 font-semibold tnum text-expense">−{formatMoney(expense)}</p>
+        </div>
+        <div className="p-3">
+          <p className="text-xs text-muted-foreground">Net / month</p>
+          <p
+            className={`mt-0.5 font-semibold tnum ${
+              net > 0 ? "text-income" : net < 0 ? "text-expense" : "text-muted-foreground"
+            }`}
+          >
+            {formatMoney(net, { signed: true })}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function RecurringPage() {
   const { data: items, isLoading } = useRecurring();
   const del = useDeleteRecurring();
   const update = useUpdateRecurring();
-  const run = useRunRecurring();
   const runOne = useRunRecurringOne();
   const skip = useSkipRecurring();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Recurring | null>(null);
   const [historyFor, setHistoryFor] = useState<Recurring | null>(null);
+  const [runDueOpen, setRunDueOpen] = useState(false);
+
+  const dueCount = useMemo(() => (items ?? []).filter((r) => isDue(r)).length, [items]);
 
   function openNew() {
     setEditing(null);
@@ -65,11 +111,6 @@ export default function RecurringPage() {
   function openEdit(r: Recurring) {
     setEditing(r);
     setDialogOpen(true);
-  }
-
-  async function runNow() {
-    const res = await run.mutateAsync();
-    toast.success(res.created ? `Posted ${res.created} due transaction(s)` : "Nothing due right now");
   }
 
   async function runOneNow(r: Recurring) {
@@ -86,14 +127,19 @@ export default function RecurringPage() {
     <div>
       <PageHeader
         title="Recurring"
-        description="Standing orders & scheduled transactions"
+        description="Automatically post rent, salary, subscriptions and other regular transactions."
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={runNow} disabled={run.isPending}>
-              <RefreshCw className={run.isPending ? "animate-spin" : ""} /> Run due
+            <Button variant="outline" onClick={() => setRunDueOpen(true)} disabled={!items?.length}>
+              <RefreshCw /> Run due
+              {dueCount > 0 && (
+                <Badge variant="warning" className="ml-1 px-1.5">
+                  {dueCount}
+                </Badge>
+              )}
             </Button>
             <Button onClick={openNew}>
-              <Plus /> New
+              <Plus /> New rule
             </Button>
           </div>
         }
@@ -102,21 +148,24 @@ export default function RecurringPage() {
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
+            <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
       ) : items && items.length > 0 ? (
-        <div className="space-y-3">
-          {items.map((r, i) => {
-            const overdue = r.active && new Date(r.nextRun) <= new Date();
-            return (
+        <>
+          <MonthlySummary items={items} />
+          <div className="space-y-3">
+            {items.map((r, i) => {
+              const overdue = isDue(r) && new Date(r.nextRun) < new Date();
+              const ended = isEnded(r);
+              return (
               <motion.div
                 key={r._id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.3) }}
               >
-                <Card>
+                <Card className={r.active ? undefined : "opacity-70"}>
                   <CardContent className="flex items-center gap-4 p-4">
                     <CategoryIcon
                       icon={r.type === "transfer" ? "repeat" : r.category?.icon}
@@ -125,16 +174,26 @@ export default function RecurringPage() {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="truncate font-medium">
-                          {r.type === "transfer" ? "Transfer" : r.category?.name ?? (r.note || "Recurring")}
-                        </p>
-                        {!r.active && <Badge variant="secondary">Paused</Badge>}
-                        {overdue && <Badge className="bg-amber-500 text-white hover:bg-amber-500">Due</Badge>}
+                        <p className="truncate font-medium">{ruleTitle(r)}</p>
+                        {overdue && <Badge variant="warning">Overdue</Badge>}
+                        {ended && <Badge variant="secondary">Ended</Badge>}
+                        {!r.active && !ended && <Badge variant="secondary">Paused</Badge>}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {freqLabel(r)} · {r.account?.name} ·{" "}
-                        {r.active ? "Next" : "Paused ·"} {format(new Date(r.nextRun), "dd MMM yyyy")}
-                        {r.endDate ? ` · Ends ${format(new Date(r.endDate), "dd MMM yyyy")}` : ""}
+                      <p className="truncate text-xs text-muted-foreground">
+                        {freqLabel(r)} · {r.account?.name}
+                      </p>
+                      <p className={`mt-0.5 truncate text-xs ${overdue ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}`}>
+                        {ended
+                          ? `Ended ${format(new Date(r.endDate as string), "dd MMM yyyy")}`
+                          : !r.active
+                            ? "Paused"
+                            : overdue
+                              ? `Overdue since ${format(new Date(r.nextRun), "dd MMM yyyy")}`
+                              : `Next ${format(new Date(r.nextRun), "dd MMM yyyy")}`}
+                        {r.active && !overdue && r.endDate
+                          ? ` · Ends ${format(new Date(r.endDate), "dd MMM yyyy")}`
+                          : ""}
+                        {r.lastRun ? ` · Last posted ${format(new Date(r.lastRun), "dd MMM")}` : ""}
                       </p>
                     </div>
                     <Money amount={r.amount} type={r.type} signed className="text-sm" />
@@ -179,9 +238,10 @@ export default function RecurringPage() {
                   </CardContent>
                 </Card>
               </motion.div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       ) : (
         <EmptyState
           icon={Repeat}
@@ -195,6 +255,7 @@ export default function RecurringPage() {
         />
       )}
 
+      <RunDueDialog open={runDueOpen} onOpenChange={setRunDueOpen} rules={items} />
       <RecurringFormDialog open={dialogOpen} onOpenChange={setDialogOpen} recurring={editing} />
       <RecurringOccurrencesDialog
         open={Boolean(historyFor)}

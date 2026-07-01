@@ -1,5 +1,6 @@
 import { RecurringTransaction, type RecurringDoc } from "../models/RecurringTransaction";
 import { Transaction } from "../models/Transaction";
+import { applyLoanPayment } from "./loanService";
 import { addDays, addMonths, addYears } from "../utils/dateRange";
 
 type RuleDoc = RecurringDoc & { _id: unknown; save: () => Promise<unknown> };
@@ -74,7 +75,7 @@ async function postDueForRule(rule: RuleDoc, now: Date): Promise<number> {
   while (next <= now && iterations < GUARD_MAX) {
     if (rule.endDate && next > rule.endDate) break;
 
-    await Transaction.create({
+    const posted = await Transaction.create({
       user: rule.user,
       type: rule.type,
       amount: rule.amount,
@@ -87,7 +88,14 @@ async function postDueForRule(rule: RuleDoc, now: Date): Promise<number> {
       tags: rule.tags,
       currency: rule.currency,
       recurring: rule._id,
+      loan: rule.loan,
     });
+    if (rule.loan) {
+      const { principal, interest } = await applyLoanPayment(rule.loan, rule.user, rule.amount);
+      posted.loanPrincipal = principal;
+      posted.loanInterest = interest;
+      await posted.save();
+    }
     created += 1;
     rule.lastRun = new Date(next);
     next = advance(next, rule.frequency, rule.interval);
@@ -129,6 +137,53 @@ export async function runRule(id: string, userId: string, now: Date = new Date()
   const created = await postDueForRule(rule as unknown as RuleDoc, now);
   await rule.save();
   return created;
+}
+
+/**
+ * Post exactly ONE occurrence of a user's rule (optionally overriding amount/date),
+ * link it to the rule, then advance nextRun by one interval. Used by the dashboard
+ * "Post" confirmation where the user may tweak the amount/date before posting.
+ * Returns the updated rule, or null if it doesn't exist / isn't theirs.
+ */
+export async function postOneOccurrence(
+  id: string,
+  userId: string,
+  opts: { amount?: number; date?: Date } = {}
+): Promise<RuleDoc | null> {
+  const rule = await RecurringTransaction.findOne({ _id: id, user: userId });
+  if (!rule) return null;
+
+  const date = opts.date ? new Date(opts.date) : new Date(rule.nextRun);
+  const amount = opts.amount != null ? opts.amount : rule.amount;
+
+  const posted = await Transaction.create({
+    user: rule.user,
+    type: rule.type,
+    amount,
+    account: rule.account,
+    toAccount: rule.toAccount,
+    category: rule.category,
+    date,
+    note: rule.note,
+    payee: rule.payee,
+    tags: rule.tags,
+    currency: rule.currency,
+    recurring: rule._id,
+    loan: rule.loan,
+  });
+  if (rule.loan) {
+    const { principal, interest } = await applyLoanPayment(rule.loan, rule.user, amount);
+    posted.loanPrincipal = principal;
+    posted.loanInterest = interest;
+    await posted.save();
+  }
+
+  rule.lastRun = date;
+  const next = advance(new Date(rule.nextRun), rule.frequency, rule.interval);
+  rule.nextRun = next;
+  if (rule.endDate && next > rule.endDate) rule.active = false;
+  await rule.save();
+  return rule as unknown as RuleDoc;
 }
 
 /**

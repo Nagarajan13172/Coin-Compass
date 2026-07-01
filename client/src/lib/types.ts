@@ -5,6 +5,15 @@ export type BudgetPeriod = "weekly" | "monthly" | "yearly";
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
 export type PeriodKey = "week" | "month" | "year";
 
+export interface AccountStats {
+  income: number;
+  expense: number;
+  transferIn: number;
+  transferOut: number;
+  balance: number;
+  initialBalance: number;
+}
+
 export interface Account {
   _id: string;
   name: string;
@@ -17,6 +26,7 @@ export interface Account {
   archived: boolean;
   order: number;
   balance?: number;
+  stats?: AccountStats | null;
   createdAt?: string;
 }
 
@@ -54,6 +64,8 @@ export interface Transaction {
   currency: string;
   /** Set when the transaction was auto-posted by a recurring rule. */
   recurring?: string | null;
+  /** When set, this transaction is a repayment that reduces the loan's balance. */
+  loan?: RefLite | string | null;
   createdAt?: string;
 }
 
@@ -91,6 +103,7 @@ export interface Recurring {
   payee: string;
   tags: string[];
   currency: string;
+  loan?: RefLite | null;
   frequency: Frequency;
   interval: number;
   startDate: string;
@@ -156,6 +169,8 @@ export interface Loan {
   roi: number;
   emi: number;
   foreclosureChargePct: number;
+  interestPaid: number;
+  chargesPaid: number;
   startDate?: string | null;
   endDate?: string | null;
   status: LoanStatus;
@@ -178,6 +193,12 @@ export interface MetalPrice {
   changePct: number;
   source: string;
   fetchedAt: string;
+  // Actual GRT counter rate (gold only); 0 when unavailable → fall back to
+  // spot + premium on the client.
+  retail22k?: number;
+  retail24k?: number;
+  retail18k?: number;
+  retailSource?: string;
 }
 
 export interface MetalsLatest {
@@ -219,6 +240,7 @@ export interface CurrencyConfig {
 export interface Settings {
   _id: string;
   name: string;
+  description?: string;
   baseCurrency: string;
   theme: "light" | "dark" | "system";
   locale: string;
@@ -237,6 +259,18 @@ export interface Summary {
   netWorth: number;
   byCurrency: Record<string, number>;
   range: { start: string; end: string };
+}
+
+export interface NetWorthSnapshot {
+  date: string; // YYYY-MM-DD (IST)
+  netWorth: number;
+  assets: number;
+  liabilities: number;
+  accountsTotal: number;
+  holdingsTotal: number;
+  saving: number;
+  investment: number;
+  currency: string;
 }
 
 export interface CategoryDatum {

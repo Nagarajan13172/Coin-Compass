@@ -17,6 +17,12 @@ const transactionSchema = new Schema(
     currency: { type: String, default: "INR" },
     // Set when this transaction was auto-posted by a recurring rule (null for manual entries).
     recurring: { type: Schema.Types.ObjectId, ref: "RecurringTransaction", default: null },
+    // A loan repayment: when set, this transaction's PRINCIPAL portion reduces the
+    // loan's outstanding. `loanPrincipal` records how much principal it applied, so
+    // an edit/delete can reverse exactly what was applied.
+    loan: { type: Schema.Types.ObjectId, ref: "Loan", default: null },
+    loanPrincipal: { type: Number, default: 0 }, // principal this payment applied
+    loanInterest: { type: Number, default: 0 }, // interest portion of this payment
   },
   { timestamps: true }
 );
