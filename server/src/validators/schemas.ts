@@ -182,6 +182,7 @@ export const settingsUpdateSchema = z.object({
   locale: z.string().optional(),
   firstDayOfWeek: z.number().min(0).max(6).optional(),
   monthStartDay: z.number().min(1).max(28).optional(),
+  emailReports: z.boolean().optional(),
   currencies: z
     .array(
       z.object({

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { addDays, addMonths, addYears, startOfDay, startOfMonth, startOfYear, subDays } from "date-fns";
+import { addDays, addMonths, addYears, format, startOfDay, startOfMonth, startOfYear, subDays } from "date-fns";
 import { ChevronDown, Plus, Receipt, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -32,7 +32,7 @@ import type { TxnType } from "@/lib/types";
 
 const ALL = "__all__";
 
-type PeriodKey = "all" | "month" | "30d" | "year";
+type PeriodKey = "all" | "month" | "30d" | "year" | "custom";
 const PERIODS: { value: PeriodKey; label: string }[] = [
   { value: "all", label: "All time" },
   { value: "month", label: "This month" },
@@ -43,6 +43,15 @@ const PERIOD_KEYS = PERIODS.map((p) => p.value);
 
 function initialPeriod(raw: string | null): PeriodKey {
   return raw && (PERIOD_KEYS as string[]).includes(raw) ? (raw as PeriodKey) : "all";
+}
+
+/** Human label for an explicit from/to range (single day, else a span). */
+function rangeLabel(fromIso: string, toIso: string): string {
+  const from = new Date(fromIso);
+  const to = new Date(toIso);
+  const oneDay = to.getTime() - from.getTime() <= 25 * 3600 * 1000; // ~a single day (DST-safe)
+  if (oneDay) return format(from, "dd MMM yyyy");
+  return `${format(from, "dd MMM")} – ${format(new Date(to.getTime() - 1), "dd MMM yyyy")}`;
 }
 const TYPE_LABELS: Record<string, string> = { expense: "Expense", income: "Income", transfer: "Transfer" };
 
@@ -66,7 +75,20 @@ export default function TransactionsPage() {
   const [type, setType] = useState<string>(params.get("type") ?? ALL);
   const [accountIds, setAccountIds] = useState<string[]>(params.get("account") ? [params.get("account")!] : []);
   const [category, setCategory] = useState<string>(params.get("category") ?? ALL);
-  const [period, setPeriod] = useState<PeriodKey>(initialPeriod(params.get("period")));
+  // An explicit ?from=&to= range (e.g. deep-link from the Calendar) becomes a "Custom" period.
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(() => {
+    const from = params.get("from");
+    const to = params.get("to");
+    return from && to ? { from, to } : null;
+  });
+  const [period, setPeriod] = useState<PeriodKey>(
+    customRange ? "custom" : initialPeriod(params.get("period"))
+  );
+
+  function changePeriod(v: PeriodKey) {
+    setPeriod(v);
+    if (v !== "custom") setCustomRange(null);
+  }
 
   // debounce the search input
   const [debounced, setDebounced] = useState(search);
@@ -84,7 +106,10 @@ export default function TransactionsPage() {
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
 
-  const range = useMemo(() => periodRange(period), [period]);
+  const range = useMemo(
+    () => (period === "custom" && customRange ? customRange : periodRange(period)),
+    [period, customRange]
+  );
   const filters: TxnFilters = useMemo(
     () => ({
       search: debounced || undefined,
@@ -133,6 +158,7 @@ export default function TransactionsPage() {
     setAccountIds([]);
     setCategory(ALL);
     setSearch("");
+    setCustomRange(null);
     setPeriod("all");
     setParams({});
   }
@@ -157,7 +183,10 @@ export default function TransactionsPage() {
   if (category !== ALL) pills.push({ key: "cat", label: categoryName, onRemove: () => setCategory(ALL) });
   if (debounced) pills.push({ key: "search", label: `“${debounced}”`, onRemove: () => setSearch("") });
 
-  const periodLabel = PERIODS.find((p) => p.value === period)?.label ?? "All time";
+  const periodLabel =
+    period === "custom" && customRange
+      ? rangeLabel(customRange.from, customRange.to)
+      : PERIODS.find((p) => p.value === period)?.label ?? "All time";
   const summary = total
     ? `${total} transaction${total === 1 ? "" : "s"}${period !== "all" ? ` · ${periodLabel}` : ""}`
     : hasFilters
@@ -251,7 +280,7 @@ export default function TransactionsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
+        <Select value={period} onValueChange={(v) => changePeriod(v as PeriodKey)}>
           <SelectTrigger className="w-[140px]">
             <SelectValue />
           </SelectTrigger>
@@ -261,6 +290,9 @@ export default function TransactionsPage() {
                 {p.label}
               </SelectItem>
             ))}
+            {period === "custom" && customRange && (
+              <SelectItem value="custom">{rangeLabel(customRange.from, customRange.to)}</SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>

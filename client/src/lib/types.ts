@@ -290,6 +290,14 @@ export interface TrendDatum {
   net: number;
 }
 
+export interface AccountDatum {
+  _id: string;
+  name: string;
+  color: string;
+  income: number;
+  expense: number;
+}
+
 export interface Dashboard {
   period: PeriodKey;
   range: { start: string; end: string };

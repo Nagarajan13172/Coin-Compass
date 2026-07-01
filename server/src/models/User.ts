@@ -11,6 +11,9 @@ const userSchema = new Schema(
     // null for OAuth-only accounts that never set a password
     passwordHash: { type: String, default: null },
     emailVerified: { type: Boolean, default: false },
+    // Idempotency guard for scheduled report emails: the last "YYYY-MM-DD" a report
+    // was sent, so a boot/cron double-run on the same day can't send twice.
+    lastReportKey: { type: String, default: "" },
   },
   { timestamps: true }
 );

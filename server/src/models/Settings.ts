@@ -31,6 +31,8 @@ const settingsSchema = new Schema(
     },
     pinEnabled: { type: Boolean, default: false },
     pinHash: { type: String, default: null },
+    // Email a summary report on the 1st (last month) and 15th (month-to-date).
+    emailReports: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

@@ -2,7 +2,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Legend,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -23,18 +23,19 @@ function labelFor(bucket: string) {
   return bucket;
 }
 
-export function TrendArea({ data }: { data: TrendDatum[] }) {
+/**
+ * Net cash flow (income − expense) per bucket over the selected period. Distinct
+ * from the Income vs Expense chart: a single series that dips below zero on the
+ * days/months you spent more than you earned.
+ */
+export function NetTrendArea({ data }: { data: TrendDatum[] }) {
   return (
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
         <defs>
-          <linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(var(--income))" stopOpacity={0.35} />
-            <stop offset="95%" stopColor="hsl(var(--income))" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="expenseFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(var(--expense))" stopOpacity={0.35} />
-            <stop offset="95%" stopColor="hsl(var(--expense))" stopOpacity={0} />
+          <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
@@ -53,6 +54,7 @@ export function TrendArea({ data }: { data: TrendDatum[] }) {
           axisLine={false}
           width={48}
         />
+        <ReferenceLine y={0} stroke="hsl(var(--border))" />
         <Tooltip
           contentStyle={{
             borderRadius: 12,
@@ -62,30 +64,15 @@ export function TrendArea({ data }: { data: TrendDatum[] }) {
             fontSize: 12,
           }}
           labelFormatter={(l) => labelFor(String(l))}
-          formatter={(value: number, name) => [formatMoney(value), name === "income" ? "Income" : "Expense"]}
-        />
-        <Legend
-          iconType="circle"
-          iconSize={8}
-          formatter={(v) => (
-            <span className="text-xs text-muted-foreground">{v === "income" ? "Income" : "Expense"}</span>
-          )}
+          formatter={(value: number) => [formatMoney(value), "Net"]}
         />
         <Area
           type="monotone"
-          name="income"
-          dataKey="income"
-          stroke="hsl(var(--income))"
+          name="net"
+          dataKey="net"
+          stroke="hsl(var(--primary))"
           strokeWidth={2}
-          fill="url(#incomeFill)"
-        />
-        <Area
-          type="monotone"
-          name="expense"
-          dataKey="expense"
-          stroke="hsl(var(--expense))"
-          strokeWidth={2}
-          fill="url(#expenseFill)"
+          fill="url(#netFill)"
         />
       </AreaChart>
     </ResponsiveContainer>

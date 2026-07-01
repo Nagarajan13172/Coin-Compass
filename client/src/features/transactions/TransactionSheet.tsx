@@ -109,7 +109,7 @@ export function TransactionSheet() {
       setAccountId(prefill?.account ?? accounts?.[0]?._id ?? "");
       setCategoryId(prefill?.category ?? null);
       setNote("");
-      setDate(format(new Date(), "yyyy-MM-dd"));
+      setDate(prefill?.date ?? format(new Date(), "yyyy-MM-dd"));
       setTags([]);
       setLoanId("");
     }

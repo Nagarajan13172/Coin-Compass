@@ -2,6 +2,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -53,8 +54,15 @@ export function IncomeExpenseBar({ data }: { data: TrendDatum[] }) {
           labelFormatter={(l) => labelFor(String(l))}
           formatter={(value: number, name) => [formatMoney(value), name === "income" ? "Income" : "Expense"]}
         />
-        <Bar dataKey="income" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} maxBarSize={28} />
-        <Bar dataKey="expense" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} maxBarSize={28} />
+        <Legend
+          iconType="circle"
+          iconSize={8}
+          formatter={(v) => (
+            <span className="text-xs text-muted-foreground">{v === "income" ? "Income" : "Expense"}</span>
+          )}
+        />
+        <Bar name="income" dataKey="income" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} maxBarSize={28} />
+        <Bar name="expense" dataKey="expense" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} maxBarSize={28} />
       </BarChart>
     </ResponsiveContainer>
   );

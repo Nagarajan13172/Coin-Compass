@@ -29,12 +29,12 @@ interface UIState {
   txnSheetOpen: boolean;
   editingTxn: Transaction | null;
   defaultTxnType: TxnType;
-  /** Prefill for a brand-new transaction (e.g. context-aware Add from active filters). */
-  txnPrefill: { account?: string | null; category?: string | null } | null;
+  /** Prefill for a brand-new transaction (e.g. context-aware Add from active filters or a calendar day). */
+  txnPrefill: { account?: string | null; category?: string | null; date?: string | null } | null;
   openTxnSheet: (opts?: {
     txn?: Transaction;
     type?: TxnType;
-    prefill?: { account?: string | null; category?: string | null };
+    prefill?: { account?: string | null; category?: string | null; date?: string | null };
   }) => void;
   closeTxnSheet: () => void;
 
