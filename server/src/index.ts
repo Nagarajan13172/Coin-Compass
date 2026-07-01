@@ -9,6 +9,7 @@ import { connectDB } from "./config/db";
 import apiRouter from "./routes/index";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { processDueRecurring } from "./services/recurringService";
+import { refreshMetalPrices } from "./services/metalPriceService";
 
 async function bootstrap() {
   await connectDB();
@@ -29,6 +30,17 @@ async function bootstrap() {
   cron.schedule("0 * * * *", () => {
     processDueRecurring().catch((e) => console.error("[recurring] scheduled run failed", e));
   });
+
+  // Refresh gold/silver rates on boot (backfills today if missing), then daily
+  // at 06:30 IST. No-op when GOLD_API_KEY isn't configured.
+  await refreshMetalPrices().catch((e) => console.error("[metals] boot run failed", e));
+  cron.schedule(
+    "30 6 * * *",
+    () => {
+      refreshMetalPrices().catch((e) => console.error("[metals] scheduled run failed", e));
+    },
+    { timezone: "Asia/Kolkata" }
+  );
 
   app.listen(env.port, () => {
     // eslint-disable-next-line no-console

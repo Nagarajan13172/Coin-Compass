@@ -12,6 +12,7 @@ import * as holdings from "../controllers/holdingController";
 import * as loans from "../controllers/loanController";
 import * as recurring from "../controllers/recurringController";
 import * as reports from "../controllers/reportController";
+import * as metals from "../controllers/metalController";
 import * as settings from "../controllers/settingsController";
 import { getDashboard } from "../controllers/dashboardController";
 import { exportCsv } from "../controllers/exportController";
@@ -96,8 +97,14 @@ router.delete("/holdings/:id", asyncHandler(holdings.deleteHolding));
 
 router.get("/loans", asyncHandler(loans.listLoans));
 router.post("/loans", asyncHandler(loans.createLoan));
+router.post("/loans/:id/pay", asyncHandler(loans.payLoan));
+router.post("/loans/:id/preclose", asyncHandler(loans.precloseLoan));
 router.patch("/loans/:id", asyncHandler(loans.updateLoan));
 router.delete("/loans/:id", asyncHandler(loans.deleteLoan));
+
+// Precious metals (gold/silver) — global daily rates
+router.get("/metals/latest", asyncHandler(metals.latestMetals));
+router.get("/metals/history", asyncHandler(metals.metalHistory));
 
 // Reports
 router.get("/reports/summary", asyncHandler(reports.summaryReport));

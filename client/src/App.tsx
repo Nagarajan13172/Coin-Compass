@@ -15,6 +15,7 @@ import BudgetsPage from "@/routes/BudgetsPage";
 import GoalsPage from "@/routes/GoalsPage";
 import NetWorthPage from "@/routes/NetWorthPage";
 import LoansPage from "@/routes/LoansPage";
+import GoldPage from "@/routes/GoldPage";
 import ReportsPage from "@/routes/ReportsPage";
 import CalendarPage from "@/routes/CalendarPage";
 import RecurringPage from "@/routes/RecurringPage";
@@ -101,6 +102,7 @@ export function App() {
             <Route path="/goals" element={<GoalsPage />} />
             <Route path="/net-worth" element={<NetWorthPage />} />
             <Route path="/loans" element={<LoansPage />} />
+            <Route path="/gold" element={<GoldPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/recurring" element={<RecurringPage />} />

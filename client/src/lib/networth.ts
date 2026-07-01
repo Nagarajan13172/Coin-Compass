@@ -36,6 +36,19 @@ export const CLASS_META: Record<HoldingClass, { label: string; color: string; ic
   investment: { label: "Investment", color: "#6366F1", icon: "trending-up" },
 };
 
+/** Distinct slice colors for per-item charts (e.g. outstanding by loan). */
+export const CHART_PALETTE = [
+  "#EF4444",
+  "#F97316",
+  "#F59E0B",
+  "#EAB308",
+  "#8B5CF6",
+  "#6366F1",
+  "#0EA5E9",
+  "#14B8A6",
+  "#10B981",
+];
+
 export const LOAN_TYPE_META: Record<LoanType, { label: string; icon: string }> = {
   home: { label: "Home", icon: "house" },
   personal: { label: "Personal", icon: "user" },

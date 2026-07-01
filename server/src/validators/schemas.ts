@@ -153,6 +153,7 @@ export const loanSchema = z.object({
   outstanding: z.number().min(0),
   roi: z.number().min(0).max(100).default(0),
   emi: z.number().min(0).default(0),
+  foreclosureChargePct: z.number().min(0).max(100).default(0),
   startDate: z.coerce.date().nullish(),
   endDate: z.coerce.date().nullish(),
   status: z.enum(["active", "closed"]).default("active"),
@@ -160,6 +161,8 @@ export const loanSchema = z.object({
   currency: z.string().default("INR"),
 });
 export const loanUpdateSchema = loanSchema.partial();
+export const loanPaySchema = z.object({ amount: z.number().positive() });
+export const loanPrecloseSchema = z.object({ chargePct: z.number().min(0).max(100).default(0) });
 
 export const settingsUpdateSchema = z.object({
   name: z.string().max(60).optional(),

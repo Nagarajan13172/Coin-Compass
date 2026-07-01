@@ -155,11 +155,35 @@ export interface Loan {
   outstanding: number;
   roi: number;
   emi: number;
+  foreclosureChargePct: number;
   startDate?: string | null;
   endDate?: string | null;
   status: LoanStatus;
   note: string;
   currency: string;
+}
+
+export type Metal = "gold" | "silver";
+
+export interface MetalPrice {
+  metal: Metal;
+  currency: string;
+  date: string; // YYYY-MM-DD (IST)
+  pricePerOunce: number;
+  pricePerGram24k: number;
+  pricePerGram22k: number;
+  pricePerGram18k: number;
+  prevClose: number;
+  change: number;
+  changePct: number;
+  source: string;
+  fetchedAt: string;
+}
+
+export interface MetalsLatest {
+  configured: boolean;
+  gold: MetalPrice | null;
+  silver: MetalPrice | null;
 }
 
 export interface AuthUser {

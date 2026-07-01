@@ -13,6 +13,14 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Subscriptions", icon: "repeat", color: "#A855F7" },
   { name: "Personal Care", icon: "sparkles", color: "#D946EF" },
   { name: "Gifts & Donations", icon: "gift", color: "#FB7185" },
+  { name: "Parents Maintenance", icon: "receipt", color: "#22C55E" },
+  { name: "Cash Withdrawal", icon: "banknote", color: "#8B5CF6" },
+  { name: "Recharges", icon: "gamepad", color: "#14B8A6" },
+  { name: "One-time Transfer", icon: "plane", color: "#EC4899" },
+  { name: "Personal Loan", icon: "credit-card", color: "#F97316" },
+  { name: "Maid", icon: "pizza", color: "#64748B" },
+  { name: "Tea & Snacks", icon: "coffee", color: "#22C55E" },
+  { name: "Post-Office", icon: "receipt", color: "#EC4899" },
   { name: "Other", icon: "ellipsis", color: "#64748B" },
 ];
 
@@ -24,5 +32,7 @@ export const DEFAULT_INCOME_CATEGORIES = [
   { name: "Interest", icon: "percent", color: "#EAB308" },
   { name: "Gifts", icon: "gift", color: "#EC4899" },
   { name: "Refunds", icon: "rotate-ccw", color: "#3B82F6" },
+  { name: "RD Returns", icon: "repeat", color: "#2563EB" },
+  { name: "Existing Balance", icon: "piggy-bank", color: "#D946EF" },
   { name: "Other", icon: "ellipsis", color: "#64748B" },
 ];

@@ -29,6 +29,24 @@ export function useUpdateLoan() {
   });
 }
 
+/** Part payment: reduce the outstanding balance by an amount. */
+export function usePayLoan() {
+  return useMutation({
+    mutationFn: async ({ id, amount }: { id: string; amount: number }) =>
+      (await api.post(`/loans/${id}/pay`, { amount })).data,
+    onSuccess: invalidate,
+  });
+}
+
+/** Preclose (foreclose) the loan with a charge %. */
+export function usePrecloseLoan() {
+  return useMutation({
+    mutationFn: async ({ id, chargePct }: { id: string; chargePct: number }) =>
+      (await api.post(`/loans/${id}/preclose`, { chargePct })).data,
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteLoan() {
   return useMutation({
     mutationFn: async (id: string) => (await api.delete(`/loans/${id}`)).data,

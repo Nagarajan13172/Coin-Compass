@@ -43,6 +43,7 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
   const [principal, setPrincipal] = useState("");
   const [roi, setRoi] = useState("");
   const [emi, setEmi] = useState("");
+  const [foreclosureChargePct, setForeclosureChargePct] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState<LoanStatus>("active");
@@ -56,6 +57,7 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
     setPrincipal(loan?.principal ? String(loan.principal) : "");
     setRoi(loan?.roi ? String(loan.roi) : "");
     setEmi(loan?.emi ? String(loan.emi) : "");
+    setForeclosureChargePct(loan?.foreclosureChargePct ? String(loan.foreclosureChargePct) : "");
     setStartDate(loan?.startDate ? loan.startDate.slice(0, 10) : "");
     setEndDate(loan?.endDate ? loan.endDate.slice(0, 10) : "");
     setStatus(loan?.status ?? "active");
@@ -73,6 +75,7 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
       principal: Number(principal) || 0,
       roi: Number(roi) || 0,
       emi: Number(emi) || 0,
+      foreclosureChargePct: Number(foreclosureChargePct) || 0,
       startDate: startDate ? new Date(startDate).toISOString() : null,
       endDate: endDate ? new Date(endDate).toISOString() : null,
       status,
@@ -160,9 +163,15 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
+              <Label htmlFor="loan-foreclose">Preclosure charge (%)</Label>
+              <Input id="loan-foreclose" type="number" inputMode="decimal" value={foreclosureChargePct} onChange={(e) => setForeclosureChargePct(e.target.value)} placeholder="e.g. 2" />
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="loan-start">Start date</Label>
               <Input id="loan-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="loan-end">End date</Label>
               <Input id="loan-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />

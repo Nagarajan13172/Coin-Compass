@@ -29,6 +29,14 @@ export const env = {
     sessionTtlDays: 30,
     emailTokenTtlHours: Number(process.env.AUTH_EMAIL_TOKEN_TTL_HOURS ?? 24),
   },
+  // Live precious-metal (gold/silver) rates. When GOLD_API_KEY is absent the
+  // feature is disabled: the API returns `configured: false` and the client
+  // hides the widget/page instead of erroring.
+  metals: {
+    apiKey: process.env.GOLD_API_KEY ?? "",
+    provider: "goldapi.io",
+    configured: Boolean(process.env.GOLD_API_KEY),
+  },
   mail: {
     // When SMTP isn't configured, the mailer logs verification links to the console
     // instead of sending — so signup/verify works out of the box in local dev.

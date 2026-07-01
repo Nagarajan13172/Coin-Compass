@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { addMonths, format } from "date-fns";
 import { AlertTriangle, TrendingDown } from "lucide-react";
 import {
   Dialog,
@@ -70,11 +71,13 @@ export function LoanCalculatorDialog({ loan, onClose }: { loan: Loan | null; onC
                 <Panel
                   title="Current"
                   primary={formatMonths(result.base.months)}
+                  date={endDateLabel(result.base.months)}
                   sub={`~${formatMoney(result.base.totalInterest)} interest`}
                 />
                 <Panel
                   title={result.extraN > 0 ? `+${formatMoney(result.extraN)}/mo` : "With extra"}
                   primary={formatMonths(result.boosted.months)}
+                  date={endDateLabel(result.boosted.months)}
                   sub={`~${formatMoney(result.boosted.totalInterest)} interest`}
                   highlight={result.extraN > 0}
                 />
@@ -111,14 +114,22 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** "≈ Dec 2028" projected close date from a month count. */
+function endDateLabel(months: number): string | null {
+  if (!isFinite(months) || months <= 0) return null;
+  return `≈ ${format(addMonths(new Date(), months), "MMM yyyy")}`;
+}
+
 function Panel({
   title,
   primary,
+  date,
   sub,
   highlight,
 }: {
   title: string;
   primary: string;
+  date: string | null;
   sub: string;
   highlight?: boolean;
 }) {
@@ -126,6 +137,7 @@ function Panel({
     <div className={`rounded-lg border p-3 ${highlight ? "border-income/40 bg-income/5" : ""}`}>
       <p className="text-xs text-muted-foreground">{title}</p>
       <p className="text-lg font-bold">{primary}</p>
+      {date && <p className="text-xs font-medium text-foreground">{date}</p>}
       <p className="tnum text-xs text-muted-foreground">{sub}</p>
     </div>
   );
