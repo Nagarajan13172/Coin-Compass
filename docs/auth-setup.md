@@ -43,41 +43,45 @@ verify. This lets the whole flow work locally without a mail account.
 ## OAuth providers
 
 A provider's button only appears on the login/sign-up pages once **both** its client
-id and secret are set. The callback (redirect) URL for every provider is:
+id and secret are set. By default the app can infer the callback origin from the
+incoming request, but for local development the least surprising setup is to pin it
+explicitly with `OAUTH_REDIRECT_BASE_URL`.
+
+The callback (redirect) URL for every provider is:
 
 ```
-{APP_URL}/api/auth/oauth/{provider}/callback
+{OAUTH_REDIRECT_BASE_URL}/api/auth/oauth/{provider}/callback
 ```
 
-With the default `APP_URL=http://localhost:5173` that's, e.g.:
+With `OAUTH_REDIRECT_BASE_URL=http://localhost:4000` that's, e.g.:
 
 ```
-http://localhost:5173/api/auth/oauth/google/callback
+http://localhost:4000/api/auth/oauth/google/callback
 ```
 
-> Register that exact URL with the provider. In production, set `APP_URL` to the
-> public https origin where the SPA serves `/api`, then register the matching
-> https callback.
+> Register that exact URL with the provider. If you prefer to receive the callback
+> on the frontend origin instead, set `OAUTH_REDIRECT_BASE_URL` to that origin and
+> register the matching callback there instead.
 
 ### Google
 
 1. <https://console.cloud.google.com/apis/credentials> → **Create credentials → OAuth client ID**.
 2. Application type **Web application**.
-3. Authorized redirect URI: `http://localhost:5173/api/auth/oauth/google/callback`.
+3. Authorized redirect URI: `http://localhost:4000/api/auth/oauth/google/callback`.
 4. Copy the client id/secret into `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
 
 ### GitHub
 
 1. <https://github.com/settings/developers> → **New OAuth App**.
 2. Homepage URL: `http://localhost:5173`.
-3. Authorization callback URL: `http://localhost:5173/api/auth/oauth/github/callback`.
+3. Authorization callback URL: `http://localhost:4000/api/auth/oauth/github/callback`.
 4. Generate a client secret; set `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`.
 
 ### Microsoft (Entra ID)
 
 1. <https://portal.azure.com> → **App registrations → New registration**.
 2. Supported account types: pick "any account" for personal + work, or single-tenant.
-3. Redirect URI (Web): `http://localhost:5173/api/auth/oauth/microsoft/callback`.
+3. Redirect URI (Web): `http://localhost:4000/api/auth/oauth/microsoft/callback`.
 4. Create a client secret under **Certificates & secrets**.
 5. Set `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET`; set `MICROSOFT_TENANT` to
    `common` (any account) or your tenant id.
@@ -89,7 +93,7 @@ Sign in with Apple needs a paid Apple Developer account:
 1. Create an **App ID** and a **Services ID** (this Services ID string is `APPLE_CLIENT_ID`,
    e.g. `com.yourapp.web`).
 2. Enable "Sign in with Apple" on the Services ID and add the return URL
-   `http://localhost:5173/api/auth/oauth/apple/callback` (Apple requires https in
+   `http://localhost:4000/api/auth/oauth/apple/callback` (Apple requires https in
    production and won't accept a bare `localhost` there — use a tunnel for testing).
 3. Create a **Sign in with Apple key** (.p8) and note the Key ID and your Team ID.
 4. Set `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and `APPLE_PRIVATE_KEY`

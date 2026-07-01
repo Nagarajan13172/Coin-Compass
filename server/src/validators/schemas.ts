@@ -105,6 +105,62 @@ export const recurringSchema = z.object({
 });
 export const recurringUpdateSchema = recurringSchema.partial();
 
+export const goalSchema = z.object({
+  name: z.string().min(1).max(80),
+  targetAmount: z.number().positive("Target must be greater than 0"),
+  savedAmount: z.number().min(0).default(0),
+  targetDate: z.coerce.date().nullish(),
+  monthlyContribution: z.number().min(0).default(0),
+  color: z.string().default("#6366F1"),
+  icon: z.string().default("goal"),
+  currency: z.string().default("INR"),
+});
+export const goalUpdateSchema = goalSchema.partial();
+// A contribution can be negative to correct/withdraw; the service clamps saved ≥ 0.
+export const goalContributeSchema = z.object({ amount: z.number() });
+
+const SAVING_SUBS = ["fixed_deposit", "recurring_deposit", "emergency_fund", "retirement_fund"] as const;
+const INVEST_SUBS = ["stocks", "mutual_funds", "real_estate", "bonds", "gold"] as const;
+
+const holdingBase = z.object({
+  name: z.string().min(1).max(80),
+  class: z.enum(["saving", "investment"]),
+  subtype: z.enum([...SAVING_SUBS, ...INVEST_SUBS]),
+  value: z.number().min(0),
+  provider: z.string().max(120).default(""),
+  note: z.string().max(280).default(""),
+  currency: z.string().default("INR"),
+});
+
+/** Subtype must belong to the chosen class (saving vs investment). */
+function subtypeMatchesClass(d: { class: "saving" | "investment"; subtype: string }) {
+  const allowed: readonly string[] = d.class === "saving" ? SAVING_SUBS : INVEST_SUBS;
+  return allowed.includes(d.subtype);
+}
+
+export const holdingSchema = holdingBase.refine(subtypeMatchesClass, {
+  message: "Subtype does not match the selected type",
+  path: ["subtype"],
+});
+// Partial updates skip the cross-field check (class/subtype may arrive separately).
+export const holdingUpdateSchema = holdingBase.partial();
+
+export const loanSchema = z.object({
+  name: z.string().min(1).max(80),
+  lender: z.string().max(120).default(""),
+  type: z.enum(["home", "personal", "car", "education", "gold", "business", "other"]).default("personal"),
+  principal: z.number().min(0).default(0),
+  outstanding: z.number().min(0),
+  roi: z.number().min(0).max(100).default(0),
+  emi: z.number().min(0).default(0),
+  startDate: z.coerce.date().nullish(),
+  endDate: z.coerce.date().nullish(),
+  status: z.enum(["active", "closed"]).default("active"),
+  note: z.string().max(280).default(""),
+  currency: z.string().default("INR"),
+});
+export const loanUpdateSchema = loanSchema.partial();
+
 export const settingsUpdateSchema = z.object({
   name: z.string().max(60).optional(),
   baseCurrency: z.string().optional(),

@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "seed": "tsx src/seed/index.ts",
+    "seed:all": "tsx src/scripts/seedAll.ts",
     "migrate:user": "tsx src/scripts/migrateToUser.ts",
     "build": "tsc --noEmit",
     "test": "vitest run"

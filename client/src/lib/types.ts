@@ -102,6 +102,66 @@ export interface Recurring {
   upcoming?: string[];
 }
 
+export interface Goal {
+  _id: string;
+  name: string;
+  targetAmount: number;
+  savedAmount: number;
+  targetDate?: string | null;
+  monthlyContribution: number;
+  color: string;
+  icon: string;
+  currency: string;
+  achievedAt?: string | null;
+  // computed server-side
+  remaining: number;
+  percent: number;
+  complete: boolean;
+  monthsLeft: number | null;
+}
+
+export type HoldingClass = "saving" | "investment";
+export type HoldingSubtype =
+  | "fixed_deposit"
+  | "recurring_deposit"
+  | "emergency_fund"
+  | "retirement_fund"
+  | "stocks"
+  | "mutual_funds"
+  | "real_estate"
+  | "bonds"
+  | "gold";
+
+export interface Holding {
+  _id: string;
+  name: string;
+  class: HoldingClass;
+  subtype: HoldingSubtype;
+  value: number;
+  provider: string;
+  note: string;
+  currency: string;
+}
+
+export type LoanType = "home" | "personal" | "car" | "education" | "gold" | "business" | "other";
+export type LoanStatus = "active" | "closed";
+
+export interface Loan {
+  _id: string;
+  name: string;
+  lender: string;
+  type: LoanType;
+  principal: number;
+  outstanding: number;
+  roi: number;
+  emi: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: LoanStatus;
+  note: string;
+  currency: string;
+}
+
 export interface AuthUser {
   id: string;
   email: string;

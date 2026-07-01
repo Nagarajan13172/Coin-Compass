@@ -12,6 +12,13 @@ const periodMap: Record<string, Period> = {
   yearly: "year",
 };
 
+/** Extract a category id string whether `category` is a raw ObjectId or a populated doc. */
+export function categoryIdOf(cat: unknown): string | null {
+  if (!cat) return null;
+  if (typeof cat === "object" && cat !== null && "_id" in cat) return String((cat as { _id: unknown })._id);
+  return String(cat);
+}
+
 async function withProgress(
   uid: string,
   budget: {
@@ -23,7 +30,7 @@ async function withProgress(
   }
 ) {
   const { start, end } = resolvePeriod(periodMap[budget.period] ?? "month");
-  const spent = await getSpentForCategory(uid, budget.category ? String(budget.category) : null, start, end);
+  const spent = await getSpentForCategory(uid, categoryIdOf(budget.category), start, end);
   const remaining = budget.amount - spent;
   const percent = budget.amount > 0 ? Math.round((spent / budget.amount) * 100) : 0;
   return {

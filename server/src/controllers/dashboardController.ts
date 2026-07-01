@@ -4,6 +4,7 @@ import { Budget } from "../models/Budget";
 import { Transaction } from "../models/Transaction";
 import { RecurringTransaction } from "../models/RecurringTransaction";
 import { computeAllBalances } from "../services/balanceService";
+import { categoryIdOf } from "./budgetController";
 import { getSummary, getByCategory, getTrend, getSpentForCategory } from "../services/reportService";
 import { resolvePeriod, addDays, startOfDay, type Period } from "../utils/dateRange";
 import { userId } from "../middleware/auth";
@@ -60,7 +61,7 @@ export async function getDashboard(req: Request, res: Response) {
       const pr = resolvePeriod(
         b.period === "weekly" ? "week" : b.period === "yearly" ? "year" : "month"
       );
-      const spent = await getSpentForCategory(uid, b.category ? String(b.category) : null, pr.start, pr.end);
+      const spent = await getSpentForCategory(uid, categoryIdOf(b.category), pr.start, pr.end);
       return {
         ...b,
         spent,

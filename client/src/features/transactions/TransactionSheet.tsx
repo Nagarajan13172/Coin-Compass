@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -61,8 +61,24 @@ export function TransactionSheet() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [note, setNote] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   const isEdit = Boolean(editing);
+
+  function addTag(raw: string) {
+    const t = raw.trim().replace(/,+$/, "").trim();
+    if (t) setTags((prev) => (prev.includes(t) ? prev : [...prev, t]));
+    setTagInput("");
+  }
+  function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(tagInput);
+    } else if (e.key === "Backspace" && !tagInput && tags.length) {
+      setTags((prev) => prev.slice(0, -1));
+    }
+  }
 
   // (re)initialise the form whenever the sheet opens
   useEffect(() => {
@@ -75,13 +91,16 @@ export function TransactionSheet() {
       setCategoryId(refId(editing.category));
       setDate(format(new Date(editing.date), "yyyy-MM-dd"));
       setNote(editing.note ?? "");
+      setTags(editing.tags ?? []);
     } else {
       setType(defaultType);
       setAmount(0);
       setCategoryId(null);
       setNote("");
       setDate(format(new Date(), "yyyy-MM-dd"));
+      setTags([]);
     }
+    setTagInput("");
   }, [open, editing, defaultType]);
 
   // default the account selection once accounts load
@@ -111,6 +130,7 @@ export function TransactionSheet() {
       category: type === "transfer" ? null : categoryId,
       date: new Date(date).toISOString(),
       note,
+      tags: tagInput.trim() ? [...tags, tagInput.trim()] : tags,
       currency: activeAccount?.currency ?? "INR",
     };
 
@@ -226,6 +246,33 @@ export function TransactionSheet() {
                   onChange={(e) => setNote(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="txn-tags">Tags</Label>
+              <Input
+                id="txn-tags"
+                placeholder="Add a tag, press Enter (e.g. Hari, Bed)"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKey}
+              />
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {tags.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setTags((prev) => prev.filter((x) => x !== t))}
+                      className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/70"
+                      aria-label={`Remove tag ${t}`}
+                    >
+                      {t}
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </ScrollArea>

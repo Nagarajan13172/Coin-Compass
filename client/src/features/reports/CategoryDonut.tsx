@@ -7,9 +7,10 @@ interface CategoryDonutProps {
   data: CategoryDatum[];
   total: number;
   onSelect?: (categoryId: string | null) => void;
+  centerLabel?: string;
 }
 
-export function CategoryDonut({ data, total, onSelect }: CategoryDonutProps) {
+export function CategoryDonut({ data, total, onSelect, centerLabel = "Total spent" }: CategoryDonutProps) {
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
       <div className="relative h-48 w-48 shrink-0">
@@ -37,7 +38,7 @@ export function CategoryDonut({ data, total, onSelect }: CategoryDonutProps) {
           </Pie>
         </PieChart>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xs text-muted-foreground">Total spent</span>
+          <span className="text-xs text-muted-foreground">{centerLabel}</span>
           <span className="tnum text-lg font-bold">{formatMoney(total, { compact: total > 99999 })}</span>
         </div>
       </div>

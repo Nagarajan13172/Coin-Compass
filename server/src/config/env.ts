@@ -20,6 +20,9 @@ export const env = {
   // direct backend origin when you need to hit the API without the frontend proxy.
   serverUrl: process.env.SERVER_URL ?? `http://localhost:${port}`,
   appUrl: process.env.APP_URL ?? clientUrl,
+  // Optional explicit origin for OAuth callbacks. Use this when the redirect URI
+  // registered with the provider must stay on a specific origin.
+  oauthRedirectBaseUrl: process.env.OAUTH_REDIRECT_BASE_URL ?? "",
   auth: {
     jwtSecret: process.env.AUTH_JWT_SECRET ?? "dev-insecure-secret-change-me",
     cookieName: process.env.AUTH_COOKIE_NAME ?? "mt_session",

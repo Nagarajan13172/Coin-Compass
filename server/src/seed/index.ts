@@ -7,32 +7,60 @@ import { User } from "../models/User";
 import { provisionUser } from "../services/authService";
 import { hashPassword } from "../auth/password";
 
-const demo = process.argv.includes("--demo");
+/**
+ * Seed a user + workspace, optionally with demo transactions.
+ *
+ *   npm run seed                                          # demo@moneytracker.local / demo1234
+ *   npm run seed -- --demo                                # ...plus ~60 sample transactions
+ *   npm run seed -- --email you@example.com --demo        # seed for a specific address
+ *   npm run seed -- --email you@example.com --password s3cret --name "You" --demo
+ *
+ * Safe to re-run: an existing user is reused (not duplicated), and demo data is
+ * skipped if that user already has transactions. Seeded accounts are created with
+ * emailVerified=true (no verification screen) and a password, and signing in with
+ * Google using the same address links to the very same account.
+ */
 
-// A ready-to-use local login so you can sign in immediately after seeding.
 const DEMO_EMAIL = "demo@moneytracker.local";
 const DEMO_PASSWORD = "demo1234";
+
+/** Read `--flag value` or `--flag=value` from argv. */
+function arg(flag: string): string | undefined {
+  const args = process.argv.slice(2);
+  const eq = args.find((a) => a.startsWith(`${flag}=`));
+  if (eq) return eq.slice(flag.length + 1);
+  const i = args.indexOf(flag);
+  const next = args[i + 1];
+  if (i >= 0 && next && !next.startsWith("--")) return next;
+  return undefined;
+}
+
+const demo = process.argv.includes("--demo");
+const email = (arg("--email") ?? DEMO_EMAIL).toLowerCase().trim();
+const password = arg("--password") ?? DEMO_PASSWORD;
+const name = arg("--name") ?? email.split("@")[0];
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-/** Ensure the demo user exists and is provisioned (settings + default categories + Cash account). */
-async function seedDemoUser() {
-  let user = await User.findOne({ email: DEMO_EMAIL });
+/** Ensure the user exists and is provisioned (settings + default categories + Cash account). */
+async function seedUser() {
+  let user = await User.findOne({ email });
   if (user) {
-    console.log(`• Demo user already exists (${DEMO_EMAIL}).`);
+    console.log(`• User already exists (${email}); reusing their workspace.`);
     return user;
   }
   user = await User.create({
-    email: DEMO_EMAIL,
-    name: "Demo",
-    passwordHash: await hashPassword(DEMO_PASSWORD),
+    email,
+    name,
+    passwordHash: await hashPassword(password),
     emailVerified: true,
   });
   await provisionUser(user._id);
-  console.log(`✓ Created demo user and workspace.`);
-  console.log(`  Login → ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+  console.log(`✓ Created user and workspace for ${email}.`);
+  console.log(`  Password login → ${email} / ${password}`);
+  console.log(`  Google sign-in with this address links to the same account.`);
   return user;
 }
 
@@ -40,7 +68,7 @@ async function seedDemoData(userId: mongoose.Types.ObjectId) {
   if (!demo) return;
   const txnCount = await Transaction.countDocuments({ user: userId });
   if (txnCount > 0) {
-    console.log(`• Demo user already has transactions (${txnCount}), skipping demo data.`);
+    console.log(`• User already has transactions (${txnCount}), skipping demo data.`);
     return;
   }
 
@@ -97,7 +125,7 @@ async function seedDemoData(userId: mongoose.Types.ObjectId) {
 
 async function main() {
   await connectDB();
-  const user = await seedDemoUser();
+  const user = await seedUser();
   await seedDemoData(user._id as mongoose.Types.ObjectId);
   await mongoose.disconnect();
   console.log("✓ Seed complete.");

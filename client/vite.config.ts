@@ -1,9 +1,51 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      // favicon.svg is already in /public; list the icons the manifest points at.
+      includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+      manifest: {
+        id: "/",
+        name: "Money Tracker — Expense & Budget",
+        short_name: "Money Tracker",
+        description: "Track expenses, budgets, and recurring bills.",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        orientation: "portrait",
+        theme_color: "#0F172A",
+        background_color: "#0F172A",
+        icons: [
+          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          {
+            src: "/maskable-icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        // Serve index.html for client-side routes, but never shadow the API or
+        // OAuth callbacks — those must hit the network / server directly.
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api/],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+      },
+      // Register the service worker in `vite dev` too, so the app is
+      // installable during development (not just in production builds).
+      devOptions: { enabled: true, type: "module", navigateFallback: "index.html" },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

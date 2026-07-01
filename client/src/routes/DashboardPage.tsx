@@ -1,9 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { format, isToday, isPast } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, CalendarClock, Plus, Receipt, Wallet } from "lucide-react";
+import { format, differenceInCalendarDays } from "date-fns";
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, Plus, Receipt, Trophy, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,24 +17,45 @@ import { TransactionRow } from "@/features/transactions/TransactionRow";
 import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { TrendArea } from "@/features/reports/TrendArea";
 import { useDashboard } from "@/hooks/useReports";
+import { useGoals } from "@/hooks/useGoals";
 import { useRunRecurringOne } from "@/hooks/useRecurring";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
+import { formatDateRange } from "@/lib/dates";
+import { accountTypeLabel } from "@/lib/accounts";
 import type { PeriodKey, Recurring } from "@/lib/types";
 import { toast } from "sonner";
 
+const PERIOD_NOUN: Record<PeriodKey, string> = {
+  week: "This week",
+  month: "This month",
+  year: "This year",
+};
+
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const period = useUIStore((s) => s.period);
   const setPeriod = useUIStore((s) => s.setPeriod);
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const { data, isLoading } = useDashboard(period);
+  const { data: goals } = useGoals();
+
+  // Make the active period explicit, e.g. "This month · 1–31 Jul 2026".
+  const description = data
+    ? `${PERIOD_NOUN[period]} · ${formatDateRange(data.range.start, data.range.end)}`
+    : "Your money at a glance";
+
+  // Tapping a category slice/row jumps to its transactions for the period.
+  function openCategory(categoryId: string | null) {
+    navigate(categoryId ? `/transactions?category=${categoryId}` : "/transactions?type=expense");
+  }
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        description="Your money at a glance"
+        description={description}
         actions={
           <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
             <TabsList className="h-9">
@@ -63,7 +85,7 @@ export default function DashboardPage() {
                   className="tnum block text-3xl font-extrabold tracking-tight"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Across {data.accounts.length} account{data.accounts.length === 1 ? "" : "s"}
+                  Sum of {data.accounts.length} account{data.accounts.length === 1 ? "" : "s"}
                 </p>
               </CardContent>
             </Card>
@@ -113,18 +135,25 @@ export default function DashboardPage() {
                 {data.accounts.slice(0, 5).map((a) => {
                   const Icon = getIcon(a.icon);
                   return (
-                    <div key={a._id} className="flex items-center gap-3 py-1.5">
+                    <Link
+                      key={a._id}
+                      to="/accounts"
+                      className="flex items-center gap-3 rounded-lg py-1.5 transition-colors hover:bg-accent"
+                    >
                       <span
-                        className="flex h-9 w-9 items-center justify-center rounded-lg"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                         style={{ backgroundColor: `${a.color}1f`, color: a.color }}
                       >
                         <Icon className="h-4 w-4" />
                       </span>
-                      <span className="flex-1 truncate text-sm font-medium">{a.name}</span>
-                      <span className="tnum text-sm font-semibold">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{a.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{accountTypeLabel(a.type)}</p>
+                      </div>
+                      <span className="tnum shrink-0 text-sm font-semibold">
                         {formatMoney(a.balance ?? 0, { currency: a.currency })}
                       </span>
-                    </div>
+                    </Link>
                   );
                 })}
                 {!data.accounts.length && (
@@ -137,14 +166,21 @@ export default function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             {/* spending donut */}
             <Card className="lg:col-span-2">
-              <CardHeader>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Spending by category</CardTitle>
+                {data.byCategory.length > 0 && (
+                  <Badge variant="secondary" className="tnum gap-1 font-semibold">
+                    <span className="font-normal text-muted-foreground">Total spent</span>
+                    {formatMoney(data.summary.expense)}
+                  </Badge>
+                )}
               </CardHeader>
               <CardContent>
                 {data.byCategory.length ? (
                   <CategoryDonut
                     data={data.byCategory}
                     total={data.summary.expense}
+                    onSelect={openCategory}
                   />
                 ) : (
                   <EmptyState
@@ -168,7 +204,7 @@ export default function DashboardPage() {
                 {data.recent.length ? (
                   <div className="space-y-0.5">
                     {data.recent.slice(0, 6).map((t) => (
-                      <TransactionRow key={t._id} txn={t} />
+                      <TransactionRow key={t._id} txn={t} showDate />
                     ))}
                   </div>
                 ) : (
@@ -228,6 +264,36 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* goals */}
+          {goals && goals.length > 0 && (
+            <Card>
+              <CardHeader className="flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-muted-foreground" /> Goals
+                </CardTitle>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/goals">Manage</Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {goals.slice(0, 3).map((g) => (
+                  <Link key={g._id} to="/goals" className="space-y-2 rounded-lg border p-3 transition-colors hover:bg-accent">
+                    <div className="flex items-center gap-2">
+                      <CategoryIcon icon={g.icon} color={g.color} size="sm" />
+                      <span className="flex-1 truncate text-sm font-medium">{g.name}</span>
+                      <span className="tnum text-xs text-muted-foreground">{g.percent}%</span>
+                    </div>
+                    <Progress value={g.percent} indicatorClassName={g.complete ? "bg-income" : undefined} />
+                    <div className="flex justify-between text-xs text-muted-foreground tnum">
+                      <span>{formatMoney(g.savedAmount)}</span>
+                      <span>{formatMoney(g.targetAmount)}</span>
+                    </div>
+                  </Link>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>
@@ -255,20 +321,38 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
       <CardContent className="grid gap-2 sm:grid-cols-2">
         {items.map((r) => {
           const next = new Date(r.nextRun);
-          const due = isToday(next) || isPast(next);
+          const days = differenceInCalendarDays(next, new Date());
+          const due = days <= 0; // today or overdue → postable
+          const countdown =
+            days < 0 ? "Overdue" : days === 0 ? "Due today" : days === 1 ? "Due tomorrow" : `Due in ${days} days`;
+          const countdownTone =
+            days < 0
+              ? "text-expense"
+              : days <= 3
+                ? "text-amber-600 dark:text-amber-500"
+                : "text-muted-foreground";
+          const title = r.type === "transfer" ? "Transfer" : r.category?.name ?? (r.note || "Recurring");
           return (
-            <div key={r._id} className="flex items-center gap-3 rounded-lg border p-3">
+            <div
+              key={r._id}
+              className={`flex items-center gap-3 rounded-lg border p-3 ${
+                days < 0 ? "border-expense/40 bg-expense/5" : days <= 3 ? "border-amber-500/40 bg-amber-500/5" : ""
+              }`}
+            >
               <CategoryIcon
                 icon={r.type === "transfer" ? "repeat" : r.category?.icon}
                 color={r.type === "transfer" ? "#3B82F6" : r.category?.color}
                 size="md"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {r.type === "transfer" ? "Transfer" : r.category?.name ?? (r.note || "Recurring")}
+                <p className="flex items-center gap-2 truncate text-sm font-medium">
+                  <span className="truncate">{title}</span>
+                  <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                    {freqLabel(r)}
+                  </Badge>
                 </p>
-                <p className={`text-xs ${due ? "font-medium text-amber-600 dark:text-amber-500" : "text-muted-foreground"}`}>
-                  {due ? "Due now" : `Due ${format(next, "dd MMM")}`}
+                <p className={`truncate text-xs font-medium ${countdownTone}`}>
+                  {countdown} · {format(next, "dd MMM")}
                 </p>
               </div>
               <Money amount={r.amount} type={r.type} signed className="text-sm" />
@@ -286,6 +370,19 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
       </CardContent>
     </Card>
   );
+}
+
+const FREQ_UNIT: Record<Recurring["frequency"], string> = {
+  daily: "day",
+  weekly: "week",
+  monthly: "month",
+  yearly: "year",
+};
+
+/** "Monthly" / "Every 2 weeks" from a recurring rule's frequency + interval. */
+function freqLabel(r: Recurring): string {
+  if (r.interval > 1) return `Every ${r.interval} ${FREQ_UNIT[r.frequency]}s`;
+  return r.frequency.charAt(0).toUpperCase() + r.frequency.slice(1);
 }
 
 function StatCard({

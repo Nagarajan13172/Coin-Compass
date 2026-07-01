@@ -49,6 +49,9 @@ function parseOrigin(value: string | undefined): string | null {
 }
 
 function publicAuthOrigin(req: Request): string {
+  const configuredOrigin = parseOrigin(env.oauthRedirectBaseUrl);
+  if (configuredOrigin) return configuredOrigin;
+
   const forwardedProto = firstHeaderValue(req.get("x-forwarded-proto") ?? undefined);
   const forwardedHost = firstHeaderValue(req.get("x-forwarded-host") ?? undefined);
   if (forwardedProto && forwardedHost) {
@@ -64,7 +67,7 @@ function publicAuthOrigin(req: Request): string {
   const host = firstHeaderValue(req.get("host") ?? undefined);
   if (host) return `${req.protocol}://${host}`;
 
-  return parseOrigin(env.appUrl) ?? env.appUrl;
+  return parseOrigin(env.serverUrl) ?? env.serverUrl;
 }
 
 export function oauthRedirectUri(req: Request, provider: AuthProvider): string {

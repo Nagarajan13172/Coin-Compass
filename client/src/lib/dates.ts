@@ -31,6 +31,17 @@ export function dayKey(iso: string) {
   return format(parseISO(iso), "yyyy-MM-dd");
 }
 
+/** Compact, explicit label for a date range, e.g. "1–31 Jul 2026" or "28 Dec – 3 Jan 2027". */
+export function formatDateRange(startIso: string, endIso: string) {
+  const s = parseISO(startIso);
+  const e = parseISO(endIso);
+  const sameYear = s.getFullYear() === e.getFullYear();
+  const sameMonth = sameYear && s.getMonth() === e.getMonth();
+  if (sameMonth) return `${format(s, "d")}–${format(e, "d MMM yyyy")}`;
+  if (sameYear) return `${format(s, "d MMM")} – ${format(e, "d MMM yyyy")}`;
+  return `${format(s, "d MMM yyyy")} – ${format(e, "d MMM yyyy")}`;
+}
+
 /** Resolve a period key + reference date into a concrete range. */
 export function periodRange(period: PeriodKey, ref: Date) {
   switch (period) {

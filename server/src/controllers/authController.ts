@@ -29,8 +29,14 @@ export async function signup(req: Request, res: Response) {
   // Log them in immediately, but emailVerified is false so the app gates them
   // onto the "verify your email" screen until they click the emailed link.
   setSessionCookie(res, String(user._id));
-  await sendVerificationEmail(user);
   res.status(201).json({ user: publicUser(user) });
+  // Send the verification email out-of-band: don't make the user wait on the SMTP
+  // round-trip, and don't fail an otherwise-successful signup if mail hiccups —
+  // they land on the verify screen and can hit "Resend" there.
+  void sendVerificationEmail(user).catch((e) => {
+    // eslint-disable-next-line no-console
+    console.error("[signup] verification email failed for", user.email, e);
+  });
 }
 
 /**

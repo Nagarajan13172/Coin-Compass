@@ -7,6 +7,9 @@ import * as accounts from "../controllers/accountController";
 import * as categories from "../controllers/categoryController";
 import * as transactions from "../controllers/transactionController";
 import * as budgets from "../controllers/budgetController";
+import * as goals from "../controllers/goalController";
+import * as holdings from "../controllers/holdingController";
+import * as loans from "../controllers/loanController";
 import * as recurring from "../controllers/recurringController";
 import * as reports from "../controllers/reportController";
 import * as settings from "../controllers/settingsController";
@@ -77,6 +80,24 @@ router.post("/recurring/:id/run", asyncHandler(recurring.runRecurringOne));
 router.post("/recurring/:id/skip", asyncHandler(recurring.skipRecurring));
 router.patch("/recurring/:id", asyncHandler(recurring.updateRecurring));
 router.delete("/recurring/:id", asyncHandler(recurring.deleteRecurring));
+
+// Goals
+router.get("/goals", asyncHandler(goals.listGoals));
+router.post("/goals", asyncHandler(goals.createGoal));
+router.post("/goals/:id/contribute", asyncHandler(goals.contributeGoal));
+router.patch("/goals/:id", asyncHandler(goals.updateGoal));
+router.delete("/goals/:id", asyncHandler(goals.deleteGoal));
+
+// Net worth: holdings (assets) + loans (liabilities)
+router.get("/holdings", asyncHandler(holdings.listHoldings));
+router.post("/holdings", asyncHandler(holdings.createHolding));
+router.patch("/holdings/:id", asyncHandler(holdings.updateHolding));
+router.delete("/holdings/:id", asyncHandler(holdings.deleteHolding));
+
+router.get("/loans", asyncHandler(loans.listLoans));
+router.post("/loans", asyncHandler(loans.createLoan));
+router.patch("/loans/:id", asyncHandler(loans.updateLoan));
+router.delete("/loans/:id", asyncHandler(loans.deleteLoan));
 
 // Reports
 router.get("/reports/summary", asyncHandler(reports.summaryReport));

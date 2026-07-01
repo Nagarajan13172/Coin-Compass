@@ -25,10 +25,12 @@ export default function TransactionsPage() {
   const [params, setParams] = useSearchParams();
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
 
+  // Initial filters can be deep-linked (e.g. dashboard "Spending by category" → a
+  // category's transactions, or the search box → ?search=).
   const [search, setSearch] = useState(params.get("search") ?? "");
-  const [type, setType] = useState<string>(ALL);
-  const [account, setAccount] = useState<string>(ALL);
-  const [category, setCategory] = useState<string>(ALL);
+  const [type, setType] = useState<string>(params.get("type") ?? ALL);
+  const [account, setAccount] = useState<string>(params.get("account") ?? ALL);
+  const [category, setCategory] = useState<string>(params.get("category") ?? ALL);
 
   // debounce the search input
   const [debounced, setDebounced] = useState(search);

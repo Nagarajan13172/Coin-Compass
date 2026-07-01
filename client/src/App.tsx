@@ -12,6 +12,9 @@ import DashboardPage from "@/routes/DashboardPage";
 import TransactionsPage from "@/routes/TransactionsPage";
 import AccountsPage from "@/routes/AccountsPage";
 import BudgetsPage from "@/routes/BudgetsPage";
+import GoalsPage from "@/routes/GoalsPage";
+import NetWorthPage from "@/routes/NetWorthPage";
+import LoansPage from "@/routes/LoansPage";
 import ReportsPage from "@/routes/ReportsPage";
 import CalendarPage from "@/routes/CalendarPage";
 import RecurringPage from "@/routes/RecurringPage";
@@ -37,6 +40,11 @@ function AuthedBootstrap() {
       locale: settings.locale,
     });
     if (settings.pinEnabled) setLocked(true);
+    // Theme follows the account: apply the server-stored preference on load.
+    // Read the store imperatively so a local toggle (which refetches settings)
+    // doesn't get reverted by this effect.
+    const { theme, setTheme } = useUIStore.getState();
+    if (settings.theme && settings.theme !== theme) setTheme(settings.theme);
   }, [settings, setCurrencyConfig, setLocked]);
 
   return null;
@@ -90,6 +98,9 @@ export function App() {
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/net-worth" element={<NetWorthPage />} />
+            <Route path="/loans" element={<LoansPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/recurring" element={<RecurringPage />} />

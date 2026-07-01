@@ -69,8 +69,12 @@ export function TopBar() {
         <span className="text-sm font-bold">Money Tracker</span>
       </div>
 
+      <Button className="hidden md:inline-flex" onClick={() => openTxnSheet({ type: "expense" })}>
+        <Plus /> Add
+      </Button>
+
       <form
-        className="relative ml-auto hidden max-w-sm flex-1 sm:block lg:ml-0"
+        className="relative hidden max-w-sm flex-1 sm:block"
         onSubmit={(e) => {
           e.preventDefault();
           const q = new FormData(e.currentTarget).get("q") as string;
@@ -81,11 +85,8 @@ export function TopBar() {
         <Input name="q" placeholder="Search transactions…" className="pl-9" />
       </form>
 
-      <div className="ml-auto flex items-center gap-1 sm:ml-0">
+      <div className="ml-auto flex items-center gap-1">
         <ThemeToggle />
-        <Button className="hidden md:inline-flex" onClick={() => openTxnSheet({ type: "expense" })}>
-          <Plus /> Add
-        </Button>
         <UserMenu />
       </div>
     </header>

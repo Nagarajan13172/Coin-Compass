@@ -60,8 +60,9 @@ npm run dev
 - API: http://localhost:4000/api
 - DB inspector (optional): http://localhost:8081
 
-> OAuth callbacks are port-specific, so keep the client on `http://localhost:5173`
-> when testing social sign-in.
+> OAuth callbacks are exact-match. In local dev this repo defaults to
+> `http://localhost:4000/api/auth/oauth/<provider>/callback`, so keep that same
+> URI registered in the provider console unless you intentionally override it.
 
 ---
 

@@ -2,6 +2,7 @@ import { ArrowRight, Repeat } from "lucide-react";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { Money } from "@/components/common/Money";
 import { useUIStore } from "@/stores/ui";
+import { fmtDate } from "@/lib/dates";
 import type { RefLite, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +10,12 @@ function ref(v: RefLite | string | null | undefined): RefLite | null {
   return v && typeof v === "object" ? v : null;
 }
 
-export function TransactionRow({ txn }: { txn: Transaction }) {
+/**
+ * A single transaction row. `showDate` adds the txn date under the amount — used
+ * in ungrouped lists (e.g. the dashboard "Recent" card); the Transactions page
+ * groups by day, so it leaves it off.
+ */
+export function TransactionRow({ txn, showDate = false }: { txn: Transaction; showDate?: boolean }) {
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const account = ref(txn.account);
   const toAccount = ref(txn.toAccount);
@@ -49,7 +55,12 @@ export function TransactionRow({ txn }: { txn: Transaction }) {
         </p>
         <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
       </div>
-      <Money amount={txn.amount} type={txn.type} signed currency={txn.currency} className="text-sm" />
+      <div className="flex flex-col items-end">
+        <Money amount={txn.amount} type={txn.type} signed currency={txn.currency} className="text-sm" />
+        {showDate && (
+          <span className="tnum text-[11px] text-muted-foreground">{fmtDate(txn.date, "dd MMM")}</span>
+        )}
+      </div>
     </button>
   );
 }
