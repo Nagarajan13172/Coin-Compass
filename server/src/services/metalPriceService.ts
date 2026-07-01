@@ -28,14 +28,22 @@ interface GoldApiResponse {
 
 async function fetchMetal(metal: Metal): Promise<GoldApiResponse> {
   const url = `https://www.goldapi.io/api/${SYMBOL[metal]}/INR`;
-  const res = await fetch(url, {
-    headers: { "x-access-token": env.metals.apiKey, "Content-Type": "application/json" },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`GoldAPI ${metal} responded ${res.status}: ${body.slice(0, 200)}`);
+  // Bound the request so a slow/hung API can never stall server startup.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(url, {
+      headers: { "x-access-token": env.metals.apiKey, "Content-Type": "application/json" },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`GoldAPI ${metal} responded ${res.status}: ${body.slice(0, 200)}`);
+    }
+    return (await res.json()) as GoldApiResponse;
+  } finally {
+    clearTimeout(timer);
   }
-  return (await res.json()) as GoldApiResponse;
 }
 
 /**

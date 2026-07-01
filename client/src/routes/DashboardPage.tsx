@@ -16,13 +16,14 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { TransactionRow } from "@/features/transactions/TransactionRow";
 import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { TrendArea } from "@/features/reports/TrendArea";
+import { GoldRateCard } from "@/features/metals/GoldRateCard";
 import { useDashboard } from "@/hooks/useReports";
 import { useGoals } from "@/hooks/useGoals";
 import { useRunRecurringOne } from "@/hooks/useRecurring";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
-import { formatDateRange } from "@/lib/dates";
+import { formatPeriodRange } from "@/lib/dates";
 import { accountTypeLabel } from "@/lib/accounts";
 import type { PeriodKey, Recurring } from "@/lib/types";
 import { toast } from "sonner";
@@ -43,7 +44,7 @@ export default function DashboardPage() {
 
   // Make the active period explicit, e.g. "This month · 1–31 Jul 2026".
   const description = data
-    ? `${PERIOD_NOUN[period]} · ${formatDateRange(data.range.start, data.range.end)}`
+    ? `${PERIOD_NOUN[period]} · ${formatPeriodRange(data.range.start, data.range.end)}`
     : "Your money at a glance";
 
   // Tapping a category slice/row jumps to its transactions for the period.
@@ -123,7 +124,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* accounts */}
+            {/* accounts + live gold/silver rates */}
+            <div className="space-y-4">
             <Card>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>Accounts</CardTitle>
@@ -161,19 +163,15 @@ export default function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+            <GoldRateCard />
+            </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
             {/* spending donut */}
             <Card className="lg:col-span-2">
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader>
                 <CardTitle>Spending by category</CardTitle>
-                {data.byCategory.length > 0 && (
-                  <Badge variant="secondary" className="tnum gap-1 font-semibold">
-                    <span className="font-normal text-muted-foreground">Total spent</span>
-                    {formatMoney(data.summary.expense)}
-                  </Badge>
-                )}
               </CardHeader>
               <CardContent>
                 {data.byCategory.length ? (

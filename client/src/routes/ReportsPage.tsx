@@ -13,7 +13,7 @@ import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { TrendArea } from "@/features/reports/TrendArea";
 import { IncomeExpenseBar } from "@/features/reports/IncomeExpenseBar";
 import { useByCategory, useSummary, useTrend } from "@/hooks/useReports";
-import { periodRange, shiftPeriod } from "@/lib/dates";
+import { periodRange, shiftPeriod, formatDateRange } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import type { PeriodKey } from "@/lib/types";
 
@@ -78,7 +78,10 @@ export default function ReportsPage() {
         description="Analyse your income and spending"
         actions={
           <Button variant="outline" asChild>
-            <a href={`/api/export/csv?from=${range.from}&to=${range.to}`}>
+            <a
+              href={`/api/export/csv?from=${range.from}&to=${range.to}`}
+              title={`Exports all transactions from ${formatDateRange(range.from, range.to)}, across all accounts`}
+            >
               <Download /> Export CSV
             </a>
           </Button>
@@ -115,7 +118,12 @@ export default function ReportsPage() {
       {/* insights */}
       <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryStat label="Avg daily spend" loading={summary.isLoading}>
-          <span className="tnum text-2xl font-semibold">{formatMoney(insights.avgDaily)}</span>
+          <span
+            className="tnum text-2xl font-semibold"
+            title="Total spent ÷ days elapsed in this period (so a partial month isn't divided by a full 30 days)"
+          >
+            {formatMoney(insights.avgDaily)}
+          </span>
         </SummaryStat>
         <SummaryStat label="Savings rate" loading={summary.isLoading}>
           {insights.savingsRate == null ? (
@@ -123,8 +131,11 @@ export default function ReportsPage() {
           ) : (
             <span
               className={`tnum text-2xl font-semibold ${insights.savingsRate >= 0 ? "text-income" : "text-expense"}`}
+              title="Share of income left after spending: (income − expense) ÷ income"
             >
-              {insights.savingsRate}%
+              {/* Below −100% just means expenses far exceed a tiny income — the exact
+                  huge number isn't meaningful, so cap the display. */}
+              {insights.savingsRate < -100 ? "< −100%" : `${insights.savingsRate}%`}
             </span>
           )}
         </SummaryStat>

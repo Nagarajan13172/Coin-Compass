@@ -49,10 +49,11 @@ function Sparkline({ data, color }: { data: MetalPrice[]; color: string }) {
  */
 export function GoldRateCard() {
   const { data: latest } = useMetalsLatest();
-  const { data: history } = useMetalHistory("gold", 30);
-
   const gold = latest?.gold;
   const silver = latest?.silver;
+  // Only fetch the sparkline once we know the feature is on and has data.
+  const { data: history } = useMetalHistory("gold", 30, Boolean(latest?.configured && gold));
+
   if (!latest?.configured || !gold) return null;
 
   return (

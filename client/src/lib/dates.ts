@@ -31,6 +31,16 @@ export function dayKey(iso: string) {
   return format(parseISO(iso), "yyyy-MM-dd");
 }
 
+/**
+ * Same as formatDateRange but `end` is EXCLUSIVE (as returned by resolvePeriod /
+ * periodRange, e.g. a July range ends at 1 Aug). Shows the inclusive last day so
+ * a month reads "1–31 Jul 2026" rather than "1 Jul – 1 Aug 2026".
+ */
+export function formatPeriodRange(startIso: string, endExclusiveIso: string) {
+  const inclusiveEnd = new Date(new Date(endExclusiveIso).getTime() - 1).toISOString();
+  return formatDateRange(startIso, inclusiveEnd);
+}
+
 /** Compact, explicit label for a date range, e.g. "1–31 Jul 2026" or "28 Dec – 3 Jan 2027". */
 export function formatDateRange(startIso: string, endIso: string) {
   const s = parseISO(startIso);

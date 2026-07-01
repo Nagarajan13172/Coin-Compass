@@ -15,6 +15,7 @@ A polished, full-stack personal-finance web app inspired by the **Money Tracker 
 - **Reports** — period navigation (week/month/year), donut by category (expense/income), income-vs-expense bars, trend area chart, CSV export.
 - **Calendar** — month grid with per-day income/expense badges; tap a day to see its transactions.
 - **Recurring** — standing orders (daily/weekly/monthly/yearly) auto-posted by an hourly job; pause/resume/run-now.
+- **Gold & Silver** — live gold/silver rates in ₹ (24K/22K/18K per gram), a daily-refreshed dashboard widget and a dedicated page with a history chart. Requires a free `GOLD_API_KEY` ([goldapi.io](https://www.goldapi.io)); auto-hidden when unset.
 - **Categories** — manage income & expense categories with icon + color pickers.
 - **Settings** — base currency (multi-currency aware, ₹ default), light/dark/system theme, first day of week, **PIN lock**, CSV export.
 

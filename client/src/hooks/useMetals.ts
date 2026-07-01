@@ -13,11 +13,12 @@ export function useMetalsLatest() {
   });
 }
 
-export function useMetalHistory(metal: Metal, days = 90) {
+export function useMetalHistory(metal: Metal, days = 90, enabled = true) {
   return useQuery({
     queryKey: ["metals", "history", metal, days],
     queryFn: async () =>
       (await api.get<MetalPrice[]>(`/metals/history?metal=${metal}&days=${days}`)).data,
     staleTime: THIRTY_MIN,
+    enabled,
   });
 }
