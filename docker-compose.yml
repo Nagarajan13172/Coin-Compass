@@ -1,10 +1,7 @@
-services:
-  mongo:
-    image: mongo:7
+mongodb:
+    image: mongo:latest
     container_name: money-tracker-mongo
     restart: unless-stopped
-    ports:
-      - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: money-tracker
     volumes:
@@ -14,20 +11,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # Optional web UI for inspecting the database at http://localhost:8081
-  mongo-express:
-    image: mongo-express:1.0.2
-    container_name: money-tracker-mongo-express
+    networks:
+      - default
+app:
+    image: expense-tracker-test:latest
+    container_name: money-tracker-app
     restart: unless-stopped
     depends_on:
-      mongo:
+      mongodb:
         condition: service_healthy
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/money-tracker
-      ME_CONFIG_BASICAUTH: "false"
+    labels:
+      - traefik.enable=true
+      - traefik.domain=bloomskilltech.in
+      - traefik.http.routers.coincompass.rule=Host(`coincompass.sathishkumar.cloud`)
+      - traefik.http.routers.coincompass.entrypoints=websecure
+      - traefik.http.routers.coincompass.tls=true
+      - traefik.http.routers.coincompass.tls.certresolver=myresolver
+      - traefik.http.services.coincompass.loadbalancer.server.port=4000
+    env_file:
+      - ./server/.env
+    networks:
+      - default
 
 volumes:
   mongo-data:
+
+networks:
+  default:
+    name: traefik
+    external: true
