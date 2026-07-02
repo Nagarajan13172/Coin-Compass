@@ -1,0 +1,33 @@
+{
+  "name": "coincompass-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Black-box feature test suites for CoinCompass (API + E2E). Separate from client and server.",
+  "scripts": {
+    "test": "vitest run",
+    "test:api": "vitest run",
+    "test:watch": "vitest",
+    "test:feature": "vitest run --",
+    "test:ui": "vitest --ui",
+    "report:api": "vite preview --outDir reports/api --port 5210",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
+    "e2e:report": "playwright show-report reports/e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.10.5",
+    "@vitest/ui": "^2.1.9",
+    "axios": "^1.7.9",
+    "axios-cookiejar-support": "^5.0.5",
+    "mongodb": "^6.12.0",
+    "mongodb-memory-server": "^10.1.4",
+    "otplib": "^13.4.1",
+    "tough-cookie": "^5.1.0",
+    "tree-kill": "^1.2.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.9"
+  }
+}
