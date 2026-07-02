@@ -25,6 +25,7 @@ import CategoriesPage from "@/routes/CategoriesPage";
 import SettingsPage from "@/routes/SettingsPage";
 import NotFoundPage from "@/routes/NotFoundPage";
 import LoginPage from "@/routes/LoginPage";
+import TwoFactorPage from "@/routes/TwoFactorPage";
 import SignupPage from "@/routes/SignupPage";
 import VerifyEmailPage from "@/routes/VerifyEmailPage";
 import ForgotPasswordPage from "@/routes/ForgotPasswordPage";
@@ -102,6 +103,7 @@ export function App() {
     <TooltipProvider delayDuration={200}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/login/2fa" element={<TwoFactorPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

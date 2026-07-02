@@ -24,7 +24,13 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     try {
-      await login.mutateAsync({ email, password, remember });
+      const result = await login.mutateAsync({ email, password, remember });
+      // 2FA-enabled accounts hand back a challenge instead of a session — go
+      // finish the second step (the pending cookie is already set server-side).
+      if (result.requires2fa) {
+        navigate("/login/2fa", { replace: true, state: { methods: result.methods } });
+        return;
+      }
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed");

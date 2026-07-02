@@ -11,6 +11,7 @@ import {
 } from "../auth/oauthProviders";
 import { findOrCreateOAuthUser } from "../services/authService";
 import { setSessionCookie } from "../auth/cookie";
+import { setPendingCookie } from "../auth/pending2fa";
 import type { AuthProvider } from "../models/User";
 import { HttpError } from "../middleware/errorHandler";
 import { publicAppOrigin } from "../utils/publicOrigin";
@@ -79,6 +80,13 @@ export async function oauthCallback(req: Request, res: Response) {
 
     const profile = await exchangeAndGetProfile(provider, code, verifier, req);
     const user = await findOrCreateOAuthUser({ provider, ...profile });
+    // Enforce 2FA on OAuth logins too: issue the pending cookie and bounce to the
+    // verify step instead of a full session when the account has 2FA enabled.
+    if (user.twoFactorEnabled) {
+      setPendingCookie(res, String(user._id), true);
+      res.redirect(`${publicAppOrigin(req)}/login/2fa`);
+      return;
+    }
     setSessionCookie(res, String(user._id));
     res.redirect(`${publicAppOrigin(req)}/`);
   } catch {

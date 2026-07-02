@@ -33,6 +33,31 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
 
+// ---- Two-factor authentication ----
+// TOTP/email codes are 6 digits; backup codes are "xxxx-xxxx". The login-verify
+// schema accepts any of them and tags which method the client used.
+export const enable2faSchema = z.object({
+  code: z.string().trim().min(6).max(10),
+});
+
+export const verify2faSchema = z.object({
+  method: z.enum(["totp", "email", "backup"]),
+  code: z.string().trim().min(6).max(20),
+});
+
+export const disable2faSchema = z.object({
+  currentPassword: z.string().max(200).optional(),
+  code: z.string().trim().max(20).optional(),
+});
+
+export const regenerateBackupCodesSchema = z.object({
+  code: z.string().trim().min(6).max(20),
+});
+
+export const emailFallbackSchema = z.object({
+  enabled: z.boolean(),
+});
+
 export const accountSchema = z.object({
   name: z.string().min(1).max(60),
   type: z.enum(["cash", "bank", "card", "wallet", "upi", "savings"]).default("cash"),

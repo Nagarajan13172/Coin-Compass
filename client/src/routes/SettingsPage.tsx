@@ -54,6 +54,7 @@ import {
 } from "@/hooks/useSettings";
 import { useMe, useChangePassword } from "@/hooks/useAuth";
 import { WealthUnlockDialog } from "@/features/settings/WealthLock";
+import { TwoFactorSettings } from "@/features/settings/TwoFactorSettings";
 import { useSendReportEmail } from "@/hooks/useReports";
 import { useImportFile } from "@/hooks/useImport";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -516,6 +517,9 @@ export default function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Two-factor authentication */}
+        <TwoFactorSettings />
 
         {/* Wealth lock */}
         <Card>

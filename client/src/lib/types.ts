@@ -258,10 +258,43 @@ export interface AuthUser {
   createdAt: string | null;
   /** True for password accounts; false for OAuth-only sign-ins. */
   hasPassword: boolean;
+  /** Whether two-factor authentication is enabled on this account. */
+  twoFactorEnabled: boolean;
   /** Current view mode; `superadmin` may see the wealth (Net Worth) section. */
   mode: ViewMode;
   /** Whether the wealth lock is turned on for this account. */
   wealthLockEnabled: boolean;
+}
+
+/** The second factors offered at login. Backup codes are always accepted as a fallback. */
+export type TwoFactorMethod = "totp" | "email" | "backup";
+
+/**
+ * Result of a password sign-in: either a full session (`user`) or a 2FA
+ * challenge (`requires2fa`) that must be completed before a session is issued.
+ */
+export type LoginResult =
+  | { requires2fa: false; user: AuthUser }
+  | { requires2fa: true; methods: TwoFactorMethod[] };
+
+/** The in-progress 2FA challenge, fetched by the verify screen from the pending cookie. */
+export interface TwoFactorPending {
+  email: string;
+  methods: TwoFactorMethod[];
+}
+
+/** Current 2FA configuration for the signed-in account (Settings). */
+export interface TwoFactorStatus {
+  enabled: boolean;
+  emailFallback: boolean;
+  backupCodesRemaining: number;
+}
+
+/** Enrollment payload: what to show the user to scan/enter into their authenticator. */
+export interface TwoFactorSetup {
+  otpauthUrl: string;
+  qrDataUrl: string;
+  secret: string;
 }
 
 export interface OAuthProviders {

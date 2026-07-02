@@ -35,6 +35,23 @@ export const env = {
     emailTokenTtlHours: Number(process.env.AUTH_EMAIL_TOKEN_TTL_HOURS ?? 24),
     passwordResetTtlHours: Number(process.env.AUTH_PASSWORD_RESET_TTL_HOURS ?? 1),
   },
+  // Two-factor authentication (opt-in). TOTP is the primary factor; an emailed
+  // OTP is the fallback/recovery channel. The pending cookie holds a short-lived
+  // "password verified, 2FA still required" token issued between the two steps.
+  twoFactor: {
+    issuer: process.env.TWO_FACTOR_ISSUER ?? "CoinCompass",
+    // Base64/hex key used to encrypt TOTP secrets at rest (AES-256-GCM). Falls
+    // back to the JWT secret in dev; MUST be set to a dedicated 32-byte key in
+    // production so a leaked DB alone can't reconstruct authenticator secrets.
+    encKey: process.env.TWO_FACTOR_ENC_KEY ?? "",
+    pendingCookieName: process.env.TWO_FACTOR_PENDING_COOKIE ?? "mt_2fa",
+    // How long the user has to complete the 2FA step after their password checks out.
+    pendingTtlMinutes: Number(process.env.TWO_FACTOR_PENDING_TTL_MINUTES ?? 10),
+    // Emailed OTP validity + how many wrong guesses before the code is burned.
+    emailCodeTtlMinutes: Number(process.env.TWO_FACTOR_EMAIL_CODE_TTL_MINUTES ?? 10),
+    emailCodeMaxAttempts: Number(process.env.TWO_FACTOR_EMAIL_CODE_MAX_ATTEMPTS ?? 5),
+    backupCodeCount: Number(process.env.TWO_FACTOR_BACKUP_CODE_COUNT ?? 10),
+  },
   // Live precious-metal (gold/silver) rates. When GOLD_API_KEY is absent the
   // feature is disabled: the API returns `configured: false` and the client
   // hides the widget/page instead of erroring.

@@ -1,6 +1,7 @@
 import express, { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, requireVerified, requireWealthAccess } from "../middleware/auth";
+import { loginLimiter, twoFactorVerifyLimiter, twoFactorEmailLimiter } from "../middleware/rateLimit";
 import * as auth from "../controllers/authController";
 import * as oauth from "../controllers/oauthController";
 import * as accounts from "../controllers/accountController";
@@ -26,8 +27,12 @@ router.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISO
 
 // ---- Public auth routes ----
 router.post("/auth/signup", asyncHandler(auth.signup));
-router.post("/auth/signin", asyncHandler(auth.signin));
+router.post("/auth/signin", loginLimiter, asyncHandler(auth.signin));
 router.post("/auth/logout", asyncHandler(auth.logout));
+// Two-factor login (pending) phase — gated by the short-lived mt_2fa cookie, not a session.
+router.get("/auth/2fa/pending", asyncHandler(auth.twoFactorPending));
+router.post("/auth/2fa/email", twoFactorEmailLimiter, asyncHandler(auth.sendTwoFactorEmail));
+router.post("/auth/2fa/verify", twoFactorVerifyLimiter, asyncHandler(auth.verifyTwoFactor));
 router.post("/auth/verify-email", asyncHandler(auth.verifyEmail));
 router.post("/auth/forgot-password", asyncHandler(auth.forgotPassword));
 router.post("/auth/reset-password", asyncHandler(auth.resetPassword));
@@ -50,6 +55,14 @@ router.post("/auth/change-password", asyncHandler(auth.changePassword));
 
 // ---- Everything below additionally requires a verified email ----
 router.use(asyncHandler(requireVerified));
+
+// Two-factor management (enroll / enable / disable) for the signed-in account.
+router.get("/auth/2fa/status", asyncHandler(auth.twoFactorStatus));
+router.post("/auth/2fa/setup", asyncHandler(auth.twoFactorSetup));
+router.post("/auth/2fa/enable", asyncHandler(auth.twoFactorEnable));
+router.post("/auth/2fa/disable", asyncHandler(auth.twoFactorDisable));
+router.post("/auth/2fa/email-fallback", asyncHandler(auth.twoFactorEmailFallback));
+router.post("/auth/2fa/backup-codes", asyncHandler(auth.regenerateBackupCodes));
 
 // Wealth (Net Worth) view: unlock to superadmin with the passcode, or re-lock.
 router.post("/auth/unlock-wealth", asyncHandler(auth.unlockWealth));

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
-import type { AuthUser, OAuthProviders } from "@/lib/types";
+import type { AuthUser, LoginResult, OAuthProviders, TwoFactorMethod } from "@/lib/types";
 
 /** Current user, or null when not authenticated (a 401 resolves to null, not an error). */
 export function useMe() {
@@ -41,12 +41,41 @@ export function useSignup() {
 
 export function useLogin() {
   return useMutation({
-    mutationFn: async (body: { email: string; password: string; remember?: boolean }) =>
-      (await api.post<{ user: AuthUser }>("/auth/signin", body)).data.user,
-    onSuccess: (user) => {
+    mutationFn: async (body: { email: string; password: string; remember?: boolean }): Promise<LoginResult> => {
+      const data = (
+        await api.post<{ user?: AuthUser; requires2fa?: boolean; methods?: TwoFactorMethod[] }>(
+          "/auth/signin",
+          body
+        )
+      ).data;
+      // 2FA-enabled accounts return a challenge instead of a user; the caller
+      // routes to the verify step and no session exists yet.
+      if (data.requires2fa) return { requires2fa: true, methods: data.methods ?? ["totp"] };
+      return { requires2fa: false, user: data.user! };
+    },
+    onSuccess: (result) => {
       queryClient.clear(); // never carry a previous user's cached data across a login
+      if (!result.requires2fa) queryClient.setQueryData(["me"], result.user);
+    },
+  });
+}
+
+/** Complete the login 2FA challenge (pending cookie → real session on success). */
+export function useVerify2fa() {
+  return useMutation({
+    mutationFn: async (body: { method: TwoFactorMethod; code: string }) =>
+      (await api.post<{ user: AuthUser }>("/auth/2fa/verify", body)).data.user,
+    onSuccess: (user) => {
+      queryClient.clear();
       queryClient.setQueryData(["me"], user);
     },
+  });
+}
+
+/** Ask the server to email a one-time code during the login 2FA step. */
+export function useSend2faEmail() {
+  return useMutation({
+    mutationFn: async () => (await api.post("/auth/2fa/email")).data,
   });
 }
 

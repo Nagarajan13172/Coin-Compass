@@ -6,6 +6,11 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  enable2faSchema,
+  verify2faSchema,
+  disable2faSchema,
+  regenerateBackupCodesSchema,
+  emailFallbackSchema,
 } from "../validators/schemas";
 import { signupWithPassword, signinWithPassword, changePassword as changePasswordService } from "../services/authService";
 import {
@@ -14,7 +19,9 @@ import {
   resendVerificationEmail,
 } from "../services/emailVerificationService";
 import { requestPasswordReset, consumePasswordReset } from "../services/passwordResetService";
+import * as twoFactor from "../services/twoFactorService";
 import { setSessionCookie, clearSessionCookie } from "../auth/cookie";
+import { setPendingCookie, clearPendingCookie, verifyPending, type PendingSession } from "../auth/pending2fa";
 import { verifyPassword } from "../auth/password";
 import type { SessionMode } from "../auth/jwt";
 import { User, type UserDoc } from "../models/User";
@@ -35,9 +42,31 @@ function publicUser(u: UserDoc & { _id: unknown }, mode: SessionMode = "user", w
     // Personalisation bits for the account/settings screen.
     createdAt: (u as { createdAt?: Date }).createdAt?.toISOString() ?? null,
     hasPassword: Boolean(u.passwordHash),
+    twoFactorEnabled: Boolean(u.twoFactorEnabled),
     mode,
     wealthLockEnabled,
   };
+}
+
+/** The available factors advertised to the client for a 2FA-enabled account. */
+function factorsFor(u: { twoFactorEmailFallback?: boolean | null }): string[] {
+  return ["totp", ...(u.twoFactorEmailFallback ? ["email"] : [])];
+}
+
+/** Obscure an email for the 2FA screen: "jo•••@gmail.com". */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  const head = local.slice(0, 2);
+  return `${head}${"•".repeat(Math.max(1, local.length - head.length))}@${domain}`;
+}
+
+/** Read + validate the short-lived pending-2FA cookie, or 401. */
+function readPending(req: Request): PendingSession {
+  const token = req.cookies?.[env.twoFactor.pendingCookieName];
+  const pending = token ? verifyPending(token) : null;
+  if (!pending) throw new HttpError(401, "Your sign-in session expired. Please sign in again.");
+  return pending;
 }
 
 async function wealthLockEnabledFor(uid: string): Promise<boolean> {
@@ -106,9 +135,86 @@ export async function changePassword(req: Request, res: Response) {
 export async function signin(req: Request, res: Response) {
   const data = signinSchema.parse(req.body);
   const user = await signinWithPassword(data);
+  // 2FA-enabled accounts stop here: password is proven but no session is issued
+  // yet. We hand out a short-lived pending cookie that only authorizes the
+  // /auth/2fa/* endpoints, and the client collects the second factor.
+  if (user.twoFactorEnabled) {
+    setPendingCookie(res, String(user._id), data.remember);
+    res.json({ requires2fa: true, methods: factorsFor(user) });
+    return;
+  }
   // Every fresh login starts in the everyday `user` view; wealth is unlocked separately.
   setSessionCookie(res, String(user._id), "user", data.remember);
   res.json({ user: publicUser(user, "user", await wealthLockEnabledFor(String(user._id))) });
+}
+
+// ---- Two-factor: login (pending) phase — authenticated by the mt_2fa cookie ----
+
+/** Describe the in-progress 2FA challenge so the client can render the right options. */
+export async function twoFactorPending(req: Request, res: Response) {
+  const pending = readPending(req);
+  const user = await User.findById(pending.sub).select("email twoFactorEnabled twoFactorEmailFallback");
+  if (!user || !user.twoFactorEnabled) {
+    throw new HttpError(401, "Your sign-in session expired. Please sign in again.");
+  }
+  res.json({ email: maskEmail(user.email), methods: factorsFor(user) });
+}
+
+/** Email a one-time code for the fallback factor (pending phase). */
+export async function sendTwoFactorEmail(req: Request, res: Response) {
+  const pending = readPending(req);
+  await twoFactor.sendEmailCode(pending.sub, req);
+  res.json({ ok: true });
+}
+
+/** Verify the second factor; on success clear the pending cookie and issue the real session. */
+export async function verifyTwoFactor(req: Request, res: Response) {
+  const pending = readPending(req);
+  const { method, code } = verify2faSchema.parse(req.body);
+  const ok = await twoFactor.verifyLoginCode(pending.sub, method, code);
+  if (!ok) throw new HttpError(401, "That code is incorrect or expired");
+
+  clearPendingCookie(res);
+  setSessionCookie(res, pending.sub, "user", pending.remember);
+  const user = await User.findById(pending.sub);
+  if (!user) throw new HttpError(401, "Not authenticated");
+  res.json({ user: publicUser(user, "user", await wealthLockEnabledFor(pending.sub)) });
+}
+
+// ---- Two-factor: management (requires an authenticated, verified session) ----
+
+export async function twoFactorStatus(req: Request, res: Response) {
+  res.json(await twoFactor.getStatus(userId(req)));
+}
+
+/** Begin enrollment: returns the otpauth URL + QR to scan. */
+export async function twoFactorSetup(req: Request, res: Response) {
+  res.json(await twoFactor.startEnrollment(userId(req)));
+}
+
+/** Confirm the first code, turn 2FA on, and return the one-time backup codes. */
+export async function twoFactorEnable(req: Request, res: Response) {
+  const { code } = enable2faSchema.parse(req.body);
+  res.json(await twoFactor.enable(userId(req), code));
+}
+
+/** Turn 2FA off (password re-entry, or a live code for OAuth-only accounts). */
+export async function twoFactorDisable(req: Request, res: Response) {
+  const { currentPassword, code } = disable2faSchema.parse(req.body);
+  await twoFactor.disable(userId(req), currentPassword, code);
+  res.json({ ok: true });
+}
+
+/** Toggle the emailed-OTP fallback for an enrolled account. */
+export async function twoFactorEmailFallback(req: Request, res: Response) {
+  const { enabled } = emailFallbackSchema.parse(req.body);
+  res.json(await twoFactor.setEmailFallback(userId(req), enabled));
+}
+
+/** Regenerate the backup-code set (requires a live code). Returns new codes once. */
+export async function regenerateBackupCodes(req: Request, res: Response) {
+  const { code } = regenerateBackupCodesSchema.parse(req.body);
+  res.json({ backupCodes: await twoFactor.regenerateBackupCodes(userId(req), code) });
 }
 
 export async function logout(_req: Request, res: Response) {
