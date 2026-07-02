@@ -26,6 +26,8 @@ import NotFoundPage from "@/routes/NotFoundPage";
 import LoginPage from "@/routes/LoginPage";
 import SignupPage from "@/routes/SignupPage";
 import VerifyEmailPage from "@/routes/VerifyEmailPage";
+import ForgotPasswordPage from "@/routes/ForgotPasswordPage";
+import ResetPasswordPage from "@/routes/ResetPasswordPage";
 
 /** Hydrate per-user settings (currency, PIN) once authenticated. */
 function AuthedBootstrap() {
@@ -101,6 +103,8 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<DashboardPage />} />

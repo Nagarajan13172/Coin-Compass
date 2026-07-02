@@ -12,10 +12,25 @@ export const signupSchema = z.object({
 export const signinSchema = z.object({
   email: z.string().email().max(200),
   password: z.string().min(1).max(200),
+  remember: z.boolean().optional().default(true),
 });
 
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, "Missing verification token").max(400),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email().max(200),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Missing reset token").max(400),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().max(200).optional(),
+  newPassword: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
 
 export const accountSchema = z.object({

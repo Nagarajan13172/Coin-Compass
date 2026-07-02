@@ -1,11 +1,19 @@
 import type { Request, Response } from "express";
-import { signupSchema, signinSchema, verifyEmailSchema } from "../validators/schemas";
-import { signupWithPassword, signinWithPassword } from "../services/authService";
+import {
+  signupSchema,
+  signinSchema,
+  verifyEmailSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  changePasswordSchema,
+} from "../validators/schemas";
+import { signupWithPassword, signinWithPassword, changePassword as changePasswordService } from "../services/authService";
 import {
   sendVerificationEmail,
   verifyEmailToken,
   resendVerificationEmail,
 } from "../services/emailVerificationService";
+import { requestPasswordReset, consumePasswordReset } from "../services/passwordResetService";
 import { setSessionCookie, clearSessionCookie } from "../auth/cookie";
 import { verifyPassword } from "../auth/password";
 import type { SessionMode } from "../auth/jwt";
@@ -70,11 +78,36 @@ export async function resendVerification(req: Request, res: Response) {
   res.json({ ok: true });
 }
 
+/**
+ * Email a password-reset link if the address has an account. Always responds
+ * the same way — doesn't reveal whether the email exists.
+ */
+export async function forgotPassword(req: Request, res: Response) {
+  const { email } = forgotPasswordSchema.parse(req.body);
+  await requestPasswordReset(email, req);
+  res.json({ ok: true });
+}
+
+/** Consume a reset token, set the new password, and sign the user in. */
+export async function resetPassword(req: Request, res: Response) {
+  const { token, password } = resetPasswordSchema.parse(req.body);
+  const user = await consumePasswordReset(token, password);
+  setSessionCookie(res, String(user._id));
+  res.json({ user: publicUser(user, "user", await wealthLockEnabledFor(String(user._id))) });
+}
+
+/** Change the signed-in user's password (or set one for the first time on an OAuth-only account). */
+export async function changePassword(req: Request, res: Response) {
+  const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+  await changePasswordService(userId(req), currentPassword, newPassword);
+  res.json({ ok: true });
+}
+
 export async function signin(req: Request, res: Response) {
   const data = signinSchema.parse(req.body);
   const user = await signinWithPassword(data);
   // Every fresh login starts in the everyday `user` view; wealth is unlocked separately.
-  setSessionCookie(res, String(user._id));
+  setSessionCookie(res, String(user._id), "user", data.remember);
   res.json({ user: publicUser(user, "user", await wealthLockEnabledFor(String(user._id))) });
 }
 

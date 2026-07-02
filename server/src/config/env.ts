@@ -27,7 +27,13 @@ export const env = {
     jwtSecret: process.env.AUTH_JWT_SECRET ?? "dev-insecure-secret-change-me",
     cookieName: process.env.AUTH_COOKIE_NAME ?? "mt_session",
     sessionTtlDays: 30,
+    // "Stay signed in" sessions (the default — PWAs have no browser chrome to
+    // reopen from, so an install should keep working without re-login for a
+    // long stretch). Declining it falls back to a browser-session cookie that
+    // clears when the browser/PWA is fully closed.
+    rememberTtlDays: Number(process.env.AUTH_REMEMBER_TTL_DAYS ?? 180),
     emailTokenTtlHours: Number(process.env.AUTH_EMAIL_TOKEN_TTL_HOURS ?? 24),
+    passwordResetTtlHours: Number(process.env.AUTH_PASSWORD_RESET_TTL_HOURS ?? 1),
   },
   // Live precious-metal (gold/silver) rates. When GOLD_API_KEY is absent the
   // feature is disabled: the API returns `configured: false` and the client
@@ -63,5 +69,18 @@ export const env = {
     }),
   },
 };
+
+// Loud, actionable signal for a common deploy mistake: links in emails sent
+// without a request context (scheduled reports, cron-triggered jobs) fall
+// back to APP_URL/CLIENT_URL. If that's still "localhost" in production,
+// those links are silently broken — surface it in the boot logs instead.
+if (env.isProd && /localhost|127\.0\.0\.1/.test(env.appUrl)) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[config] APP_URL/CLIENT_URL resolves to "${env.appUrl}" in production. Emails sent without ` +
+      `a request context (e.g. scheduled reports) will link back to this. Set CLIENT_URL and ` +
+      `APP_URL to your public origin (e.g. https://coincompass.sathishkumar.cloud).`
+  );
+}
 
 export type OAuthProviderName = keyof typeof env.oauth;

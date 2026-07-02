@@ -41,7 +41,7 @@ export function useSignup() {
 
 export function useLogin() {
   return useMutation({
-    mutationFn: async (body: { email: string; password: string }) =>
+    mutationFn: async (body: { email: string; password: string; remember?: boolean }) =>
       (await api.post<{ user: AuthUser }>("/auth/signin", body)).data.user,
     onSuccess: (user) => {
       queryClient.clear(); // never carry a previous user's cached data across a login
@@ -97,5 +97,33 @@ export function useVerifyEmail() {
 export function useResendVerification() {
   return useMutation({
     mutationFn: async () => (await api.post("/auth/resend-verification")).data,
+  });
+}
+
+/** Request a password-reset email. Always "succeeds" — the server never reveals whether the email exists. */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (email: string) => (await api.post("/auth/forgot-password", { email })).data,
+  });
+}
+
+/** Consume a reset-password link's token; on success the server also signs us in. */
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async (body: { token: string; password: string }) =>
+      (await api.post<{ user: AuthUser }>("/auth/reset-password", body)).data.user,
+    onSuccess: (user) => {
+      queryClient.clear();
+      queryClient.setQueryData(["me"], user);
+    },
+  });
+}
+
+/** Change (or, for OAuth-only accounts, set for the first time) the signed-in user's password. */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (body: { currentPassword?: string; newPassword: string }) =>
+      (await api.post("/auth/change-password", body)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me"] }),
   });
 }

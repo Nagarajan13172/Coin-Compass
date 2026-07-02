@@ -8,10 +8,14 @@ export interface Session {
   mode: SessionMode;
 }
 
-/** Sign a session JWT identifying the user and their current view mode. */
-export function signSession(userId: string, mode: SessionMode = "user"): string {
+/**
+ * Sign a session JWT identifying the user and their current view mode.
+ * `remember` controls the token's own lifetime, mirroring the cookie's
+ * (see cookie.ts) so a non-remembered token can't outlive its session cookie.
+ */
+export function signSession(userId: string, mode: SessionMode = "user", remember = true): string {
   return jwt.sign({ sub: userId, mode }, env.auth.jwtSecret, {
-    expiresIn: `${env.auth.sessionTtlDays}d`,
+    expiresIn: remember ? `${env.auth.rememberTtlDays}d` : `${env.auth.sessionTtlDays}d`,
   });
 }
 

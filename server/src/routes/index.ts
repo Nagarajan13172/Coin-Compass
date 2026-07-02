@@ -28,6 +28,8 @@ router.post("/auth/signup", asyncHandler(auth.signup));
 router.post("/auth/signin", asyncHandler(auth.signin));
 router.post("/auth/logout", asyncHandler(auth.logout));
 router.post("/auth/verify-email", asyncHandler(auth.verifyEmail));
+router.post("/auth/forgot-password", asyncHandler(auth.forgotPassword));
+router.post("/auth/reset-password", asyncHandler(auth.resetPassword));
 router.get("/auth/providers", auth.providersStatus);
 router.get("/auth/oauth/:provider", asyncHandler(oauth.oauthStart));
 // Google/GitHub/Microsoft return via GET; Apple posts back (form_post) — accept both.
@@ -43,6 +45,7 @@ router.use(requireAuth);
 
 router.get("/auth/me", asyncHandler(auth.me));
 router.post("/auth/resend-verification", asyncHandler(auth.resendVerification));
+router.post("/auth/change-password", asyncHandler(auth.changePassword));
 
 // ---- Everything below additionally requires a verified email ----
 router.use(asyncHandler(requireVerified));

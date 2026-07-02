@@ -7,8 +7,10 @@ import { sendMail } from "../mail/mailer";
 import { HttpError } from "../middleware/errorHandler";
 import type { Request } from "express";
 import { publicAppOrigin } from "../utils/publicOrigin";
+import { renderEmailShell, esc } from "../mail/emailLayout";
 
 const TTL_MS = env.auth.emailTokenTtlHours * 60 * 60 * 1000;
+const APP_NAME = "CoinCompass";
 
 function hashToken(raw: string): string {
   return crypto.createHash("sha256").update(raw).digest("hex");
@@ -34,22 +36,26 @@ export async function sendVerificationEmail(
   const link = new URL("/verify-email", `${publicAppOrigin(req)}/`);
   link.searchParams.set("token", raw);
   const name = user.name?.trim() || "there";
-  await sendMail({
-    to: user.email,
-    subject: "Verify your email for CoinCompass",
-    text:
-      `Hi ${name},\n\n` +
-      `Confirm your email address to finish setting up your CoinCompass account:\n\n` +
-      `${link.toString()}\n\n` +
-      `This link expires in ${env.auth.emailTokenTtlHours} hours. ` +
-      `If you didn't create this account, you can ignore this email.`,
-    html:
-      `<p>Hi ${name},</p>` +
-      `<p>Confirm your email address to finish setting up your CoinCompass account:</p>` +
-      `<p><a href="${link.toString()}">Verify my email</a></p>` +
-      `<p style="color:#64748b;font-size:13px">This link expires in ${env.auth.emailTokenTtlHours} hours. ` +
-      `If you didn't create this account, you can ignore this email.</p>`,
+
+  const html = renderEmailShell({
+    title: "Verify your email",
+    bodyHtml:
+      `<p style="margin:0 0 8px;font-size:15px;color:#0f172a;">Hi ${esc(name)},</p>` +
+      `<p style="margin:0;font-size:14px;color:#64748b;line-height:1.6;">Confirm your email address to finish setting up your ${esc(
+        APP_NAME
+      )} account.</p>`,
+    ctaLabel: "Verify my email",
+    ctaUrl: link.toString(),
+    footerHtml: `This link expires in ${env.auth.emailTokenTtlHours} hours. If you didn't create this account, you can ignore this email.`,
   });
+  const text =
+    `Hi ${name},\n\n` +
+    `Confirm your email address to finish setting up your ${APP_NAME} account:\n\n` +
+    `${link.toString()}\n\n` +
+    `This link expires in ${env.auth.emailTokenTtlHours} hours. ` +
+    `If you didn't create this account, you can ignore this email.`;
+
+  await sendMail({ to: user.email, subject: `Verify your email for ${APP_NAME}`, html, text });
 
   return raw;
 }

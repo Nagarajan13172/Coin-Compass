@@ -19,7 +19,9 @@ api.interceptors.response.use(
       error?.response?.status === 401 &&
       !url.startsWith("/auth/") &&
       path !== "/login" &&
-      path !== "/signup"
+      path !== "/signup" &&
+      path !== "/forgot-password" &&
+      path !== "/reset-password"
     ) {
       window.location.assign("/login");
     }

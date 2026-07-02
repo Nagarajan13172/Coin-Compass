@@ -19,6 +19,9 @@ async function bootstrap() {
   await connectDB();
 
   const app = express();
+  // Behind Traefik: trust its X-Forwarded-* headers so req.protocol/req.hostname
+  // reflect the public HTTPS origin instead of the plain-HTTP hop from the proxy.
+  app.set("trust proxy", 1);
   // CSP is disabled so the bundled SPA can load its hashed assets and external
   // images (e.g. Google profile avatars). Add a real policy before a public deploy.
   app.use(helmet({ contentSecurityPolicy: false }));

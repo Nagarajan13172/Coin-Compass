@@ -47,6 +47,24 @@ export async function signinWithPassword(input: { email: string; password: strin
 }
 
 /**
+ * Change the signed-in user's password. Accounts that already have one must
+ * supply the correct current password; OAuth-only accounts (no passwordHash
+ * yet) can set one for the first time without it.
+ */
+export async function changePassword(userId: string, currentPassword: string | undefined, newPassword: string) {
+  const user = await User.findById(userId);
+  if (!user) throw new HttpError(401, "Not authenticated");
+  if (user.passwordHash) {
+    if (!currentPassword) throw new HttpError(400, "Current password is required");
+    const ok = await verifyPassword(currentPassword, user.passwordHash);
+    if (!ok) throw new HttpError(401, "Current password is incorrect");
+  }
+  user.passwordHash = await hashPassword(newPassword);
+  await user.save();
+  return user;
+}
+
+/**
  * Resolve (or create) a local user from a verified OAuth profile.
  * Links to an existing account by verified email; otherwise provisions a new user.
  */

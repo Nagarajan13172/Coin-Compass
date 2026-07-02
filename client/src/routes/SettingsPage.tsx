@@ -6,6 +6,7 @@ import {
   Download,
   HandCoins,
   Info,
+  KeyRound,
   Landmark,
   Lock,
   Mail,
@@ -23,6 +24,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -50,7 +52,7 @@ import {
   useSetWealthPasscode,
   useDisableWealthPasscode,
 } from "@/hooks/useSettings";
-import { useMe } from "@/hooks/useAuth";
+import { useMe, useChangePassword } from "@/hooks/useAuth";
 import { WealthUnlockDialog } from "@/features/settings/WealthLock";
 import { useSendReportEmail } from "@/hooks/useReports";
 import { useImportFile } from "@/hooks/useImport";
@@ -88,6 +90,7 @@ export default function SettingsPage() {
   const { data: loans } = useLoans();
   const setWealthPass = useSetWealthPasscode();
   const disableWealthPass = useDisableWealthPasscode();
+  const changePassword = useChangePassword();
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
 
@@ -105,6 +108,10 @@ export default function SettingsPage() {
   const [wealthPass, setWealthPassInput] = useState("");
   const [wealthConfirm, setWealthConfirm] = useState("");
   const [wealthUnlockOpen, setWealthUnlockOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
@@ -190,6 +197,29 @@ export default function SettingsPage() {
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't update passcode");
+    }
+  }
+
+  function openPasswordDialog() {
+    setCurrentPassword("");
+    setNewPassword("");
+    setNewPasswordConfirm("");
+    setPasswordDialogOpen(true);
+  }
+
+  async function confirmChangePassword() {
+    if (me?.hasPassword && !currentPassword) return toast.error("Enter your current password");
+    if (newPassword.length < 8) return toast.error("New password must be at least 8 characters");
+    if (newPassword !== newPasswordConfirm) return toast.error("New passwords don't match");
+    try {
+      await changePassword.mutateAsync({
+        currentPassword: me?.hasPassword ? currentPassword : undefined,
+        newPassword,
+      });
+      setPasswordDialogOpen(false);
+      toast.success(me?.hasPassword ? "Password changed" : "Password set");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't update password");
     }
   }
 
@@ -421,6 +451,27 @@ export default function SettingsPage() {
             <CardTitle>Security</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                  <KeyRound className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium">Password</p>
+                  <p className="text-xs text-muted-foreground">
+                    {me?.hasPassword
+                      ? "Change the password you sign in with."
+                      : "Set a password so you can also sign in with email."}
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={openPasswordDialog}>
+                {me?.hasPassword ? "Change" : "Set password"}
+              </Button>
+            </div>
+
+            <Separator />
+
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <span
@@ -817,6 +868,62 @@ export default function SettingsPage() {
       </Dialog>
 
       <WealthUnlockDialog open={wealthUnlockOpen} onOpenChange={setWealthUnlockOpen} />
+
+      {/* Change / set password dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>{me?.hasPassword ? "Change password" : "Set a password"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {me?.hasPassword && (
+              <div className="space-y-1.5">
+                <Label htmlFor="current-password">Current password</Label>
+                <PasswordInput
+                  id="current-password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoFocus
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password">New password (min 8 characters)</Label>
+              <PasswordInput
+                id="new-password"
+                autoComplete="new-password"
+                maxLength={200}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                autoFocus={!me?.hasPassword}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-new-password">Confirm new password</Label>
+              <PasswordInput
+                id="confirm-new-password"
+                autoComplete="new-password"
+                maxLength={200}
+                value={newPasswordConfirm}
+                onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && confirmChangePassword()}
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmChangePassword} disabled={changePassword.isPending}>
+              <Check /> {me?.hasPassword ? "Update password" : "Set password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
