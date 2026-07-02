@@ -1,5 +1,6 @@
 import { env } from "../config/env";
 import { MetalPrice, METALS, type Metal } from "../models/MetalPrice";
+import { HttpError } from "../middleware/errorHandler";
 
 /** GoldAPI symbol for each metal we track. */
 const SYMBOL: Record<Metal, string> = { gold: "XAU", silver: "XAG" };
@@ -179,6 +180,31 @@ export async function refreshMetalPrices(opts: { force?: boolean } = {}): Promis
   } catch (e) {
     console.error("[metals] GRT Chennai scrape failed", e);
   }
+}
+
+// Floor between user-triggered refreshes, so a few impatient clicks can't burn
+// through GoldAPI's (quota-limited) free tier. The daily cron keeps running on
+// its own schedule regardless of this.
+const ON_DEMAND_COOLDOWN_MS = 15 * 60 * 1000;
+
+/**
+ * User-triggered refresh: force-refetch today's spot + GRT rate right now,
+ * subject to a cooldown since the last fetch (on-demand or scheduled). Throws
+ * 429 with the wait time remaining if called too soon.
+ */
+export async function refreshMetalPricesOnDemand(): Promise<void> {
+  if (!env.metals.configured) throw new HttpError(400, "Gold tracking isn't configured");
+
+  const date = istDate();
+  const gold = await MetalPrice.findOne({ metal: "gold", date }).lean();
+  const lastFetchedAt = gold?.fetchedAt ? new Date(gold.fetchedAt).getTime() : 0;
+  const elapsed = Date.now() - lastFetchedAt;
+  if (elapsed < ON_DEMAND_COOLDOWN_MS) {
+    const waitMin = Math.ceil((ON_DEMAND_COOLDOWN_MS - elapsed) / 60_000);
+    throw new HttpError(429, `Rates were just refreshed. Try again in ${waitMin} minute${waitMin === 1 ? "" : "s"}.`);
+  }
+
+  await refreshMetalPrices({ force: true });
 }
 
 /** Latest stored snapshot for gold and silver, plus whether the feature is on. */

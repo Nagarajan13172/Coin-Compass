@@ -121,6 +121,7 @@ router.get("/networth/history", asyncHandler(networth.netWorthHistory));
 // Precious metals (gold/silver) — global daily rates
 router.get("/metals/latest", asyncHandler(metals.latestMetals));
 router.get("/metals/history", asyncHandler(metals.metalHistory));
+router.post("/metals/refresh", asyncHandler(metals.refreshMetals));
 
 // Reports
 router.get("/reports/summary", asyncHandler(reports.summaryReport));

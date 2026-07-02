@@ -10,7 +10,14 @@
       "Bash(date +%s)",
       "Bash(echo 12345)",
       "Bash(echo 'test email: remember-test-__CMDSUB_OUTPUT__@example.com')",
-      "Bash(curl -si -X POST http://localhost:4000/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"remember-test-__CMDSUB_OUTPUT__@example.com\",\"password\":\"testpass123\"}')"
+      "Bash(curl -si -X POST http://localhost:4000/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"remember-test-__CMDSUB_OUTPUT__@example.com\",\"password\":\"testpass123\"}')",
+      "Bash(curl -si -X POST http://localhost:4000/api/metals/refresh -H \"Content-Type: application/json\")",
+      "Bash(curl -sc /tmp/cookies.txt -X POST http://localhost:4000/api/auth/signin -H 'Content-Type: application/json' -d '{\"email\":\"remember-test-1782993064@example.com\",\"password\":\"testpass123\",\"remember\":true}' -o /dev/null)",
+      "Bash(echo \"--- refresh \\(should require verified email; this test user is unverified\\) ---\")",
+      "Bash(curl -sb /tmp/cookies.txt -X POST http://localhost:4000/api/metals/refresh -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(docker exec local-mongo mongosh money-tracker --quiet --eval ' *)",
+      "Bash(curl -sb /tmp/cookies.txt \"http://localhost:4000/api/metals/history?metal=gold&days=7\")",
+      "Bash(python3 -m json.tool)"
     ]
   }
 }

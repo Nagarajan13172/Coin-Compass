@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Coins, TrendingUp } from "lucide-react";
+import { Coins, RefreshCw, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -14,8 +16,9 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
-import { useMetalHistory, useMetalsLatest } from "@/hooks/useMetals";
+import { useMetalHistory, useMetalsLatest, useRefreshMetals } from "@/hooks/useMetals";
 import type { Metal, MetalPrice } from "@/lib/types";
 import { METAL_META } from "@/features/metals/meta";
 import { MetalChange } from "@/features/metals/MetalChange";
@@ -109,25 +112,46 @@ export default function GoldPage() {
   const city = findCity(cityKey);
   const { data: latest, isLoading } = useMetalsLatest();
   const { data: history } = useMetalHistory(metal, days);
+  const refresh = useRefreshMetals();
+
+  async function refreshNow() {
+    try {
+      await refresh.mutateAsync();
+      toast.success("Rates refreshed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't refresh rates");
+    }
+  }
 
   return (
     <div>
       <PageHeader
         title="Gold & Silver"
-        description="Live precious-metal rates in ₹ · updated once daily"
+        description="Live precious-metal rates in ₹ · auto-refreshed daily, or refresh now"
         actions={
-          <Select value={cityKey} onValueChange={setCityKey}>
-            <SelectTrigger className="w-40" aria-label="City">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {GOLD_CITIES.map((c) => (
-                <SelectItem key={c.key} value={c.key}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={cityKey} onValueChange={setCityKey}>
+              <SelectTrigger className="w-40" aria-label="City">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GOLD_CITIES.map((c) => (
+                  <SelectItem key={c.key} value={c.key}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Refresh rates now"
+              onClick={refreshNow}
+              disabled={refresh.isPending}
+            >
+              <RefreshCw className={cn("h-4 w-4", refresh.isPending && "animate-spin")} />
+            </Button>
+          </div>
         }
       />
 
@@ -196,7 +220,8 @@ export default function GoldPage() {
           <p className="text-center text-xs text-muted-foreground">
             Spot from goldapi.io (international spot × ₹). Chennai shows GRT Jewellers’ published
             counter rate (from grtjewels.com); other cities estimate spot + a local premium (duty,
-            GST &amp; margin) and exclude making charges. Refreshed daily.
+            GST &amp; margin) and exclude making charges. Refreshed automatically once a day, or
+            on demand with the refresh button above (max once every 15 minutes).
           </p>
         </div>
       )}
