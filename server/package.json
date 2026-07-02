@@ -9,6 +9,7 @@
     "seed": "tsx src/seed/index.ts",
     "seed:all": "tsx src/scripts/seedAll.ts",
     "migrate:user": "tsx src/scripts/migrateToUser.ts",
+    "backfill:credit-categories": "tsx src/scripts/backfillCreditCategories.ts",
     "build": "tsc --noEmit",
     "test": "vitest run"
   },

@@ -1,7 +1,37 @@
 import type { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
 import { Credit, type CreditDirection } from "../models/Credit";
+import { Category } from "../models/Category";
 import { HttpError } from "../middleware/errorHandler";
+
+/** The auto-managed category a reflected credit's transaction is filed under, so
+ *  lends/repayments group into a named bucket instead of showing uncategorized. */
+const CREDIT_CATEGORY = {
+  given: { system: "credit_given", name: "Credit Given", type: "expense", icon: "hand-coins", color: "#F59E0B" },
+  received: { system: "credit_received", name: "Credit Received", type: "income", icon: "coins", color: "#14B8A6" },
+} as const;
+
+/**
+ * Find — or lazily create — the credit category for a direction and return its id.
+ * Matched by the stable `system` marker (not the display name), so a renamed
+ * category still resolves and a deleted one is recreated on the next use. Also
+ * used by the one-off backfill script.
+ */
+export async function ensureCreditCategoryId(uid: unknown, direction: CreditDirection): Promise<Types.ObjectId> {
+  const spec = CREDIT_CATEGORY[direction];
+  const existing = await Category.findOne({ user: uid, system: spec.system });
+  if (existing) return existing._id as Types.ObjectId;
+  const created = await Category.create({
+    user: uid,
+    name: spec.name,
+    type: spec.type,
+    icon: spec.icon,
+    color: spec.color,
+    isDefault: true,
+    system: spec.system,
+  });
+  return created._id as Types.ObjectId;
+}
 
 export interface CreditInput {
   person: string;
@@ -21,16 +51,17 @@ function defaultNote(data: Pick<CreditInput, "direction" | "person" | "note" | "
 }
 
 /** The linked transaction a credit's `reflected` flag creates — an expense when
- *  money left an account (given), income when it arrived (received). Only called
+ *  money left an account (given), income when it arrived (received). Filed under
+ *  the direction's credit category so it's never left uncategorized. Only called
  *  once we've confirmed an account is present (reflecting requires one). */
-function txnPayload(uid: unknown, data: CreditInput, creditId: unknown) {
+function txnPayload(uid: unknown, data: CreditInput, creditId: unknown, category: unknown) {
   return {
     user: uid,
     type: data.direction === "given" ? "expense" : "income",
     amount: data.amount,
     account: data.account,
     toAccount: null,
-    category: null,
+    category,
     date: data.date,
     note: defaultNote(data),
     payee: data.person,
@@ -52,7 +83,8 @@ export async function createCredit(uid: unknown, data: CreditInput) {
     transaction: null,
   });
   if (data.reflected) {
-    const txn = await Transaction.create(txnPayload(uid, data, credit._id));
+    const category = await ensureCreditCategoryId(uid, data.direction);
+    const txn = await Transaction.create(txnPayload(uid, data, credit._id, category));
     credit.transaction = txn._id as Types.ObjectId;
     await credit.save();
   }
@@ -87,9 +119,11 @@ export async function updateCredit(uid: unknown, creditId: unknown, patch: Parti
   Object.assign(credit, { ...merged, account: merged.account ?? null });
 
   if (merged.reflected && hadTxn) {
-    await Transaction.updateOne({ _id: hadTxn, user: uid }, txnPayload(uid, merged, credit._id));
+    const category = await ensureCreditCategoryId(uid, merged.direction);
+    await Transaction.updateOne({ _id: hadTxn, user: uid }, txnPayload(uid, merged, credit._id, category));
   } else if (merged.reflected && !hadTxn) {
-    const txn = await Transaction.create(txnPayload(uid, merged, credit._id));
+    const category = await ensureCreditCategoryId(uid, merged.direction);
+    const txn = await Transaction.create(txnPayload(uid, merged, credit._id, category));
     credit.transaction = txn._id as Types.ObjectId;
   } else if (!merged.reflected && hadTxn) {
     await Transaction.deleteOne({ _id: hadTxn, user: uid });

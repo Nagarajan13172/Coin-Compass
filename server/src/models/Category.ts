@@ -12,6 +12,11 @@ const categorySchema = new Schema(
     parent: { type: Schema.Types.ObjectId, ref: "Category", default: null },
     order: { type: Number, default: 0 },
     isDefault: { type: Boolean, default: false },
+    // Marks an auto-managed system category (currently the ones the Credits
+    // feature tags its transactions with: "credit_given" / "credit_received").
+    // null for ordinary user categories. Lets the app find/reuse the same bucket
+    // even if the user renames its display name. See creditService.
+    system: { type: String, default: null },
   },
   { timestamps: true }
 );

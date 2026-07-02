@@ -329,6 +329,7 @@ function OverviewTab({
             data={overviewData}
             total={expenditure + savingTotal + investmentTotal}
             centerLabel="Total"
+            wideLegend
           />
           <p className="mt-2 text-xs text-muted-foreground">
             Expenditure is this month's spending; Saving &amp; Investment are current balances.

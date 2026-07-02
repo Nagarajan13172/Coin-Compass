@@ -21,6 +21,8 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Maid", icon: "pizza", color: "#64748B" },
   { name: "Tea & Snacks", icon: "coffee", color: "#22C55E" },
   { name: "Post-Office", icon: "receipt", color: "#EC4899" },
+  // Auto-assigned by the Credits feature to money you lend / pay out to a person.
+  { name: "Credit Given", icon: "hand-coins", color: "#F59E0B", system: "credit_given" },
   { name: "Other", icon: "ellipsis", color: "#64748B" },
 ];
 
@@ -34,5 +36,7 @@ export const DEFAULT_INCOME_CATEGORIES = [
   { name: "Refunds", icon: "rotate-ccw", color: "#3B82F6" },
   { name: "RD Returns", icon: "repeat", color: "#2563EB" },
   { name: "Existing Balance", icon: "piggy-bank", color: "#D946EF" },
+  // Auto-assigned by the Credits feature to money a person pays back / gives you.
+  { name: "Credit Received", icon: "coins", color: "#14B8A6", system: "credit_received" },
   { name: "Other", icon: "ellipsis", color: "#64748B" },
 ];

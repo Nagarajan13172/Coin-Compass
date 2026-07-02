@@ -226,7 +226,7 @@ export default function ReportsPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>By category</CardTitle>
             <Tabs value={donutType} onValueChange={(v) => setDonutType(v as "expense" | "income")}>
@@ -244,6 +244,7 @@ export default function ReportsPage() {
                 data={byCategory.data}
                 total={total}
                 showBars
+                wideLegend
                 centerLabel={donutType === "expense" ? "Total spent" : "Total earned"}
                 onSelect={(categoryId) => openTxns({ type: donutType, category: categoryId ?? undefined })}
               />
@@ -288,7 +289,7 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <div>
               <CardTitle>Net cash flow</CardTitle>

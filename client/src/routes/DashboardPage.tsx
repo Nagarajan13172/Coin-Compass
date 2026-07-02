@@ -236,6 +236,7 @@ export default function DashboardPage() {
                     data={data.byCategory}
                     total={data.summary.expense}
                     onSelect={openCategory}
+                    wideLegend
                   />
                 ) : (
                   <EmptyState
