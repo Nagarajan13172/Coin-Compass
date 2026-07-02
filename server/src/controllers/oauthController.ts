@@ -13,6 +13,7 @@ import { findOrCreateOAuthUser } from "../services/authService";
 import { setSessionCookie } from "../auth/cookie";
 import type { AuthProvider } from "../models/User";
 import { HttpError } from "../middleware/errorHandler";
+import { publicAppOrigin } from "../utils/publicOrigin";
 
 const STATE_COOKIE = "mt_oauth_state";
 const VERIFIER_COOKIE = "mt_oauth_verifier";
@@ -41,7 +42,7 @@ function parseProvider(req: Request): AuthProvider {
 export async function oauthStart(req: Request, res: Response) {
   const provider = parseProvider(req);
   if (!isConfigured(provider)) {
-    return res.redirect(`${env.appUrl}/login?error=oauth_unconfigured`);
+    return res.redirect(`${publicAppOrigin(req)}/login?error=oauth_unconfigured`);
   }
   const state = generateState();
   const codeVerifier = USES_PKCE[provider] ? generateCodeVerifier() : "";
@@ -79,8 +80,8 @@ export async function oauthCallback(req: Request, res: Response) {
     const profile = await exchangeAndGetProfile(provider, code, verifier, req);
     const user = await findOrCreateOAuthUser({ provider, ...profile });
     setSessionCookie(res, String(user._id));
-    res.redirect(`${env.appUrl}/`);
+    res.redirect(`${publicAppOrigin(req)}/`);
   } catch {
-    res.redirect(`${env.appUrl}/login?error=oauth`);
+    res.redirect(`${publicAppOrigin(req)}/login?error=oauth`);
   }
 }

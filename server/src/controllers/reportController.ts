@@ -37,7 +37,7 @@ export async function sendReportEmailNow(req: Request, res: Response) {
   const user = await User.findById(userId(req));
   if (!user) throw new HttpError(404, "User not found");
   const kind: ReportKind = req.query.kind === "midmonth" ? "midmonth" : "monthly";
-  await sendReportTo(user, kind);
+  await sendReportTo(user, kind, new Date(), req);
   res.json({ ok: true, sentTo: user.email, kind });
 }
 

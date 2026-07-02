@@ -5,6 +5,8 @@ import { getSettings } from "../models/Settings";
 import { getSummary, getByCategory } from "./reportService";
 import { sendMail } from "../mail/mailer";
 import { startOfMonth, addMonths, addDays, startOfDay } from "../utils/dateRange";
+import type { Request } from "express";
+import { publicAppOrigin } from "../utils/publicOrigin";
 
 const APP_NAME = "CoinCompass";
 
@@ -90,12 +92,13 @@ function renderEmail(
   kind: ReportKind,
   p: Period,
   data: Awaited<ReturnType<typeof buildData>>,
-  fmt: Money
+  fmt: Money,
+  req?: Request
 ): { subject: string; html: string; text: string } {
   const name = user.name?.trim().split(" ")[0] || "there";
   const { summary, savingsRate, momPct, top } = data;
   const subject = `${p.title} · ${p.label}`;
-  const reportsUrl = `${env.appUrl}/reports`;
+  const reportsUrl = new URL("/reports", `${publicAppOrigin(req)}/`).toString();
 
   const stat = (label: string, value: string, color: string) => `
     <td style="padding:8px;text-align:center;">
@@ -182,12 +185,17 @@ function renderEmail(
 }
 
 /** Build + email a report of the given kind to a single user (used by the scheduler and the test endpoint). */
-export async function sendReportTo(user: UserDoc & { _id: Types.ObjectId | unknown }, kind: ReportKind, now = new Date()) {
+export async function sendReportTo(
+  user: UserDoc & { _id: Types.ObjectId | unknown },
+  kind: ReportKind,
+  now = new Date(),
+  req?: Request
+) {
   const uid = String(user._id);
   const period = periodForKind(kind, now);
   const fmt = await moneyFormatter(uid);
   const data = await buildData(uid, period);
-  const { subject, html, text } = renderEmail(user, kind, period, data, fmt);
+  const { subject, html, text } = renderEmail(user, kind, period, data, fmt, req);
   await sendMail({ to: user.email, subject, html, text });
 }
 

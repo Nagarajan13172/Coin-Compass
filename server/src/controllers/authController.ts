@@ -47,7 +47,7 @@ export async function signup(req: Request, res: Response) {
   // Send the verification email out-of-band: don't make the user wait on the SMTP
   // round-trip, and don't fail an otherwise-successful signup if mail hiccups —
   // they land on the verify screen and can hit "Resend" there.
-  void sendVerificationEmail(user).catch((e) => {
+  void sendVerificationEmail(user, req).catch((e) => {
     // eslint-disable-next-line no-console
     console.error("[signup] verification email failed for", user.email, e);
   });
@@ -66,7 +66,7 @@ export async function verifyEmail(req: Request, res: Response) {
 
 /** Resend the verification email to the signed-in (but unverified) user. */
 export async function resendVerification(req: Request, res: Response) {
-  await resendVerificationEmail(userId(req));
+  await resendVerificationEmail(userId(req), req);
   res.json({ ok: true });
 }
 
