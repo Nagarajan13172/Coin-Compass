@@ -81,10 +81,25 @@ tests/
 
 ## Coverage today
 
-- **user-management** — signup, email verification (+resend), signin, session/logout,
-  change password, forgot/reset password, OAuth-provider status, and **2FA**:
-  enrollment, TOTP login, backup codes (single-use), emailed fallback code, toggling
-  fallback, regenerating backup codes, disable, and login rate-limiting.
+**136 API tests across 14 feature suites** (one `*.spec.ts` per feature under `src/api/`),
+plus a Playwright E2E journey for user-management.
+
+| Feature | Highlights covered |
+|---------|--------------------|
+| user-management | signup, email verify (+resend), signin, session/logout, change/forgot/reset password, OAuth status, **2FA** (enroll, TOTP, single-use backup codes, emailed fallback, toggle, regenerate, disable), login rate-limiting |
+| accounts | CRUD, defaults, computed balance, archive visibility, force-delete, ownership |
+| categories | CRUD, default seeding, type filter, in-use delete guard, ownership |
+| transactions | CRUD, pagination, filter & search, **balance side-effects** (expense/income/transfer/edit/delete), validation, ownership |
+| budgets | CRUD, **over-spend detection**, validation, ownership |
+| recurring | CRUD, run / run-all / post-one / skip, history, balance effect, ownership |
+| goals | CRUD, contribute (+/−), completion, over-withdraw clamp, ownership |
+| networth | holdings CRUD, subtype/class validation, trend history, **wealth-lock gating** (lock/unlock/wrong-passcode) |
+| loans | CRUD, part-payment auto-close, preclosure + charge, validation, ownership |
+| credits | CRUD, **reflection into balances** (+ un-reflect), per-person summary net, validation, ownership |
+| reports | summary totals, category/trend/account breakdowns, on-demand email |
+| metals | disabled-without-key path (latest/history/refresh), auth |
+| settings | read (no secret hashes), update, **PIN lock** (set/verify/disable), **wealth passcode** |
+| export/import | CSV export, import (+auto-create accounts), invalid-row reporting, **round-trip** |
 
 ## Adding a feature suite
 

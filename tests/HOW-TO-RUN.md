@@ -115,10 +115,12 @@ $env:TEST_SERVER_LOG="1"; npm run e2e
 
 ## Coverage today
 
-- **user-management** — signup, email verification (+ resend), signin, session /
-  logout, change password, forgot / reset password, OAuth-provider status, and
-  **2FA** (enrollment, TOTP login, single-use backup codes, emailed fallback code,
-  toggling fallback, regenerating backup codes, disable, and login rate-limiting).
+**136 API tests across all 14 feature suites** (`src/api/*.spec.ts`) — all green —
+plus a Playwright E2E journey for user-management:
 
-More feature suites (accounts, transactions, budgets, …) get added the same way —
-one `*.spec.ts` per feature under `src/api/`.
+user-management, accounts, categories, transactions, budgets, recurring, goals,
+networth (holdings + wealth-lock), loans, credits, reports, metals, settings,
+export/import.
+
+Run one with `npm run test:feature -- <feature>` (e.g. `transactions`). New feature
+suites get added the same way — copy an existing `src/api/*.spec.ts` as a template.

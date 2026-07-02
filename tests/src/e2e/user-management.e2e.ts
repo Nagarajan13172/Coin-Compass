@@ -78,17 +78,7 @@ test("2FA account: login prompts for a second factor, backup code lets them in",
   await page.getByRole("button", { name: /use a backup code/i }).click();
   await page.locator("#code").fill(backupCodes[0]);
 
-  const verifyResponse = page.waitForResponse(
-    (r) => r.url().includes("/auth/2fa/verify") && r.request().method() === "POST"
-  );
   await page.getByRole("button", { name: "Verify" }).click();
-  // The backup code must be accepted and a real session issued.
-  expect((await verifyResponse).status()).toBe(200);
-
-  // NOTE: the app currently races back to /login here (on success it clears the
-  // pending-2FA query, which refetches, 401s, and renders a redirect that beats
-  // the intended navigate to "/"). The session IS valid, so navigating into the
-  // app confirms the backup code let the user in. Worth fixing in the app.
-  await page.goto("/");
+  // A correct backup code issues a real session and drops us straight into the app.
   await expectInApp(page);
 });

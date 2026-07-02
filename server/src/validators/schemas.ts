@@ -99,7 +99,7 @@ export const transactionSchema = z
     message: "Transfers require a destination account",
     path: ["toAccount"],
   })
-  .refine((d) => d.type === "transfer" || d.account !== d.toAccount, {
+  .refine((d) => d.type !== "transfer" || d.account !== d.toAccount, {
     message: "Source and destination accounts must differ",
     path: ["toAccount"],
   });

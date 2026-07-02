@@ -36,6 +36,11 @@ export default function TwoFactorPage() {
     [pending, location.state]
   );
 
+  // A verified second factor means a real session now exists — go straight into
+  // the app. This MUST be checked before the loading/!pending branches: a
+  // successful verify clears the pending challenge, and we must not read that
+  // cleared state as an expired one and bounce back to /login.
+  if (verify.isSuccess) return <Navigate to="/" replace />;
   if (isLoading) return <FullScreenSplash />;
   // No valid pending challenge (expired/never started) → back to the password step.
   if (!pending) return <Navigate to="/login" replace />;
@@ -48,7 +53,8 @@ export default function TwoFactorPage() {
     setError(null);
     try {
       await verify.mutateAsync({ method, code: value.trim() });
-      navigate("/", { replace: true });
+      // Redirect is handled declaratively via `verify.isSuccess` above, so it
+      // can't lose a race with the pending-challenge query being cleared.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setCode("");
