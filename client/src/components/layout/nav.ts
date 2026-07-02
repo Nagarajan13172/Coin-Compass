@@ -6,6 +6,7 @@ import {
   Trophy,
   Landmark,
   HandCoins,
+  HeartHandshake,
   Coins,
   PieChart,
   CalendarDays,
@@ -57,6 +58,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/net-worth", label: "Net Worth", icon: Landmark },
       { to: "/loans", label: "Loans", icon: HandCoins },
+      { to: "/credits", label: "Credits", icon: HeartHandshake },
       { to: "/gold", label: "Gold", icon: Coins },
     ],
   },

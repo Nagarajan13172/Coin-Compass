@@ -35,7 +35,7 @@ export const changePasswordSchema = z.object({
 
 export const accountSchema = z.object({
   name: z.string().min(1).max(60),
-  type: z.enum(["cash", "bank", "card", "wallet", "savings"]).default("cash"),
+  type: z.enum(["cash", "bank", "card", "wallet", "upi", "savings"]).default("cash"),
   initialBalance: z.number().default(0),
   currency: z.string().default("INR"),
   color: z.string().default("#2563EB"),
@@ -183,6 +183,24 @@ export const loanSchema = z.object({
   currency: z.string().default("INR"),
 });
 export const loanUpdateSchema = loanSchema.partial();
+
+export const CREDIT_METHODS = [
+  "Cash", "GPay", "PhonePe", "Paytm", "UPI", "Net Banking",
+  "Debit Card", "Credit Card", "Cheque", "Bank Transfer", "Other",
+] as const;
+
+export const creditSchema = z.object({
+  person: z.string().min(1, "Enter a name").max(80),
+  direction: z.enum(["given", "received"]),
+  amount: z.number().positive("Amount must be greater than 0"),
+  date: z.coerce.date().default(() => new Date()),
+  method: z.enum(CREDIT_METHODS).optional(),
+  // Optional here; the service enforces that reflecting requires an account.
+  account: optionalObjectId,
+  note: z.string().max(280).default(""),
+  reflected: z.boolean().default(false),
+});
+export const creditUpdateSchema = creditSchema.partial();
 export const loanPaySchema = z.object({
   amount: z.number().positive(),
   chargePct: z.number().min(0).max(100).optional(),

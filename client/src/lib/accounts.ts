@@ -6,6 +6,7 @@ export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   bank: "Bank",
   card: "Card",
   wallet: "Wallet",
+  upi: "UPI",
   savings: "Savings",
 };
 

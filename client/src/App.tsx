@@ -16,6 +16,7 @@ import BudgetsPage from "@/routes/BudgetsPage";
 import GoalsPage from "@/routes/GoalsPage";
 import NetWorthPage from "@/routes/NetWorthPage";
 import LoansPage from "@/routes/LoansPage";
+import CreditsPage from "@/routes/CreditsPage";
 import GoldPage from "@/routes/GoldPage";
 import ReportsPage from "@/routes/ReportsPage";
 import CalendarPage from "@/routes/CalendarPage";
@@ -117,6 +118,7 @@ export function App() {
               <Route path="/net-worth" element={<NetWorthPage />} />
             </Route>
             <Route path="/loans" element={<LoansPage />} />
+            <Route path="/credits" element={<CreditsPage />} />
             <Route path="/gold" element={<GoldPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/calendar" element={<CalendarPage />} />

@@ -10,6 +10,7 @@ import * as budgets from "../controllers/budgetController";
 import * as goals from "../controllers/goalController";
 import * as holdings from "../controllers/holdingController";
 import * as loans from "../controllers/loanController";
+import * as credits from "../controllers/creditController";
 import * as networth from "../controllers/networthController";
 import * as recurring from "../controllers/recurringController";
 import * as reports from "../controllers/reportController";
@@ -114,6 +115,13 @@ router.post("/loans/:id/pay", asyncHandler(loans.payLoan));
 router.post("/loans/:id/preclose", asyncHandler(loans.precloseLoan));
 router.patch("/loans/:id", asyncHandler(loans.updateLoan));
 router.delete("/loans/:id", asyncHandler(loans.deleteLoan));
+
+// Credits: informal IOUs with friends/family, optionally linked to a real transaction.
+router.get("/credits", asyncHandler(credits.listCreditsHandler));
+router.get("/credits/summary", asyncHandler(credits.creditSummary));
+router.post("/credits", asyncHandler(credits.createCreditHandler));
+router.patch("/credits/:id", asyncHandler(credits.updateCreditHandler));
+router.delete("/credits/:id", asyncHandler(credits.deleteCreditHandler));
 
 // Net-worth trend: one snapshot per day, accumulated as the user visits.
 router.get("/networth/history", asyncHandler(networth.netWorthHistory));

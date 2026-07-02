@@ -29,8 +29,20 @@ const TYPES: { value: AccountType; label: string }[] = [
   { value: "bank", label: "Bank" },
   { value: "card", label: "Card" },
   { value: "wallet", label: "Wallet" },
+  { value: "upi", label: "UPI" },
   { value: "savings", label: "Savings" },
 ];
+
+/** A sensible starter icon per account type (used for new accounts until the
+ *  user picks their own). e.g. UPI → a phone, since GPay/PhonePe live there. */
+const TYPE_ICON: Record<AccountType, string> = {
+  cash: "banknote",
+  bank: "landmark",
+  card: "credit-card",
+  wallet: "wallet",
+  upi: "smartphone",
+  savings: "piggy-bank",
+};
 
 interface Props {
   open: boolean;
@@ -51,6 +63,9 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
   const [color, setColor] = useState("#2563EB");
   const [icon, setIcon] = useState("wallet");
   const [includeInTotal, setIncludeInTotal] = useState(true);
+  // Track whether the user hand-picked an icon, so switching type only re-seeds
+  // a default they haven't touched (new accounts only).
+  const [iconTouched, setIconTouched] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +76,18 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
     setColor(account?.color ?? "#2563EB");
     setIcon(account?.icon ?? "wallet");
     setIncludeInTotal(account?.includeInTotal ?? true);
+    setIconTouched(false);
   }, [open, account, settings]);
+
+  // Picking a type re-seeds the icon default (new accounts only, until edited by hand).
+  function onTypeChange(v: AccountType) {
+    setType(v);
+    if (!isEdit && !iconTouched) setIcon(TYPE_ICON[v]);
+  }
+  function onIconChange(v: string) {
+    setIcon(v);
+    setIconTouched(true);
+  }
 
   async function submit() {
     if (!name.trim()) return toast.error("Enter an account name");
@@ -102,7 +128,7 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Type</Label>
-              <Select value={type} onValueChange={(v) => setType(v as AccountType)}>
+              <Select value={type} onValueChange={(v) => onTypeChange(v as AccountType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -147,7 +173,7 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label>Icon</Label>
-            <IconPicker value={icon} color={color} onChange={setIcon} />
+            <IconPicker value={icon} color={color} onChange={onIconChange} />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>

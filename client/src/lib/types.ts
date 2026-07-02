@@ -1,6 +1,6 @@
 export type TxnType = "income" | "expense" | "transfer";
 export type CategoryType = "income" | "expense";
-export type AccountType = "cash" | "bank" | "card" | "wallet" | "savings";
+export type AccountType = "cash" | "bank" | "card" | "wallet" | "upi" | "savings";
 export type BudgetPeriod = "weekly" | "monthly" | "yearly";
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
 export type PeriodKey = "week" | "month" | "year";
@@ -66,6 +66,8 @@ export interface Transaction {
   recurring?: string | null;
   /** When set, this transaction is a repayment that reduces the loan's balance. */
   loan?: RefLite | string | null;
+  /** When set, this transaction is the reflected side of a Credit entry (money to/from a person). */
+  credit?: { _id: string; person: string; direction: CreditDirection } | string | null;
   createdAt?: string;
 }
 
@@ -176,6 +178,43 @@ export interface Loan {
   status: LoanStatus;
   note: string;
   currency: string;
+}
+
+export type CreditDirection = "given" | "received";
+
+/** Payment channels — how the money moved (the app/instrument), a record label
+ *  distinct from the account whose balance actually changes. */
+export const CREDIT_METHODS = [
+  "Cash", "GPay", "PhonePe", "Paytm", "UPI", "Net Banking",
+  "Debit Card", "Credit Card", "Cheque", "Bank Transfer", "Other",
+] as const;
+export type CreditMethod = (typeof CREDIT_METHODS)[number];
+
+/** An informal IOU with a friend/family member; optionally linked to a real
+ *  Transaction (see `reflected`) so it also moves an account balance. */
+export interface Credit {
+  _id: string;
+  person: string;
+  direction: CreditDirection;
+  amount: number;
+  date: string;
+  /** How the money moved (GPay/PhonePe/…) — a label, not a balance. */
+  method: string;
+  /** The account whose balance moves — only set when reflected. */
+  account?: RefLite | string | null;
+  note: string;
+  reflected: boolean;
+  transaction?: string | null;
+  createdAt?: string;
+}
+
+/** One person's running ledger: net > 0 means they owe you, net < 0 means you owe them. */
+export interface CreditPersonSummary {
+  person: string;
+  given: number;
+  received: number;
+  net: number;
+  entries: Credit[];
 }
 
 export type Metal = "gold" | "silver";

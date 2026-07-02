@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, Link2, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -25,12 +26,13 @@ import { formatMoney } from "@/lib/format";
 import { useUIStore } from "@/stores/ui";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useLoans } from "@/hooks/useLoans";
+import { useCreateCredit } from "@/hooks/useCredits";
 import {
   useCreateTransaction,
   useDeleteTransaction,
   useUpdateTransaction,
 } from "@/hooks/useTransactions";
-import type { RefLite, TxnType } from "@/lib/types";
+import { CREDIT_METHODS, type CreditMethod, type RefLite, type TxnType } from "@/lib/types";
 import { AmountKeypad } from "./AmountKeypad";
 import { CategoryPicker } from "./CategoryPicker";
 
@@ -59,6 +61,7 @@ export function TransactionSheet() {
   const createTxn = useCreateTransaction();
   const updateTxn = useUpdateTransaction();
   const deleteTxn = useDeleteTransaction();
+  const createCredit = useCreateCredit();
 
   const [type, setType] = useState<TxnType>(defaultType);
   const [amount, setAmount] = useState(0);
@@ -70,8 +73,18 @@ export function TransactionSheet() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [loanId, setLoanId] = useState("");
+  // "Money to/from a person" — only offered when creating a new expense/income;
+  // submitting goes through the Credits API instead so it also shows up there.
+  const [personMode, setPersonMode] = useState(false);
+  const [person, setPerson] = useState("");
+  const [method, setMethod] = useState<CreditMethod>("Cash");
 
   const isEdit = Boolean(editing);
+  // Already linked to a credit (created from — or previously tagged on — the
+  // Credits page): show it read-only rather than letting the transaction form
+  // fork the link out of sync with that entry.
+  const linkedCredit =
+    editing?.credit && typeof editing.credit === "object" ? editing.credit : null;
 
   function addTag(raw: string) {
     const t = raw.trim().replace(/,+$/, "").trim();
@@ -100,6 +113,9 @@ export function TransactionSheet() {
       setNote(editing.note ?? "");
       setTags(editing.tags ?? []);
       setLoanId(refId(editing.loan) ?? "");
+      setPersonMode(false);
+      setPerson("");
+      setMethod("Cash");
     } else {
       // New transaction — seed from any context-aware prefill (e.g. active filters),
       // else fall back to the first account (the accounts-load effect covers the
@@ -112,9 +128,18 @@ export function TransactionSheet() {
       setDate(prefill?.date ?? format(new Date(), "yyyy-MM-dd"));
       setTags([]);
       setLoanId("");
+      setPersonMode(false);
+      setPerson("");
+      setMethod("Cash");
     }
     setTagInput("");
   }, [open, editing, defaultType, prefill]);
+
+  // A transfer moves money between your own accounts — it can't represent a
+  // credit to another person, so drop out of person mode if the tab changes.
+  useEffect(() => {
+    if (type === "transfer") setPersonMode(false);
+  }, [type]);
 
   // default the account selection once accounts load
   useEffect(() => {
@@ -133,23 +158,45 @@ export function TransactionSheet() {
     if (!accountId) return toast.error("Select an account");
     if (type === "transfer" && accountId === toAccountId)
       return toast.error("Source and destination must differ");
-    if (type !== "transfer" && !categoryId) return toast.error("Pick a category");
-
-    const payload = {
-      type,
-      amount,
-      account: accountId,
-      toAccount: type === "transfer" ? toAccountId : null,
-      category: type === "transfer" ? null : categoryId,
-      date: new Date(date).toISOString(),
-      note,
-      tags: tagInput.trim() ? [...tags, tagInput.trim()] : tags,
-      currency: activeAccount?.currency ?? "INR",
-      // Loan repayments only make sense for money leaving an account.
-      loan: type !== "income" && loanId ? loanId : null,
-    };
+    if (personMode) {
+      if (!person.trim()) return toast.error("Enter who this is with");
+    } else if (type !== "transfer" && !categoryId) {
+      return toast.error("Pick a category");
+    }
 
     try {
+      if (personMode && !isEdit) {
+        // Goes through the Credits API instead — it creates the same kind of
+        // transaction, plus a linked entry that shows up on the Credits page.
+        await createCredit.mutateAsync({
+          person: person.trim(),
+          direction: type === "expense" ? "given" : "received",
+          amount,
+          date: new Date(date).toISOString(),
+          method,
+          account: accountId,
+          note,
+          reflected: true,
+        });
+        toast.success("Transaction added");
+        close();
+        return;
+      }
+
+      const payload = {
+        type,
+        amount,
+        account: accountId,
+        toAccount: type === "transfer" ? toAccountId : null,
+        category: type === "transfer" ? null : categoryId,
+        date: new Date(date).toISOString(),
+        note,
+        tags: tagInput.trim() ? [...tags, tagInput.trim()] : tags,
+        currency: activeAccount?.currency ?? "INR",
+        // Loan repayments only make sense for money leaving an account.
+        loan: type !== "income" && loanId ? loanId : null,
+      };
+
       if (isEdit && editing) {
         await updateTxn.mutateAsync({ id: editing._id, ...payload });
         toast.success("Transaction updated");
@@ -174,7 +221,7 @@ export function TransactionSheet() {
     }
   }
 
-  const saving = createTxn.isPending || updateTxn.isPending;
+  const saving = createTxn.isPending || updateTxn.isPending || createCredit.isPending;
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && close()}>
@@ -230,16 +277,69 @@ export function TransactionSheet() {
               </div>
             )}
 
-            {/* category */}
-            {type !== "transfer" && (
-              <div className="space-y-1.5">
-                <Label>Category</Label>
-                <CategoryPicker
-                  type={type}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                />
+            {/* already linked to a credit entry — read-only, manage it from the Credits page */}
+            {linkedCredit && (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
+                <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span>
+                  Linked to credit ·{" "}
+                  <span className="font-medium">
+                    {linkedCredit.direction === "given" ? "You gave" : "You received"} {linkedCredit.person}
+                  </span>
+                  . Edit the person/note from the Credits page.
+                </span>
               </div>
+            )}
+
+            {/* money to/from a person — new expense/income only; goes through the Credits API too */}
+            {!isEdit && type !== "transfer" && (
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="pr-4">
+                  <p className="text-sm font-medium">Money to/from a person</p>
+                  <p className="text-xs text-muted-foreground">Also track this on the Credits page</p>
+                </div>
+                <Switch checked={personMode} onCheckedChange={setPersonMode} />
+              </div>
+            )}
+            {!isEdit && personMode && type !== "transfer" ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="txn-person">Name</Label>
+                  <Input
+                    id="txn-person"
+                    value={person}
+                    onChange={(e) => setPerson(e.target.value)}
+                    placeholder="e.g. Rahul"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Payment method</Label>
+                  <Select value={method} onValueChange={(v) => setMethod(v as CreditMethod)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CREDIT_METHODS.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    How it moved (GPay, PhonePe, …). The account above is the balance that changes.
+                  </p>
+                </div>
+              </>
+            ) : (
+              type !== "transfer" &&
+              !linkedCredit && (
+                <div className="space-y-1.5">
+                  <Label>Category</Label>
+                  <CategoryPicker type={type} value={categoryId} onChange={setCategoryId} />
+                </div>
+              )
             )}
 
             <div className="grid grid-cols-2 gap-3">
@@ -292,6 +392,7 @@ export function TransactionSheet() {
 
             {/* Loan repayment — reduces the chosen loan's outstanding balance. */}
             {type !== "income" &&
+              !personMode &&
               (() => {
                 const options = (loans ?? []).filter((l) => l.status === "active" || l._id === loanId);
                 if (options.length === 0) return null;

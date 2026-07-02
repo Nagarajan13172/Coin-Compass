@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
+import { unlinkCreditTransaction, syncCreditFromTransaction } from "../services/creditService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -10,6 +11,7 @@ const POPULATE = [
   { path: "toAccount", select: "name color icon currency" },
   { path: "category", select: "name color icon type" },
   { path: "loan", select: "name" },
+  { path: "credit", select: "person direction" },
 ];
 
 /** Accept a single value or a comma-separated list ("a,b" → { $in: ["a","b"] }). */
@@ -104,6 +106,7 @@ export async function updateTransaction(req: Request, res: Response) {
   const prevLoan = txn.loan;
   const prevPrincipal = txn.loanPrincipal ?? 0;
   const prevInterest = txn.loanInterest ?? 0;
+  const prevCredit = txn.credit;
   Object.assign(txn, data);
 
   // Reconcile: undo the previous payment (principal + interest), then apply the new
@@ -118,6 +121,22 @@ export async function updateTransaction(req: Request, res: Response) {
     txn.loanPrincipal = 0;
     txn.loanInterest = 0;
   }
+
+  // Keep a linked credit entry in sync, or unlink it (keeping the credit itself)
+  // if this transaction no longer represents a person-to-person movement.
+  if (prevCredit) {
+    if (txn.type === "transfer") {
+      txn.credit = null;
+      await unlinkCreditTransaction(uid, prevCredit);
+    } else {
+      await syncCreditFromTransaction(uid, prevCredit, {
+        amount: txn.amount,
+        date: txn.date,
+        account: txn.account,
+        direction: txn.type === "expense" ? "given" : "received",
+      });
+    }
+  }
   await txn.save();
 
   const populated = await txn.populate(POPULATE);
@@ -131,5 +150,8 @@ export async function deleteTransaction(req: Request, res: Response) {
   // Deleting a loan payment restores exactly the principal + interest it applied
   // (older transactions predate these fields → fall back to the full amount).
   if (txn.loan) await reverseLoanPayment(txn.loan, uid, txn.loanPrincipal ?? txn.amount, txn.loanInterest ?? 0);
+  // Deleting a credit-linked transaction un-links it rather than deleting the
+  // credit entry — the money movement it recorded still happened.
+  if (txn.credit) await unlinkCreditTransaction(uid, txn.credit);
   res.json({ ok: true });
 }

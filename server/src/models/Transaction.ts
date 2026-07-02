@@ -23,6 +23,9 @@ const transactionSchema = new Schema(
     loan: { type: Schema.Types.ObjectId, ref: "Loan", default: null },
     loanPrincipal: { type: Number, default: 0 }, // principal this payment applied
     loanInterest: { type: Number, default: 0 }, // interest portion of this payment
+    // An informal credit (money to/from a person): set when this transaction was
+    // created from — or linked to — a Credit entry. See creditService.
+    credit: { type: Schema.Types.ObjectId, ref: "Credit", default: null },
   },
   { timestamps: true }
 );

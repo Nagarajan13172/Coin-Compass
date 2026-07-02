@@ -1,6 +1,6 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-export const ACCOUNT_TYPES = ["cash", "bank", "card", "wallet", "savings"] as const;
+export const ACCOUNT_TYPES = ["cash", "bank", "card", "wallet", "upi", "savings"] as const;
 
 const accountSchema = new Schema(
   {
