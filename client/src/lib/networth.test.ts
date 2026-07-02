@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { prepaymentCharge, computePayoff, LOAN_TYPE_META } from "./networth";
+import { prepaymentCharge, computePayoff, LOAN_TYPE_META, holdingGrowth } from "./networth";
 import type { LoanType } from "./types";
 
 /**
@@ -116,5 +116,57 @@ describe("payoff planner: net benefit after charge", () => {
     expect(notWorth(5000, prepaymentCharge(100000, 5))).toBe(true); // break-even -> flagged
     expect(notWorth(3000, prepaymentCharge(100000, 5))).toBe(true); // net -2000 -> flagged
     expect(notWorth(10000, 0)).toBe(false); // 0% charge is never "not worth it"
+  });
+});
+
+describe("holdingGrowth (deposit returns)", () => {
+  // The worked example from the app: a 5-yr RD started 4 Jul 2021, ₹60,000 in,
+  // ₹92,000 out at maturity (4 Jul 2026).
+  const start = "2021-07-04";
+  const maturity = "2026-07-04";
+  const atMaturity = new Date("2026-07-04T00:00:00.000Z");
+
+  it("derives the annual return from invested + maturity value + term", () => {
+    const g = holdingGrowth({ invested: 60000, maturityValue: 92000, startDate: start, maturityDate: maturity }, atMaturity);
+    expect(g.rateDerived).toBe(true);
+    expect(g.rate).toBeGreaterThan(8.8); // ≈ 8.9% p.a. effective
+    expect(g.rate).toBeLessThan(9.0);
+    expect(g.gain).toBe(32000);
+    expect(Math.round(g.gainPct!)).toBe(53);
+    expect(Math.round(g.termYears!)).toBe(5);
+  });
+
+  it("projects the maturity value from a known rate (the other direction)", () => {
+    const g = holdingGrowth({ invested: 60000, rate: 8.93, startDate: start, maturityDate: maturity }, atMaturity);
+    expect(g.maturityDerived).toBe(true);
+    expect(Math.round(g.maturityValue!)).toBeGreaterThan(91000);
+    expect(Math.round(g.maturityValue!)).toBeLessThan(93000);
+  });
+
+  it("estimates today's worth partway through the term", () => {
+    const halfway = new Date("2024-01-03T00:00:00.000Z"); // ~2.5 yrs in
+    const g = holdingGrowth({ invested: 60000, maturityValue: 92000, startDate: start, maturityDate: maturity }, halfway);
+    expect(g.projectedNow!).toBeGreaterThan(60000);
+    expect(g.projectedNow!).toBeLessThan(92000);
+    expect(g.progressPct!).toBeGreaterThan(40);
+    expect(g.progressPct!).toBeLessThan(60);
+  });
+
+  it("clamps past-maturity progress to 100% and worth to the maturity value", () => {
+    const later = new Date("2030-01-01T00:00:00.000Z");
+    const g = holdingGrowth({ invested: 60000, maturityValue: 92000, startDate: start, maturityDate: maturity }, later);
+    expect(Math.round(g.progressPct!)).toBe(100);
+    expect(Math.round(g.projectedNow!)).toBe(92000);
+  });
+
+  it("still computes the gain without dates, and returns nulls when data is missing", () => {
+    const noDates = holdingGrowth({ invested: 60000, maturityValue: 92000 }, atMaturity);
+    expect(noDates.gain).toBe(32000);
+    expect(noDates.rate).toBeNull(); // no term → can't annualise
+    expect(noDates.progressPct).toBeNull();
+
+    const bare = holdingGrowth({ invested: 60000 }, atMaturity);
+    expect(bare.gain).toBeNull();
+    expect(bare.maturityValue).toBeNull();
   });
 });

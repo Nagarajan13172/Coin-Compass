@@ -37,7 +37,7 @@ import { useNetWorthHistory } from "@/hooks/useNetWorth";
 import { useByCategory, useSummary } from "@/hooks/useReports";
 import { periodRange } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
-import { SUBTYPE_META, CLASS_META, CHART_PALETTE, LOAN_TYPE_META } from "@/lib/networth";
+import { SUBTYPE_META, CLASS_META, CHART_PALETTE, LOAN_TYPE_META, holdingGrowth } from "@/lib/networth";
 import type { Account, CategoryDatum, Holding, HoldingClass, Loan } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -241,6 +241,52 @@ function MiniRow({ label, value, muted }: { label: string; value: string; muted?
   );
 }
 
+/** Gain + time-to-maturity line for deposit-style holdings; renders nothing for bare ones. */
+function HoldingGrowthLine({ holding }: { holding: Holding }) {
+  const g = useMemo(
+    () =>
+      holdingGrowth(
+        {
+          invested: holding.investedAmount,
+          maturityValue: holding.maturityValue,
+          rate: holding.interestRate,
+          startDate: holding.startDate,
+          maturityDate: holding.maturityDate,
+        },
+        new Date()
+      ),
+    [holding]
+  );
+
+  const invested = holding.investedAmount ?? null;
+  if (g.gain == null && g.progressPct == null) return null;
+
+  return (
+    <div className="mt-1 space-y-1">
+      {g.gain != null && invested != null && (
+        <p className="truncate text-xs">
+          <span className="text-muted-foreground">Invested {formatMoney(invested)} · </span>
+          <span className={g.gain >= 0 ? "text-income" : "text-expense"}>
+            {g.gain >= 0 ? "+" : "−"}
+            {formatMoney(Math.abs(g.gain))}
+            {g.gainPct != null ? ` (${Math.round(g.gainPct)}%)` : ""}
+          </span>
+        </p>
+      )}
+      {g.progressPct != null && (
+        <div className="flex items-center gap-1.5">
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-secondary">
+            <div className="h-full rounded-full bg-income" style={{ width: `${g.progressPct}%` }} />
+          </div>
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+            {g.progressPct >= 100 ? "Matured" : `${Math.round(g.progressPct)}%`}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Overview tab ----
 
 function OverviewTab({
@@ -440,6 +486,7 @@ function AssetsTab({
                                   {SUBTYPE_META[h.subtype].label}
                                   {h.provider ? ` · ${h.provider}` : ""}
                                 </p>
+                                <HoldingGrowthLine holding={h} />
                               </div>
                               <span className="tnum text-sm font-semibold">{formatMoney(h.value)}</span>
                               <DropdownMenu>

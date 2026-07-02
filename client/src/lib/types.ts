@@ -156,6 +156,12 @@ export interface Holding {
   provider: string;
   note: string;
   currency: string;
+  // Optional deposit/growth details (see holdingGrowth in lib/networth).
+  investedAmount?: number | null;
+  startDate?: string | null;
+  maturityDate?: string | null;
+  interestRate?: number | null;
+  maturityValue?: number | null;
 }
 
 export type LoanType = "home" | "personal" | "car" | "education" | "gold" | "business" | "other";

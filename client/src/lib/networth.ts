@@ -118,3 +118,114 @@ export function formatMonths(months: number): string {
   const m = months % 12;
   return [y ? `${y} yr` : "", m ? `${m} mo` : ""].filter(Boolean).join(" ") || "0 mo";
 }
+
+// ---- Holding growth (deposits: FD / RD / bonds …) ----
+
+const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+
+/** What the user knows about a growing holding. Any field may be absent. */
+export interface HoldingGrowthInput {
+  invested?: number | string | null; // amount put in (cost basis)
+  maturityValue?: number | string | null; // expected payout at the end
+  rate?: number | string | null; // annual % (effective)
+  startDate?: string | Date | null;
+  maturityDate?: string | Date | null;
+}
+
+/** Derived figures for a holding — every field is null when it can't be computed. */
+export interface HoldingGrowth {
+  termYears: number | null; // start → maturity, in years
+  elapsedYears: number | null; // start → asOf, clamped to [0, term]
+  progressPct: number | null; // time elapsed, 0–100
+  rate: number | null; // annual % — given, or derived from invested→maturity
+  maturityValue: number | null; // given, or derived from invested + rate
+  gain: number | null; // maturityValue − invested
+  gainPct: number | null; // total return %, gain ÷ invested
+  projectedNow: number | null; // invested compounded to asOf at `rate`
+  rateDerived: boolean; // true when `rate` was computed from the maturity value
+  maturityDerived: boolean; // true when `maturityValue` was computed from the rate
+}
+
+function num(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function asDate(d?: string | Date | null): Date | null {
+  if (!d) return null;
+  const dt = d instanceof Date ? d : new Date(d);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+/**
+ * Derive a deposit-style holding's return, maturity value and current worth.
+ *
+ * The model is a single effective-annual-compounding rate on a lump sum:
+ *   maturity   = invested · (1 + r)^termYears
+ *   rate (r)   = (maturity / invested)^(1/termYears) − 1
+ *   worth(now) = invested · (1 + r)^elapsedYears
+ *
+ * It resolves whichever of {rate, maturityValue} is missing: a concrete maturity
+ * value wins (and the rate is back-computed from it); otherwise the rate projects
+ * the maturity value. For a Recurring Deposit (monthly deposits, not a lump sum)
+ * this is a close approximation, not the bank's exact figure.
+ *
+ * `asOf` is passed in (never read from the clock here) so the result is pure.
+ */
+export function holdingGrowth(input: HoldingGrowthInput, asOf: Date): HoldingGrowth {
+  const invested = num(input.invested);
+  const start = asDate(input.startDate);
+  const maturity = asDate(input.maturityDate);
+
+  const termYears =
+    start && maturity && maturity.getTime() > start.getTime()
+      ? (maturity.getTime() - start.getTime()) / YEAR_MS
+      : null;
+
+  let rate = num(input.rate);
+  let maturityValue = num(input.maturityValue);
+  let rateDerived = false;
+  let maturityDerived = false;
+
+  if (invested != null && invested > 0 && termYears) {
+    if (maturityValue != null && maturityValue > 0) {
+      // Concrete cash figure wins — back out the effective annual rate from it.
+      rate = (Math.pow(maturityValue / invested, 1 / termYears) - 1) * 100;
+      rateDerived = true;
+    } else if (rate != null) {
+      maturityValue = invested * Math.pow(1 + rate / 100, termYears);
+      maturityDerived = true;
+    }
+  }
+
+  // Gain works from invested + maturity value even without dates.
+  const gain = invested != null && maturityValue != null ? maturityValue - invested : null;
+  const gainPct = invested != null && invested > 0 && gain != null ? (gain / invested) * 100 : null;
+
+  let elapsedYears: number | null = null;
+  let progressPct: number | null = null;
+  if (start && termYears) {
+    const raw = (asOf.getTime() - start.getTime()) / YEAR_MS;
+    elapsedYears = Math.min(Math.max(raw, 0), termYears);
+    progressPct = (elapsedYears / termYears) * 100;
+  }
+
+  const projectedNow =
+    invested != null && invested >= 0 && rate != null && elapsedYears != null
+      ? invested * Math.pow(1 + rate / 100, elapsedYears)
+      : null;
+
+  return {
+    termYears,
+    elapsedYears,
+    progressPct,
+    rate,
+    maturityValue,
+    gain,
+    gainPct,
+    projectedNow,
+    rateDerived,
+    maturityDerived,
+  };
+}

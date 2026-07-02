@@ -28,6 +28,15 @@ const holdingSchema = new Schema(
     provider: { type: String, default: "", trim: true },
     note: { type: String, default: "" },
     currency: { type: String, default: "INR" },
+    // Optional deposit/growth details (FDs, RDs, bonds, …). `value` above remains
+    // the authoritative net-worth figure; these describe how it grows so the app
+    // can show gain, return % and a projected "worth today". All nullable — a bare
+    // holding (name + value) works exactly as before.
+    investedAmount: { type: Number, default: null, min: 0 }, // what you put in (cost basis)
+    startDate: { type: Date, default: null },
+    maturityDate: { type: Date, default: null },
+    interestRate: { type: Number, default: null, min: 0 }, // annual % (effective)
+    maturityValue: { type: Number, default: null, min: 0 }, // expected payout at maturity
   },
   { timestamps: true }
 );

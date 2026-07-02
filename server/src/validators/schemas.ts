@@ -177,6 +177,14 @@ const holdingBase = z.object({
   provider: z.string().max(120).default(""),
   note: z.string().max(280).default(""),
   currency: z.string().default("INR"),
+  // Optional deposit/growth details. All nullish so existing holdings are unaffected.
+  investedAmount: z.number().min(0).nullish(),
+  startDate: z.coerce.date().nullish(),
+  maturityDate: z.coerce.date().nullish(),
+  // Generous cap: an effective annual return never approaches this, but we'd
+  // rather store an odd figure than reject the user's real one.
+  interestRate: z.number().min(0).max(1000).nullish(),
+  maturityValue: z.number().min(0).nullish(),
 });
 
 /** Subtype must belong to the chosen class (saving vs investment). */
