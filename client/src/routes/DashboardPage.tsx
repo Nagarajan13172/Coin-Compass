@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { format, differenceInCalendarDays } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, CalendarClock, Info, Landmark, Plus, Receipt, Trophy, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, Info, Landmark, PiggyBank, Plus, Receipt, Trophy, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,8 @@ import { TrendArea } from "@/features/reports/TrendArea";
 import { GoldRateCard } from "@/features/metals/GoldRateCard";
 import { useDashboard } from "@/hooks/useReports";
 import { useGoals } from "@/hooks/useGoals";
-import { useCanSeeWealth } from "@/hooks/useAuth";
+import { useCreditSummary } from "@/hooks/useCredits";
+import { useCanSeeWealth, useMe } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { PostRecurringDialog } from "@/features/recurring/PostRecurringDialog";
 import { useUIStore } from "@/stores/ui";
@@ -44,12 +45,59 @@ export default function DashboardPage() {
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const { data, isLoading } = useDashboard(period);
   const { data: goals } = useGoals();
+  const { data: creditSummary } = useCreditSummary();
+  const { data: me } = useMe();
   const canSeeWealth = useCanSeeWealth();
 
   // Make the active period explicit, e.g. "This month · 1–31 Jul 2026".
   const description = data
     ? `${PERIOD_NOUN[period]} · ${formatPeriodRange(data.range.start, data.range.end)}`
     : "Your money at a glance";
+
+  // Warmer, personal page title based on the time of day.
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    const part = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    const first = me?.name?.trim().split(" ")[0];
+    return first ? `${part}, ${first}` : part;
+  }, [me]);
+
+  // Share of income kept this period (income − expense ÷ income), for the Net tile.
+  const summary = data?.summary;
+  const savingsRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : null;
+  const savingsRateLabel =
+    savingsRate == null
+      ? "No income this period"
+      : savingsRate >= 0
+        ? `${savingsRate}% of income saved`
+        : "Spending exceeds income";
+
+  // Quick insights strip. Avg/day divides by days *elapsed* so an in-progress
+  // month isn't understated by counting days that haven't happened yet.
+  const insights = useMemo(() => {
+    if (!data) return null;
+    const start = new Date(data.range.start);
+    const end = new Date(data.range.end);
+    const now = new Date();
+    const effectiveEnd = end < now ? end : now;
+    const days = Math.max(1, differenceInCalendarDays(effectiveEnd, start) + 1);
+    return {
+      avgDaily: data.summary.expense / days,
+      biggest: data.byCategory[0] ?? null,
+      txnCount: data.summary.incomeCount + data.summary.expenseCount,
+    };
+  }, [data]);
+
+  // Money owed to you vs money you owe, rolled up from the per-person ledger.
+  const credits = useMemo(() => {
+    let owedToYou = 0;
+    let youOwe = 0;
+    for (const r of creditSummary ?? []) {
+      if (r.net > 0) owedToYou += r.net;
+      else if (r.net < 0) youOwe += -r.net;
+    }
+    return { owedToYou, youOwe, any: owedToYou > 0 || youOwe > 0 };
+  }, [creditSummary]);
 
   // Tapping a category slice/row jumps to its transactions for the period.
   function openCategory(categoryId: string | null) {
@@ -65,7 +113,7 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader
-        title="Dashboard"
+        title={greeting}
         description={description}
         actions={
           <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
@@ -83,7 +131,7 @@ export default function DashboardPage() {
       ) : (
         <div className="space-y-5">
           {/* hero + summary — the net-worth hero is hidden in the everyday view */}
-          <div className={cn("grid gap-4", canSeeWealth ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+          <div className={cn("grid gap-4", canSeeWealth ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
             {canSeeWealth && (
             <Card className="surface-gradient lg:col-span-1">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
@@ -138,14 +186,44 @@ export default function DashboardPage() {
               label="Income"
               value={data.summary.income}
               tone="income"
+              to="/transactions?type=income"
             />
             <StatCard
               icon={<ArrowUpRight className="h-5 w-5" />}
               label="Expense"
               value={data.summary.expense}
               tone="expense"
+              to="/transactions?type=expense"
+            />
+            <StatCard
+              icon={<PiggyBank className="h-5 w-5" />}
+              label="Net"
+              value={data.summary.net}
+              tone={data.summary.net >= 0 ? "income" : "expense"}
+              signed
+              sub={savingsRateLabel}
+              to="/reports"
             />
           </div>
+
+          {/* quick insights */}
+          {insights && insights.txnCount > 0 && (
+            <Card>
+              <CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3">
+                <Insight label="Avg spend / day" value={formatMoney(Math.round(insights.avgDaily))} />
+                <Insight
+                  label="Biggest category"
+                  value={insights.biggest?.name ?? "—"}
+                  sub={insights.biggest ? formatMoney(insights.biggest.total) : undefined}
+                />
+                <Insight
+                  label="Transactions"
+                  value={String(insights.txnCount)}
+                  className="col-span-2 sm:col-span-1"
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-3">
             {/* trend */}
@@ -217,6 +295,7 @@ export default function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+            {credits.any && <CreditsSummaryCard owedToYou={credits.owedToYou} youOwe={credits.youOwe} />}
             <GoldRateCard />
             </div>
           </div>
@@ -481,26 +560,96 @@ function StatCard({
   label,
   value,
   tone,
+  to,
+  sub,
+  signed,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   tone: "income" | "expense";
+  /** When set, the whole tile links here. */
+  to?: string;
+  /** Small caption under the amount (e.g. the savings rate). */
+  sub?: React.ReactNode;
+  /** Prefix a +/− sign and colour by sign — used for Net, which can be negative. */
+  signed?: boolean;
+}) {
+  const toneClass = tone === "income" ? "text-income" : "text-expense";
+  const body = (
+    <CardContent className="flex items-center gap-4 p-5">
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+          tone === "income" ? "bg-income/10 text-income" : "bg-expense/10 text-expense"
+        }`}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        {signed ? (
+          <p className={`tnum text-xl font-bold ${toneClass}`}>
+            {value >= 0 ? "+" : "−"}
+            {formatMoney(Math.abs(value))}
+          </p>
+        ) : (
+          <Money amount={value} className={`text-xl ${toneClass}`} />
+        )}
+        {sub && <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>}
+      </div>
+    </CardContent>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className="block">
+        <Card className="h-full transition-colors hover:bg-accent">{body}</Card>
+      </Link>
+    );
+  }
+  return <Card>{body}</Card>;
+}
+
+function Insight({
+  label,
+  value,
+  sub,
+  className,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  className?: string;
 }) {
   return (
+    <div className={cn("min-w-0", className)}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="truncate text-base font-semibold">{value}</p>
+      {sub && <p className="tnum text-xs text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
+function CreditsSummaryCard({ owedToYou, youOwe }: { owedToYou: number; youOwe: number }) {
+  return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <span
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-            tone === "income" ? "bg-income/10 text-income" : "bg-expense/10 text-expense"
-          }`}
-        >
-          {icon}
-        </span>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <Money amount={value} className={`text-xl ${tone === "income" ? "text-income" : "text-expense"}`} />
-        </div>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <HandCoins className="h-4 w-4 text-muted-foreground" /> Credits
+        </CardTitle>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/credits">View all</Link>
+        </Button>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3">
+        <Link to="/credits" className="rounded-lg border p-3 transition-colors hover:bg-accent">
+          <p className="text-xs text-muted-foreground">Owed to you</p>
+          <p className="tnum text-lg font-bold text-income">{formatMoney(owedToYou)}</p>
+        </Link>
+        <Link to="/credits" className="rounded-lg border p-3 transition-colors hover:bg-accent">
+          <p className="text-xs text-muted-foreground">You owe</p>
+          <p className="tnum text-lg font-bold text-expense">{formatMoney(youOwe)}</p>
+        </Link>
       </CardContent>
     </Card>
   );

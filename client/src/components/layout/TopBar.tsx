@@ -1,5 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { Compass, LogOut, Plus, Search } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  ChevronDown,
+  Compass,
+  LogOut,
+  Plus,
+  Search,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,11 +20,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { useUIStore } from "@/stores/ui";
 import { useMe, useLogout } from "@/hooks/useAuth";
 import { useState } from "react";
 import { WealthLockMenuItems, WealthUnlockDialog } from "@/features/settings/WealthLock";
+import type { TxnType } from "@/lib/types";
 
 function initials(name: string, email: string) {
   const base = name?.trim() || email;
@@ -62,9 +73,23 @@ function UserMenu() {
   );
 }
 
+/** Add-transaction menu: pick the type up front instead of always defaulting to
+ *  an expense. Shared by the desktop button (the mobile FAB stays expense-first). */
+const ADD_TYPES: { type: TxnType; label: string; icon: React.ReactNode }[] = [
+  { type: "expense", label: "Expense", icon: <ArrowUpRight className="text-expense" /> },
+  { type: "income", label: "Income", icon: <ArrowDownLeft className="text-income" /> },
+  { type: "transfer", label: "Transfer", icon: <ArrowLeftRight /> },
+];
+
 export function TopBar() {
   const navigate = useNavigate();
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  function runSearch(q: string) {
+    navigate(`/transactions?search=${encodeURIComponent(q.trim())}`);
+    setSearchOpen(false);
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
@@ -76,16 +101,27 @@ export function TopBar() {
         <span className="text-sm font-bold">CoinCompass</span>
       </div>
 
-      <Button className="hidden md:inline-flex" onClick={() => openTxnSheet({ type: "expense" })}>
-        <Plus /> Add
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button className="hidden md:inline-flex">
+            <Plus /> Add <ChevronDown className="h-4 w-4 opacity-70" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-44">
+          {ADD_TYPES.map((t) => (
+            <DropdownMenuItem key={t.type} onClick={() => openTxnSheet({ type: t.type })}>
+              {t.icon} {t.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
+      {/* desktop / tablet inline search */}
       <form
         className="relative hidden max-w-sm flex-1 sm:block"
         onSubmit={(e) => {
           e.preventDefault();
-          const q = new FormData(e.currentTarget).get("q") as string;
-          navigate(`/transactions?search=${encodeURIComponent(q ?? "")}`);
+          runSearch((new FormData(e.currentTarget).get("q") as string) ?? "");
         }}
       >
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -93,6 +129,36 @@ export function TopBar() {
       </form>
 
       <div className="ml-auto flex items-center gap-1">
+        {/* mobile search — the inline form is hidden below sm, so give phones a way in */}
+        <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="sm:hidden" aria-label="Search transactions">
+              <Search className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="top" className="p-4">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Search transactions</SheetTitle>
+            </SheetHeader>
+            <form
+              className="relative mt-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                runSearch((new FormData(e.currentTarget).get("q") as string) ?? "");
+              }}
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                name="q"
+                type="search"
+                autoFocus
+                aria-label="Search all transactions"
+                placeholder="Search transactions…"
+                className="pl-9"
+              />
+            </form>
+          </SheetContent>
+        </Sheet>
         <ThemeToggle />
         <UserMenu />
       </div>
