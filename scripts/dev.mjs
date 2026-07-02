@@ -31,6 +31,7 @@ function start(name, cwd, color) {
     cwd,
     env: process.env,
     stdio: ["inherit", "pipe", "pipe"],
+    shell: process.platform === "win32",
   });
 
   pipeLines(child.stdout, name, color);

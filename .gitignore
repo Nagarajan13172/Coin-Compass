@@ -1,9 +1,26 @@
+# Node and build
 node_modules/
 dist/
 build/
+
+# Env files
 .env
 .env.local
+.env.*
+
+# Logs
 *.log
+
+# macOS
 .DS_Store
+
+# Coverage and tooling
 coverage/
 .vite/
+
+# Client dev build
+client/dev-dist/
+
+# If files are already tracked, run locally to remove from git index:
+#   git rm -r --cached .
+# then commit and push.
