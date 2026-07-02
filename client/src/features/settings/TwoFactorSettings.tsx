@@ -4,6 +4,7 @@ import { Check, Copy, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OtpInput } from "@/components/ui/otp-input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -65,10 +66,10 @@ export function TwoFactorSettings() {
     }
   }
 
-  async function confirmEnroll() {
-    if (!/^\d{6}$/.test(enrollCode)) return toast.error("Enter the 6-digit code");
+  async function confirmEnroll(value: string = enrollCode) {
+    if (!/^\d{6}$/.test(value)) return toast.error("Enter the 6-digit code");
     try {
-      const codes = await enable.mutateAsync(enrollCode);
+      const codes = await enable.mutateAsync(value);
       setEnrollOpen(false);
       setEnrollData(null);
       setBackupCodes(codes);
@@ -220,17 +221,14 @@ export function TwoFactorSettings() {
                 </p>
               </div>
             )}
-            <div className="space-y-1.5">
-              <Label htmlFor="enroll-code">Verification code</Label>
-              <Input
-                id="enroll-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="123456"
+            <div className="space-y-2">
+              <Label className="text-sm">Enter the 6-digit code</Label>
+              <OtpInput
                 value={enrollCode}
-                onChange={(e) => setEnrollCode(e.target.value.replace(/\D/g, ""))}
-                onKeyDown={(e) => e.key === "Enter" && confirmEnroll()}
+                onChange={setEnrollCode}
+                disabled={enable.isPending}
+                onComplete={confirmEnroll}
+                aria-label="Verification code"
               />
             </div>
           </div>
@@ -238,7 +236,7 @@ export function TwoFactorSettings() {
             <Button variant="ghost" onClick={() => setEnrollOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={confirmEnroll} disabled={enable.isPending}>
+            <Button onClick={() => confirmEnroll()} disabled={enable.isPending}>
               <Check /> Enable
             </Button>
           </DialogFooter>

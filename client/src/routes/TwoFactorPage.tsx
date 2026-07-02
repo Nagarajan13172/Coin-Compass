@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OtpInput } from "@/components/ui/otp-input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/features/auth/AuthShell";
 import { useVerify2fa, useSend2faEmail } from "@/hooks/useAuth";
@@ -43,15 +44,20 @@ export default function TwoFactorPage() {
   const isEmail = method === "email";
   const hasEmail = methods.includes("email");
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function verifyNow(value: string) {
     setError(null);
     try {
-      await verify.mutateAsync({ method, code: code.trim() });
+      await verify.mutateAsync({ method, code: value.trim() });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
+      setCode("");
     }
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    void verifyNow(code);
   }
 
   async function requestEmailCode() {
@@ -95,20 +101,33 @@ export default function TwoFactorPage() {
           </Button>
         ) : (
           <>
-            <div className="space-y-1.5">
-              <Label htmlFor="code">{isBackup ? "Backup code" : "Verification code"}</Label>
-              <Input
-                id="code"
-                autoFocus
-                autoComplete="one-time-code"
-                inputMode={isBackup ? "text" : "numeric"}
-                placeholder={isBackup ? "xxxx-xxxx" : "123456"}
-                value={code}
-                maxLength={isBackup ? 12 : 6}
-                onChange={(e) =>
-                  setCode(isBackup ? e.target.value : e.target.value.replace(/\D/g, ""))
-                }
-              />
+            <div className="space-y-2">
+              <Label htmlFor="code" className="sr-only">
+                {isBackup ? "Backup code" : "Verification code"}
+              </Label>
+              {isBackup ? (
+                <Input
+                  id="code"
+                  autoFocus
+                  autoComplete="one-time-code"
+                  inputMode="text"
+                  placeholder="xxxx-xxxx"
+                  className="text-center tracking-[0.3em]"
+                  value={code}
+                  maxLength={12}
+                  onChange={(e) => setCode(e.target.value)}
+                />
+              ) : (
+                <OtpInput
+                  value={code}
+                  onChange={setCode}
+                  autoFocus
+                  disabled={verify.isPending}
+                  invalid={!!error}
+                  onComplete={verifyNow}
+                  aria-label="Verification code"
+                />
+              )}
             </div>
             <Button type="submit" className="w-full" disabled={verify.isPending || code.trim().length < 6}>
               {verify.isPending ? "Verifying…" : "Verify"}
