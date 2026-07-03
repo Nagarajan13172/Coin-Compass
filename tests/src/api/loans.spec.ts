@@ -9,6 +9,29 @@ describe("Loans — CRUD", () => {
     expect(res.data).toMatchObject({ name: "Home Loan", outstanding: 1_000_000, status: "active", type: "personal" });
   });
 
+  it("stores tenure and derives the end date from start + tenure", async () => {
+    const u = await createVerifiedUser();
+    const res = await u.session.http.post("/loans", {
+      name: "Home",
+      outstanding: 1_000_000,
+      startDate: "2026-08-01",
+      tenureMonths: 60,
+    });
+    expect(res.status).toBe(201);
+    expect(res.data.tenureMonths).toBe(60);
+    expect(new Date(res.data.endDate).getUTCFullYear()).toBe(2031); // 2026 + 5 years
+  });
+
+  it("re-derives the end date when the tenure is edited", async () => {
+    const u = await createVerifiedUser();
+    const l = (
+      await u.session.http.post("/loans", { name: "L", outstanding: 100, startDate: "2026-01-01", tenureMonths: 12 })
+    ).data;
+    expect(new Date(l.endDate).getUTCFullYear()).toBe(2027);
+    const upd = await u.session.http.patch(`/loans/${l._id}`, { tenureMonths: 24 });
+    expect(new Date(upd.data.endDate).getUTCFullYear()).toBe(2028);
+  });
+
   it("lists, updates, and deletes a loan", async () => {
     const u = await createVerifiedUser();
     const l = (await u.session.http.post("/loans", { name: "Car", outstanding: 500000 })).data;

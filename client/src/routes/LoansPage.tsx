@@ -576,6 +576,14 @@ function LoanCard({
           />
         </div>
 
+        {l.tenureMonths ? (
+          <p className="text-xs text-muted-foreground">
+            Original tenure {formatMonths(l.tenureMonths)}
+            {l.startDate ? ` · from ${format(new Date(l.startDate), "MMM yyyy")}` : ""}
+            {l.endDate ? ` to ${format(new Date(l.endDate), "MMM yyyy")}` : ""}
+          </p>
+        ) : null}
+
         {((l.interestPaid ?? 0) > 0 || (l.chargesPaid ?? 0) > 0) && (
           <p className="text-xs text-muted-foreground">
             Interest paid so far:{" "}

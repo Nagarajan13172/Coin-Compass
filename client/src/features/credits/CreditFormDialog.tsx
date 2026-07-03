@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCreateCredit, useUpdateCredit } from "@/hooks/useCredits";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import { CREDIT_METHODS, type Credit, type CreditDirection, type CreditMethod } from "@/lib/types";
 
 interface Props {
@@ -211,6 +212,7 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
               </p>
             </div>
           )}
+          {isEdit && credit && <RecordMeta createdAt={credit.createdAt} updatedAt={credit.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

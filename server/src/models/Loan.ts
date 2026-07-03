@@ -16,6 +16,10 @@ const loanSchema = new Schema(
     roi: { type: Number, default: 0, min: 0 }, // annual interest rate (%)
     emi: { type: Number, default: 0, min: 0 }, // monthly repayment amount
     foreclosureChargePct: { type: Number, default: 0, min: 0 }, // % penalty on preclosure
+    // Total loan tenure in months (original schedule length). endDate is derived
+    // from startDate + tenureMonths; the *remaining* tenure is computed live from
+    // outstanding + emi + roi, so it shrinks as EMIs (incl. recurring) are paid.
+    tenureMonths: { type: Number, default: null, min: 0 },
     // Running lifetime totals, accumulated as payments are recorded.
     interestPaid: { type: Number, default: 0, min: 0 }, // interest portion of EMIs paid
     chargesPaid: { type: Number, default: 0, min: 0 }, // prepayment/foreclosure charges paid

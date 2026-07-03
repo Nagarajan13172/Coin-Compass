@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/common/ColorPicker";
 import { IconPicker } from "@/components/common/IconPicker";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import { useCreateCategory, useUpdateCategory } from "@/hooks/useCategories";
 import type { Category, CategoryType } from "@/lib/types";
 
@@ -81,6 +82,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType, 
             <Label>Icon</Label>
             <IconPicker value={icon} color={color} onChange={setIcon} />
           </div>
+          {isEdit && category && <RecordMeta createdAt={category.createdAt} updatedAt={category.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

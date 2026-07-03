@@ -23,6 +23,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import { useUIStore } from "@/stores/ui";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useLoans } from "@/hooks/useLoans";
@@ -439,6 +440,10 @@ export function TransactionSheet() {
                   </div>
                 );
               })()}
+
+            {isEdit && editing && (
+              <RecordMeta createdAt={editing.createdAt} updatedAt={editing.updatedAt} className="pt-1" />
+            )}
           </div>
         </ScrollArea>
 

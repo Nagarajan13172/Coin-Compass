@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CountUp } from "@/components/common/CountUp";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import { TransactionList } from "@/features/transactions/TransactionList";
 import { AccountFormDialog } from "@/features/accounts/AccountFormDialog";
 import { useAccount, useDeleteAccount } from "@/hooks/useAccounts";
@@ -134,6 +135,7 @@ export default function AccountDetailPage() {
           <p className="mt-3 text-xs text-muted-foreground tnum">
             Opening balance {formatMoney(account.initialBalance, { currency: account.currency })}
           </p>
+          <RecordMeta createdAt={account.createdAt} updatedAt={account.updatedAt} className="mt-1" />
         </CardContent>
       </Card>
 

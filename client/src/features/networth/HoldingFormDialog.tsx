@@ -21,6 +21,7 @@ import { useCreateHolding, useUpdateHolding } from "@/hooks/useHoldings";
 import { useSettings } from "@/hooks/useSettings";
 import { SAVING_SUBTYPES, INVESTMENT_SUBTYPES, holdingGrowth, formatMonths } from "@/lib/networth";
 import { formatMoney } from "@/lib/format";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import type { Holding, HoldingClass, HoldingSubtype } from "@/lib/types";
 
 /** ISO timestamp → the yyyy-mm-dd a <input type="date"> expects (no TZ shift). */
@@ -336,6 +337,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
               + Add deposit / growth details (rate, maturity, gain)
             </button>
           )}
+          {isEdit && holding && <RecordMeta createdAt={holding.createdAt} updatedAt={holding.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

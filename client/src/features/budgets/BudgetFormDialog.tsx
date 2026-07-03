@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateBudget, useUpdateBudget } from "@/hooks/useBudgets";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import type { Budget, BudgetPeriod } from "@/lib/types";
 
 const OVERALL = "__overall__";
@@ -120,6 +121,7 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
               </Select>
             </div>
           </div>
+          {isEdit && budget && <RecordMeta createdAt={budget.createdAt} updatedAt={budget.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

@@ -28,6 +28,7 @@ export interface Account {
   balance?: number;
   stats?: AccountStats | null;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Category {
@@ -39,6 +40,8 @@ export interface Category {
   parent?: string | null;
   order: number;
   isDefault?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface RefLite {
@@ -69,6 +72,7 @@ export interface Transaction {
   /** When set, this transaction is the reflected side of a Credit entry (money to/from a person). */
   credit?: { _id: string; person: string; direction: CreditDirection } | string | null;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TransactionPage {
@@ -92,6 +96,8 @@ export interface Budget {
   remaining: number;
   percent: number;
   over: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Recurring {
@@ -115,6 +121,8 @@ export interface Recurring {
   active: boolean;
   /** Next few scheduled run dates (ISO), computed server-side. */
   upcoming?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Goal {
@@ -133,6 +141,8 @@ export interface Goal {
   percent: number;
   complete: boolean;
   monthsLeft: number | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type HoldingClass = "saving" | "investment";
@@ -162,6 +172,8 @@ export interface Holding {
   maturityDate?: string | null;
   interestRate?: number | null;
   maturityValue?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type LoanType = "home" | "personal" | "car" | "education" | "gold" | "business" | "other";
@@ -179,11 +191,15 @@ export interface Loan {
   foreclosureChargePct: number;
   interestPaid: number;
   chargesPaid: number;
+  /** Total tenure in months; endDate is derived from startDate + this. */
+  tenureMonths?: number | null;
   startDate?: string | null;
   endDate?: string | null;
   status: LoanStatus;
   note: string;
   currency: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type CreditDirection = "given" | "received";
@@ -212,6 +228,7 @@ export interface Credit {
   reflected: boolean;
   transaction?: string | null;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 /** One person's running ledger: net > 0 means they owe you, net < 0 means you owe them. */

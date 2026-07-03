@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { ColorPicker } from "@/components/common/ColorPicker";
 import { IconPicker } from "@/components/common/IconPicker";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { useSettings } from "@/hooks/useSettings";
 import type { Account, AccountType } from "@/lib/types";
@@ -182,6 +183,7 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
             </div>
             <Switch checked={includeInTotal} onCheckedChange={setIncludeInTotal} />
           </div>
+          {isEdit && account && <RecordMeta createdAt={account.createdAt} updatedAt={account.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

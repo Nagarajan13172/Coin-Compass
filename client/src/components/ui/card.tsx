@@ -6,7 +6,10 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
     <div
       ref={ref}
       className={cn(
-        "rounded-xl border bg-card text-card-foreground shadow-sm",
+        // `min-w-0` lets a card shrink to its grid/flex track instead of being
+        // forced wide by its content (e.g. a Recharts chart's min-content), which
+        // otherwise pushes the page past the viewport and causes horizontal scroll.
+        "min-w-0 rounded-xl border bg-card text-card-foreground shadow-sm",
         className
       )}
       {...props}

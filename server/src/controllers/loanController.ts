@@ -2,8 +2,22 @@ import type { Request, Response } from "express";
 import { Loan } from "../models/Loan";
 import { loanSchema, loanUpdateSchema, loanPaySchema, loanPrecloseSchema } from "../validators/schemas";
 import { prepaymentCharge } from "../services/loanService";
+import { addMonths } from "../utils/dateRange";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
+
+/** End date = start + tenure when both are known; otherwise fall back to any
+ *  explicit endDate. Keeps the projected payoff date in step with the tenure. */
+function deriveEndDate(input: {
+  startDate?: Date | null;
+  tenureMonths?: number | null;
+  endDate?: Date | null;
+}): Date | null {
+  if (input.startDate && input.tenureMonths && input.tenureMonths > 0) {
+    return addMonths(new Date(input.startDate), input.tenureMonths);
+  }
+  return input.endDate ?? null;
+}
 
 export async function listLoans(req: Request, res: Response) {
   const uid = userId(req);
@@ -14,15 +28,23 @@ export async function listLoans(req: Request, res: Response) {
 export async function createLoan(req: Request, res: Response) {
   const uid = userId(req);
   const data = loanSchema.parse(req.body);
-  const loan = await Loan.create({ ...data, user: uid });
+  const endDate = deriveEndDate(data);
+  const loan = await Loan.create({ ...data, endDate, user: uid });
   res.status(201).json(loan.toObject());
 }
 
 export async function updateLoan(req: Request, res: Response) {
   const uid = userId(req);
   const data = loanUpdateSchema.parse(req.body);
-  const loan = await Loan.findOneAndUpdate({ _id: req.params.id, user: uid }, data, { new: true });
+  const loan = await Loan.findOne({ _id: req.params.id, user: uid });
   if (!loan) throw new HttpError(404, "Loan not found");
+
+  Object.assign(loan, data);
+  // Re-derive the end date whenever the start date or tenure could have changed.
+  if ("startDate" in data || "tenureMonths" in data || "endDate" in data) {
+    loan.endDate = deriveEndDate({ startDate: loan.startDate, tenureMonths: loan.tenureMonths, endDate: loan.endDate });
+  }
+  await loan.save();
   res.json(loan.toObject());
 }
 

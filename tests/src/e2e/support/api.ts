@@ -74,6 +74,42 @@ export async function seedUserWithTotp(): Promise<SeededUser & { secret: string;
   return { email, password: DEFAULT_PASSWORD, secret, backupCodes: enable.data.backupCodes as string[] };
 }
 
+/** Create a verified user pre-loaded with an account, categories and transactions
+ *  so charts/reports actually render (needed to catch responsive-layout bugs). */
+export async function seedUserWithData(): Promise<SeededUser> {
+  const http = apiSession();
+  const email = uniqueEmail();
+  const before = outboxIndexIn(OUTBOX_FILE);
+
+  const res = await http.post("/auth/signup", { email, password: DEFAULT_PASSWORD });
+  if (res.status !== 201) throw new Error(`seed signup failed: ${res.status} ${JSON.stringify(res.data)}`);
+  const mail = await waitForMailIn(OUTBOX_FILE, email, { since: before, match: /verify-email/ });
+  await http.post("/auth/verify-email", { token: verificationToken(mail) });
+
+  const acc = (await http.post("/accounts", { name: "Main", initialBalance: 50000 })).data;
+  const acc2 = (await http.post("/accounts", { name: "Savings", initialBalance: 120000 })).data;
+  const cats = (await http.get("/categories?type=expense")).data as any[];
+  const now = Date.now();
+  for (let i = 0; i < 14; i += 1) {
+    await http.post("/transactions", {
+      type: i % 4 === 0 ? "income" : "expense",
+      amount: 250 + i * 137,
+      account: acc._id,
+      category: i % 4 === 0 ? undefined : cats[i % cats.length]?._id,
+      date: new Date(now - i * 6 * 3600 * 1000).toISOString(),
+      note: `Sample transaction number ${i} with a longish note`,
+    });
+  }
+  await http.post("/budgets", { category: cats[0]._id, amount: 5000 });
+  await http.post("/goals", { name: "Emergency Fund", targetAmount: 100000, savedAmount: 35000 });
+  await http.post("/loans", { name: "Car Loan", outstanding: 450000, roi: 9, emi: 12000 });
+  await http.post("/credits", { person: "Rahul", direction: "given", amount: 2500 });
+  await http.post("/holdings", { name: "SBI Fixed Deposit", class: "saving", subtype: "fixed_deposit", value: 200000 });
+  await http.post("/transactions", { type: "transfer", amount: 5000, account: acc._id, toAccount: acc2._id });
+
+  return { email, password: DEFAULT_PASSWORD };
+}
+
 /** The most recent verification token emailed to `email` (for the UI signup journey). */
 export async function latestVerificationToken(email: string, since: number): Promise<string> {
   const mail = await waitForMailIn(OUTBOX_FILE, email, { since, match: /verify-email/ });

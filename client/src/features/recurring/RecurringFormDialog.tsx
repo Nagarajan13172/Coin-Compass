@@ -24,6 +24,7 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useLoans } from "@/hooks/useLoans";
 import { useCreateRecurring, useUpdateRecurring } from "@/hooks/useRecurring";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import type { Frequency, Recurring, TxnType } from "@/lib/types";
 
 const NO_LOAN = "__none__";
@@ -341,6 +342,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
               </div>
             </div>
           )}
+          {isEdit && recurring && <RecordMeta createdAt={recurring.createdAt} updatedAt={recurring.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

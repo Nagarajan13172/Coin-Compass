@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
-import { unlinkCreditTransaction, syncCreditFromTransaction } from "../services/creditService";
+import { unlinkCreditTransaction, syncCreditFromTransaction, deleteCreditForTransaction } from "../services/creditService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -150,8 +150,8 @@ export async function deleteTransaction(req: Request, res: Response) {
   // Deleting a loan payment restores exactly the principal + interest it applied
   // (older transactions predate these fields → fall back to the full amount).
   if (txn.loan) await reverseLoanPayment(txn.loan, uid, txn.loanPrincipal ?? txn.amount, txn.loanInterest ?? 0);
-  // Deleting a credit-linked transaction un-links it rather than deleting the
-  // credit entry — the money movement it recorded still happened.
-  if (txn.credit) await unlinkCreditTransaction(uid, txn.credit);
+  // Deleting a credit-linked transaction also removes the credit entry — the two
+  // are the same event, so the credit shouldn't linger in the Credits section.
+  if (txn.credit) await deleteCreditForTransaction(uid, txn.credit);
   res.json({ ok: true });
 }

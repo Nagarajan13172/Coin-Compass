@@ -143,6 +143,17 @@ export async function deleteCredit(uid: unknown, creditId: unknown): Promise<boo
 }
 
 /**
+ * Delete the credit entry a transaction was linked to, when that transaction is
+ * deleted from the Transactions page. A credit and its reflected transaction are
+ * two sides of the same event, so removing one removes the other — the credit
+ * shouldn't linger in the Credits section. The transaction itself is already
+ * being deleted by the caller, so we only drop the credit doc here.
+ */
+export async function deleteCreditForTransaction(uid: unknown, creditId: unknown): Promise<void> {
+  await Credit.deleteOne({ _id: creditId, user: uid });
+}
+
+/**
  * Un-link a credit's transaction without deleting the credit entry itself — the
  * money movement it recorded still happened, only the accounting record is gone.
  * Used when that transaction is deleted directly from the Transactions page, or

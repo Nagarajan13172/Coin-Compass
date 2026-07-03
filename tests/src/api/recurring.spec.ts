@@ -59,6 +59,28 @@ describe("Recurring — posting", () => {
     expect((await u.session.http.get(`/accounts/${acc._id}`)).data.balance).toBeLessThan(1000);
   });
 
+  it("a loan-linked EMI reduces the loan's outstanding when the rule posts", async () => {
+    const u = await createVerifiedUser();
+    const acc = await newAccount(u, { initialBalance: 100000 });
+    const loan = (await u.session.http.post("/loans", { name: "Car", outstanding: 100000, roi: 0, emi: 5000 })).data;
+    const rule = (
+      await u.session.http.post("/recurring", {
+        type: "expense",
+        amount: 5000,
+        account: acc._id,
+        loan: loan._id,
+        frequency: "monthly",
+        startDate: yesterday(),
+      })
+    ).data;
+
+    const run = await u.session.http.post(`/recurring/${rule._id}/run`);
+    expect(run.data.created).toBeGreaterThanOrEqual(1);
+
+    const after = (await u.session.http.get("/loans")).data.find((l: any) => l._id === loan._id);
+    expect(after.outstanding).toBe(95000); // roi 0 → the whole EMI goes to principal
+  });
+
   it("run-all posts the user's due rules", async () => {
     const u = await createVerifiedUser();
     const acc = await newAccount(u);

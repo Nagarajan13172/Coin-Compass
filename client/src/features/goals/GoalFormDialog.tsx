@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/common/ColorPicker";
 import { IconPicker } from "@/components/common/IconPicker";
+import { RecordMeta } from "@/components/common/RecordMeta";
 import { useCreateGoal, useUpdateGoal } from "@/hooks/useGoals";
 import { useSettings } from "@/hooks/useSettings";
 import type { Goal } from "@/lib/types";
@@ -148,6 +149,7 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
             <Label>Icon</Label>
             <IconPicker value={icon} color={color} onChange={setIcon} />
           </div>
+          {isEdit && goal && <RecordMeta createdAt={goal.createdAt} updatedAt={goal.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

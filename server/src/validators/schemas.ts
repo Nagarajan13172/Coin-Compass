@@ -209,6 +209,8 @@ export const loanSchema = z.object({
   roi: z.number().min(0).max(100).default(0),
   emi: z.number().min(0).default(0),
   foreclosureChargePct: z.number().min(0).max(100).default(0),
+  // Total tenure in months (0–600 = up to 50 years). endDate is derived from it.
+  tenureMonths: z.number().int().min(0).max(600).nullish(),
   startDate: z.coerce.date().nullish(),
   endDate: z.coerce.date().nullish(),
   status: z.enum(["active", "closed"]).default("active"),

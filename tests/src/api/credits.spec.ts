@@ -45,6 +45,23 @@ describe("Credits — reflection into balances", () => {
     expect(res.status).toBe(400);
   });
 
+  it("deleting a reflected credit's transaction also removes the credit entry", async () => {
+    const u = await createVerifiedUser();
+    const acc = await newAccount(u, { initialBalance: 1000 });
+    const c = (
+      await u.session.http.post("/credits", { person: "Zoe", direction: "given", amount: 200, account: acc._id, reflected: true })
+    ).data;
+    expect(c.transaction).toBeTruthy();
+
+    // Deleting the linked transaction from the Transactions area...
+    expect((await u.session.http.delete(`/transactions/${c.transaction}`)).status).toBe(200);
+
+    // ...also removes the credit itself (no lingering entry) and restores the balance.
+    const credits = (await u.session.http.get("/credits")).data;
+    expect(credits.some((x: any) => x._id === c._id)).toBe(false);
+    expect((await u.session.http.get(`/accounts/${acc._id}`)).data.balance).toBe(1000);
+  });
+
   it("un-reflecting deletes the linked transaction and restores the balance", async () => {
     const u = await createVerifiedUser();
     const acc = await newAccount(u, { initialBalance: 1000 });
