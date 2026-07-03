@@ -21,6 +21,7 @@ export function LanguageToggle() {
   const language = useUIStore((s) => s.language);
   const setLanguage = useUIStore((s) => s.setLanguage);
   const updateSettings = useUpdateSettings();
+  const current = SUPPORTED_LANGUAGES.find((l) => l.code === language) ?? SUPPORTED_LANGUAGES[0];
 
   function choose(lang: LanguageCode) {
     if (lang === language) return;
@@ -31,8 +32,14 @@ export function LanguageToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("language.label")}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 px-2"
+          aria-label={`${t("language.label")}: ${current.nativeLabel}`}
+        >
           <Languages className="h-5 w-5" />
+          <span className="text-sm font-medium">{current.nativeLabel}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
