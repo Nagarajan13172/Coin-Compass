@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 
 export function BottomNav() {
+  const { t } = useTranslation(["nav", "common"]);
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
@@ -41,7 +43,7 @@ export function BottomNav() {
             whileTap={{ scale: 0.9 }}
             onClick={() => openTxnSheet({ type: "expense" })}
             className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-            aria-label="Add transaction"
+            aria-label={t("actions.addTransaction", { ns: "common" })}
           >
             <Plus className="h-6 w-6" />
           </motion.button>
@@ -60,12 +62,12 @@ export function BottomNav() {
               )}
             >
               <MoreHorizontal className="h-5 w-5" />
-              More
+              {t("more")}
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="pb-[calc(env(safe-area-inset-bottom)+1rem)]">
             <SheetHeader>
-              <SheetTitle>Menu</SheetTitle>
+              <SheetTitle>{t("menu")}</SheetTitle>
             </SheetHeader>
             <div className="grid grid-cols-3 gap-2 p-4">
               {moreItems.map((item) => (
@@ -83,7 +85,7 @@ export function BottomNav() {
                   }
                 >
                   <item.icon className="h-6 w-6" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </NavLink>
               ))}
             </div>
@@ -94,7 +96,8 @@ export function BottomNav() {
   );
 }
 
-function BottomLink({ to, label, icon: Icon }: (typeof NAV_ITEMS)[number]) {
+function BottomLink({ to, labelKey, icon: Icon }: (typeof NAV_ITEMS)[number]) {
+  const { t } = useTranslation("nav");
   return (
     <NavLink
       to={to}
@@ -107,7 +110,7 @@ function BottomLink({ to, label, icon: Icon }: (typeof NAV_ITEMS)[number]) {
       }
     >
       <Icon className="h-5 w-5" />
-      {label}
+      {t(labelKey)}
     </NavLink>
   );
 }

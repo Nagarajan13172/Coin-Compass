@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, KeyRound, Lock, ShieldCheck } from "lucide-react";
 import {
   Dialog,
@@ -26,6 +27,7 @@ export function WealthUnlockDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const { t } = useTranslation("settings");
   const unlock = useUnlockWealth();
   const [passcode, setPasscode] = useState("");
   const [show, setShow] = useState(false);
@@ -36,12 +38,12 @@ export function WealthUnlockDialog({
     if (!passcode) return;
     try {
       await unlock.mutateAsync(passcode);
-      toast.success("Wealth unlocked", { description: "Net Worth is now visible." });
+      toast.success(t("wealthUnlock.unlocked"), { description: t("wealthUnlock.unlockedDesc") });
       onOpenChange(false);
       setPasscode("");
       setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Incorrect passcode");
+      setError(err instanceof Error ? err.message : t("wealthUnlock.incorrect"));
     }
   }
 
@@ -62,14 +64,14 @@ export function WealthUnlockDialog({
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <ShieldCheck className="h-6 w-6" />
           </div>
-          <DialogTitle className="text-center">Unlock Net Worth</DialogTitle>
+          <DialogTitle className="text-center">{t("wealthUnlock.title")}</DialogTitle>
           <DialogDescription className="text-center">
-            Enter your wealth passcode to reveal the Net Worth section for this session.
+            {t("wealthUnlock.description")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="wealth-passcode">Wealth passcode</Label>
+            <Label htmlFor="wealth-passcode">{t("wealthUnlock.passcodeLabel")}</Label>
             <div className="relative">
               <Input
                 id="wealth-passcode"
@@ -88,7 +90,7 @@ export function WealthUnlockDialog({
                 type="button"
                 onClick={() => setShow((s) => !s)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                aria-label={show ? "Hide passcode" : "Show passcode"}
+                aria-label={show ? t("wealthUnlock.hidePasscode") : t("wealthUnlock.showPasscode")}
               >
                 {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -97,7 +99,7 @@ export function WealthUnlockDialog({
           </div>
           <DialogFooter>
             <Button type="submit" className="w-full" disabled={!passcode || unlock.isPending}>
-              <KeyRound /> {unlock.isPending ? "Unlocking…" : "Unlock"}
+              <KeyRound /> {unlock.isPending ? t("wealthUnlock.unlocking") : t("wealthUnlock.unlock")}
             </Button>
           </DialogFooter>
         </form>
@@ -112,6 +114,7 @@ export function WealthUnlockDialog({
  * passcode dialog (kept in the parent so it survives the menu closing).
  */
 export function WealthLockMenuItems({ onUnlock }: { onUnlock: () => void }) {
+  const { t } = useTranslation("settings");
   const { data: me } = useMe();
   const lock = useLockWealth();
   if (!me?.wealthLockEnabled) return null;
@@ -122,10 +125,10 @@ export function WealthLockMenuItems({ onUnlock }: { onUnlock: () => void }) {
         disabled={lock.isPending}
         onClick={async () => {
           await lock.mutateAsync();
-          toast.success("Net Worth hidden");
+          toast.success(t("wealthMenu.hidden"));
         }}
       >
-        <Lock /> Hide Net Worth
+        <Lock /> {t("wealthMenu.hide")}
       </DropdownMenuItem>
     );
   }
@@ -139,7 +142,7 @@ export function WealthLockMenuItems({ onUnlock }: { onUnlock: () => void }) {
         onUnlock();
       }}
     >
-      <ShieldCheck /> Unlock Net Worth
+      <ShieldCheck /> {t("wealthMenu.unlock")}
     </DropdownMenuItem>
   );
 }

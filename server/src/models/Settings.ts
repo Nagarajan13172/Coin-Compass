@@ -17,7 +17,8 @@ const settingsSchema = new Schema(
     description: { type: String, default: "" }, // optional label/tag, e.g. "Personal finances"
     baseCurrency: { type: String, default: "INR" },
     theme: { type: String, enum: ["light", "dark", "system"], default: "system" },
-    locale: { type: String, default: "en-IN" },
+    locale: { type: String, default: "en-IN" }, // Intl locale for number/date formatting
+    language: { type: String, enum: ["en", "ta"], default: "en" }, // UI text language
     firstDayOfWeek: { type: Number, default: 1 }, // 0 = Sunday, 1 = Monday
     monthStartDay: { type: Number, default: 1 },
     currencies: {

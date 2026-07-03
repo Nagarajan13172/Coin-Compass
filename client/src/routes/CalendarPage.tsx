@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   addDays,
@@ -19,13 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
-import { dayKey } from "@/lib/dates";
+import { dayKey, dateFnsLocale } from "@/lib/dates";
 import { useTransactionList } from "@/hooks/useTransactions";
 import { TransactionRow } from "@/features/transactions/TransactionRow";
 import { useUIStore } from "@/stores/ui";
 import type { RefLite, Transaction } from "@/lib/types";
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function ref(v: RefLite | string | null | undefined): RefLite | null {
   return v && typeof v === "object" ? v : null;
@@ -40,6 +39,7 @@ function signed(n: number): string {
 }
 
 export default function CalendarPage() {
+  const { t } = useTranslation("reports");
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selected, setSelected] = useState<Date>(new Date());
   const [accFilter, setAccFilter] = useState<string | null>(null);
@@ -100,7 +100,7 @@ export default function CalendarPage() {
     const map = new Map<string, { name: string; net: number }>();
     const add = (id: string | null, name: string | undefined, delta: number) => {
       if (!id) return;
-      const e = map.get(id) ?? { name: name ?? "Account", net: 0 };
+      const e = map.get(id) ?? { name: name ?? t("account", { ns: "common" }), net: 0 };
       e.net += delta;
       map.set(id, e);
     };
@@ -115,7 +115,7 @@ export default function CalendarPage() {
       }
     }
     return Array.from(map.entries()).map(([id, v]) => ({ id, ...v }));
-  }, [selectedTxns]);
+  }, [selectedTxns, t]);
 
   const shownTxns = accFilter
     ? selectedTxns.filter((t) => refId(t.account) === accFilter || refId(t.toAccount) === accFilter)
@@ -131,29 +131,29 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <PageHeader title="Calendar" description="Spending day by day" />
+      <PageHeader title={t("calendar.title")} description={t("calendar.description")} />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <Card>
           <CardContent className="p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{format(month, "MMMM yyyy")}</h2>
+              <h2 className="text-lg font-semibold">{format(month, "MMMM yyyy", { locale: dateFnsLocale() })}</h2>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Previous month"
+                  aria-label={t("calendar.prevMonth")}
                   onClick={() => setMonth((m) => addMonths(m, -1))}
                 >
                   <ChevronLeft />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setMonth(startOfMonth(new Date()))}>
-                  Today
+                  {t("date.today", { ns: "common" })}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Next month"
+                  aria-label={t("calendar.nextMonth")}
                   onClick={() => setMonth((m) => addMonths(m, 1))}
                 >
                   <ChevronRight />
@@ -162,7 +162,9 @@ export default function CalendarPage() {
             </div>
 
             <div className="grid grid-cols-7 gap-1">
-              {WEEKDAYS.map((w) => (
+              {Array.from({ length: 7 }, (_, i) =>
+                format(addDays(range.start, i), "EEE", { locale: dateFnsLocale() })
+              ).map((w) => (
                 <div key={w} className="pb-1 text-center text-xs font-medium text-muted-foreground">
                   {w}
                 </div>
@@ -182,7 +184,7 @@ export default function CalendarPage() {
                         key={k}
                         type="button"
                         onClick={() => setSelected(d)}
-                        aria-label={format(d, "EEEE, dd MMM yyyy")}
+                        aria-label={format(d, "EEEE, dd MMM yyyy", { locale: dateFnsLocale() })}
                         aria-pressed={isSel}
                         className={cn(
                           "relative flex h-16 flex-col items-stretch rounded-lg border p-1 text-left transition-colors",
@@ -193,7 +195,7 @@ export default function CalendarPage() {
                         {stats?.recurring && (
                           <Repeat
                             className="absolute left-1 top-1 h-3 w-3 text-muted-foreground"
-                            aria-label="Has recurring transactions"
+                            aria-label={t("calendar.hasRecurring")}
                           />
                         )}
                         <span
@@ -227,10 +229,10 @@ export default function CalendarPage() {
         <Card>
           <CardContent className="space-y-4 p-4">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-semibold">{format(selected, "EEEE, dd MMM yyyy")}</h3>
+              <h3 className="font-semibold">{format(selected, "EEEE, dd MMM yyyy", { locale: dateFnsLocale() })}</h3>
               {isSameDay(selected, new Date()) && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  Today
+                  {t("date.today", { ns: "common" })}
                 </span>
               )}
             </div>
@@ -238,15 +240,15 @@ export default function CalendarPage() {
             {/* summary block */}
             <div className="grid grid-cols-3 divide-x rounded-lg border text-center">
               <div className="px-2 py-2.5">
-                <p className="text-[11px] text-muted-foreground">In</p>
+                <p className="text-[11px] text-muted-foreground">{t("inLabel")}</p>
                 <p className="tnum text-sm font-semibold text-income">+{formatMoney(summary.income)}</p>
               </div>
               <div className="px-2 py-2.5">
-                <p className="text-[11px] text-muted-foreground">Out</p>
+                <p className="text-[11px] text-muted-foreground">{t("outLabel")}</p>
                 <p className="tnum text-sm font-semibold text-expense">−{formatMoney(summary.expense)}</p>
               </div>
               <div className="px-2 py-2.5">
-                <p className="text-[11px] text-muted-foreground">Net</p>
+                <p className="text-[11px] text-muted-foreground">{t("net")}</p>
                 <p
                   className={cn(
                     "tnum text-sm font-semibold",
@@ -261,7 +263,7 @@ export default function CalendarPage() {
             {/* per-account breakdown — chips also filter the list below */}
             {dayAccounts.length > 0 && (
               <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">By account</p>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("byAccount")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {dayAccounts.map((a) => (
                     <button
@@ -290,7 +292,7 @@ export default function CalendarPage() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-sm font-semibold">
-                  Transactions
+                  {t("calendar.transactions")}
                   {shownTxns.length > 0 && (
                     <span className="ml-1 font-normal text-muted-foreground">({shownTxns.length})</span>
                   )}
@@ -301,7 +303,7 @@ export default function CalendarPage() {
                     onClick={() => setAccFilter(null)}
                     className="text-xs font-medium text-primary hover:underline"
                   >
-                    Clear filter
+                    {t("calendar.clearFilter")}
                   </button>
                 )}
               </div>
@@ -313,7 +315,7 @@ export default function CalendarPage() {
                 </div>
               ) : (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  No transactions on this day
+                  {t("calendar.noTxnsOnDay")}
                 </p>
               )}
             </div>
@@ -321,11 +323,11 @@ export default function CalendarPage() {
             {/* actions */}
             <div className="flex flex-wrap gap-2 border-t pt-3">
               <Button size="sm" onClick={addOnThisDay}>
-                <Plus /> Add on this day
+                <Plus /> {t("calendar.addOnThisDay")}
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to={dayHref}>
-                  View in Transactions <ArrowRight />
+                  {t("calendar.viewInTransactions")} <ArrowRight />
                 </Link>
               </Button>
             </div>

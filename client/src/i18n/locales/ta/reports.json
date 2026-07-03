@@ -1,0 +1,89 @@
+{
+  "title": "அறிக்கைகள்",
+  "description": "உங்கள் வருமானத்தையும் செலவையும் பகுப்பாய்வு செய்யுங்கள்",
+  "showing": "காண்பிப்பது:",
+  "viewLabel": "{{period}} · {{view}}",
+  "viewName": {
+    "week": "வார பார்வை",
+    "month": "மாதப் பார்வை",
+    "year": "ஆண்டுப் பார்வை"
+  },
+  "noun": {
+    "week": "வாரம்",
+    "month": "மாதம்",
+    "year": "ஆண்டு"
+  },
+  "net": "நிகரம்",
+  "avgDailySpend": "சராசரி தினசரி செலவு",
+  "avgDailyHint": "இந்தக் காலகட்டத்தில் கடந்த நாட்களால் மொத்தச் செலவை வகுத்தது; இதனால் பகுதி மாதம் முழு 30 நாட்களால் வகுக்கப்படாது.",
+  "overDays_one": "{{count}} நாளில்",
+  "overDays_other": "{{count}} நாட்களில்",
+  "savingsRate": "சேமிப்பு விகிதம்",
+  "savingsRateHint": "செலவுக்குப் பிறகு தக்கவைத்த வருமானத்தின் பங்கு: (வருமானம் − செலவு) ÷ வருமானம் × 100.",
+  "biggestExpense": "மிகப்பெரிய செலவு",
+  "spendingVsLast": {
+    "week": "கடந்த வாரத்துடன் செலவு ஒப்பீடு",
+    "month": "கடந்த மாதத்துடன் செலவு ஒப்பீடு",
+    "year": "கடந்த ஆண்டுடன் செலவு ஒப்பீடு"
+  },
+  "lastPeriodAmount": {
+    "week": "கடந்த வாரம்: {{amount}}",
+    "month": "கடந்த மாதம்: {{amount}}",
+    "year": "கடந்த ஆண்டு: {{amount}}"
+  },
+  "changeDir": {
+    "higher": "அதிகம்",
+    "lower": "குறைவு",
+    "same": "சமம்"
+  },
+  "aboutLabel": "{{label}} பற்றி",
+  "insight": {
+    "biggestPrefix": "இந்த {{period}} உங்கள் மிகப்பெரிய செலவு",
+    "ofSpending": " ({{amount}}, மொத்தச் செலவில் {{percent}}%)",
+    "overallPrefix": ". மொத்த செலவு",
+    "higher": "அதிகம்",
+    "lower": "குறைவு",
+    "same": "அதே அளவு",
+    "thanLast": {
+      "week": "கடந்த வாரத்துடன் ஒப்பிடுகையில்",
+      "month": "கடந்த மாதத்துடன் ஒப்பிடுகையில்",
+      "year": "கடந்த ஆண்டுடன் ஒப்பிடுகையில்"
+    }
+  },
+  "byCategory": "வகை வாரியாக",
+  "centerLabel": {
+    "spent": "மொத்தச் செலவு",
+    "earned": "மொத்த வருமானம்"
+  },
+  "noData": "தரவு இல்லை",
+  "noTxnsInPeriod": "இந்தக் காலகட்டத்தில் பரிவர்த்தனைகள் இல்லை.",
+  "incomeVsExpense": "வருமானம் vs செலவு",
+  "noDataForPeriod": "இந்தக் காலகட்டத்திற்கு தரவு இல்லை",
+  "byAccount": "கணக்கு வாரியாக",
+  "moneyInVsOut": "ஒவ்வொரு கணக்கிலும் வரவு vs செலவு",
+  "netCashFlow": "நிகர பணப்புழக்கம்",
+  "incomeMinusExpense": "காலப்போக்கில் வருமானம் கழித்தல் செலவு",
+  "inLabel": "வரவு",
+  "outLabel": "செலவு",
+  "viewTransactionsFor": "{{name}} பரிவர்த்தனைகளைப் பார்",
+  "export": {
+    "button": "CSV ஏற்றுமதி",
+    "downloadTransactions": "பரிவர்த்தனைகளைப் பதிவிறக்கு",
+    "thisPeriod": "இந்தக் காலகட்டம்",
+    "allTransactions": "அனைத்து பரிவர்த்தனைகள்",
+    "customRange": "தனிப்பயன் வரம்பு",
+    "exportRange": "வரம்பை ஏற்றுமதி செய்"
+  },
+  "calendar": {
+    "title": "நாட்காட்டி",
+    "description": "நாள்தோறும் செலவு",
+    "prevMonth": "முந்தைய மாதம்",
+    "nextMonth": "அடுத்த மாதம்",
+    "hasRecurring": "தொடர் பரிவர்த்தனைகள் உள்ளன",
+    "transactions": "பரிவர்த்தனைகள்",
+    "clearFilter": "வடிகட்டியை அழி",
+    "noTxnsOnDay": "இந்த நாளில் பரிவர்த்தனைகள் இல்லை",
+    "addOnThisDay": "இந்த நாளில் சேர்",
+    "viewInTransactions": "பரிவர்த்தனைகளில் பார்"
+  }
+}

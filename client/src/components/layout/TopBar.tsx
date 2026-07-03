@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
+import { LanguageToggle } from "./LanguageToggle";
 import { useUIStore } from "@/stores/ui";
 import { useMe, useLogout } from "@/hooks/useAuth";
 import { useState } from "react";
@@ -34,6 +36,7 @@ function initials(name: string, email: string) {
 }
 
 function UserMenu() {
+  const { t } = useTranslation(["common", "nav"]);
   const navigate = useNavigate();
   const { data: me } = useMe();
   const logout = useLogout();
@@ -49,7 +52,7 @@ function UserMenu() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+          <Button variant="ghost" size="icon" className="rounded-full" aria-label={t("accountMenu", { ns: "nav" })}>
             <Avatar className="h-8 w-8">
               {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt="" />}
               <AvatarFallback>{initials(me.name, me.email)}</AvatarFallback>
@@ -58,13 +61,13 @@ function UserMenu() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="flex flex-col">
-            <span className="truncate font-medium">{me.name || "Account"}</span>
+            <span className="truncate font-medium">{me.name || t("account")}</span>
             <span className="truncate text-xs font-normal text-muted-foreground">{me.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <WealthLockMenuItems onUnlock={() => setUnlockOpen(true)} />
           <DropdownMenuItem onClick={signOut} disabled={logout.isPending}>
-            <LogOut /> Sign out
+            <LogOut /> {t("actions.signOut")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -74,14 +77,16 @@ function UserMenu() {
 }
 
 /** Add-transaction menu: pick the type up front instead of always defaulting to
- *  an expense. Shared by the desktop button (the mobile FAB stays expense-first). */
-const ADD_TYPES: { type: TxnType; label: string; icon: React.ReactNode }[] = [
-  { type: "expense", label: "Expense", icon: <ArrowUpRight className="text-expense" /> },
-  { type: "income", label: "Income", icon: <ArrowDownLeft className="text-income" /> },
-  { type: "transfer", label: "Transfer", icon: <ArrowLeftRight /> },
+ *  an expense. Shared by the desktop button (the mobile FAB stays expense-first).
+ *  Labels come from the `common:txnType` catalog at render time. */
+const ADD_TYPES: { type: TxnType; icon: React.ReactNode }[] = [
+  { type: "expense", icon: <ArrowUpRight className="text-expense" /> },
+  { type: "income", icon: <ArrowDownLeft className="text-income" /> },
+  { type: "transfer", icon: <ArrowLeftRight /> },
 ];
 
 export function TopBar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -104,13 +109,13 @@ export function TopBar() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button className="hidden md:inline-flex">
-            <Plus /> Add <ChevronDown className="h-4 w-4 opacity-70" />
+            <Plus /> {t("actions.add")} <ChevronDown className="h-4 w-4 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-44">
-          {ADD_TYPES.map((t) => (
-            <DropdownMenuItem key={t.type} onClick={() => openTxnSheet({ type: t.type })}>
-              {t.icon} {t.label}
+          {ADD_TYPES.map((opt) => (
+            <DropdownMenuItem key={opt.type} onClick={() => openTxnSheet({ type: opt.type })}>
+              {opt.icon} {t(`txnType.${opt.type}`)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -125,20 +130,20 @@ export function TopBar() {
         }}
       >
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input name="q" type="search" aria-label="Search all transactions" placeholder="Search transactions…" className="pl-9" />
+        <Input name="q" type="search" aria-label={t("search.ariaLabel")} placeholder={t("search.placeholder")} className="pl-9" />
       </form>
 
       <div className="ml-auto flex items-center gap-1">
         {/* mobile search — the inline form is hidden below sm, so give phones a way in */}
         <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="sm:hidden" aria-label="Search transactions">
+            <Button variant="ghost" size="icon" className="sm:hidden" aria-label={t("search.title")}>
               <Search className="h-5 w-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="top" className="p-4">
             <SheetHeader className="sr-only">
-              <SheetTitle>Search transactions</SheetTitle>
+              <SheetTitle>{t("search.title")}</SheetTitle>
             </SheetHeader>
             <form
               className="relative mt-2"
@@ -152,13 +157,14 @@ export function TopBar() {
                 name="q"
                 type="search"
                 autoFocus
-                aria-label="Search all transactions"
-                placeholder="Search transactions…"
+                aria-label={t("search.ariaLabel")}
+                placeholder={t("search.placeholder")}
                 className="pl-9"
               />
             </form>
           </SheetContent>
         </Sheet>
+        <LanguageToggle />
         <ThemeToggle />
         <UserMenu />
       </div>

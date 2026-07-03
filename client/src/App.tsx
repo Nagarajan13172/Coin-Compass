@@ -46,11 +46,12 @@ function AuthedBootstrap() {
       locale: settings.locale,
     });
     if (settings.pinEnabled) setLocked(true);
-    // Theme follows the account: apply the server-stored preference on load.
-    // Read the store imperatively so a local toggle (which refetches settings)
-    // doesn't get reverted by this effect.
-    const { theme, setTheme } = useUIStore.getState();
+    // Theme + language follow the account: apply the server-stored preferences on
+    // load. Read the store imperatively so a local toggle (which refetches
+    // settings) doesn't get reverted by this effect.
+    const { theme, setTheme, language, setLanguage } = useUIStore.getState();
     if (settings.theme && settings.theme !== theme) setTheme(settings.theme);
+    if (settings.language && settings.language !== language) setLanguage(settings.language);
   }, [settings, setCurrencyConfig, setLocked]);
 
   return null;

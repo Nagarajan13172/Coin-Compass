@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
 import { format, parseISO } from "date-fns";
 import { Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
 import { useMetalHistory, useMetalsLatest } from "@/hooks/useMetals";
 import type { MetalPrice } from "@/lib/types";
 import { METAL_META } from "./meta";
@@ -13,7 +15,7 @@ import { DEFAULT_CITY, findCity, resolveCityRate } from "./cities";
 
 function asOf(date: string) {
   try {
-    return format(parseISO(date), "dd MMM");
+    return format(parseISO(date), "dd MMM", { locale: dateFnsLocale() });
   } catch {
     return date;
   }
@@ -71,6 +73,7 @@ function Sparkline({ data, color }: { data: MetalPrice[]; color: string }) {
  * configured and at least one snapshot exists.
  */
 export function GoldRateCard() {
+  const { t } = useTranslation("credits");
   const { data: latest } = useMetalsLatest();
   const gold = latest?.gold;
   const silver = latest?.silver;
@@ -86,30 +89,30 @@ export function GoldRateCard() {
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2">
-          <Coins className="h-4 w-4" style={{ color: METAL_META.gold.color }} /> Gold &amp; Silver
+          <Coins className="h-4 w-4" style={{ color: METAL_META.gold.color }} /> {t("gold.title")}
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link to="/gold">View</Link>
+          <Link to="/gold">{t("gold.view")}</Link>
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-end justify-between">
           <div>
             <p className="text-xs text-muted-foreground">
-              Gold · 22K / gram · {city.label}
+              {t("gold.cardHeadline", { city: city.label })}
             </p>
             <p className="tnum text-2xl font-bold">
               {formatMoney(rate.gram22k, { currency: "INR" })}
             </p>
             <p className="tnum text-xs text-muted-foreground">
               {rate.approx
-                ? `Spot 22K ${formatMoney(gold.pricePerGram22k, { currency: "INR" })}`
+                ? t("gold.spot22kCard", { value: formatMoney(gold.pricePerGram22k, { currency: "INR" }) })
                 : rate.source}
             </p>
           </div>
           <div className="text-right">
             <MetalChange changePct={gold.changePct} />
-            <p className="mt-1 text-[11px] text-muted-foreground">as of {asOf(gold.date)}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{t("gold.asOfLower", { date: asOf(gold.date) })}</p>
           </div>
         </div>
 
@@ -119,7 +122,7 @@ export function GoldRateCard() {
 
         {silver && (
           <div className="flex items-center justify-between border-t pt-3">
-            <span className="text-sm text-muted-foreground">Silver · 999 / gram</span>
+            <span className="text-sm text-muted-foreground">{t("gold.silverLine")}</span>
             <span className="flex items-center gap-2">
               <span className="tnum text-sm font-semibold">
                 {formatMoney(silver.pricePerGram24k, { currency: "INR" })}

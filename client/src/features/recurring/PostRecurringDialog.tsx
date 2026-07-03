@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePostRecurringOne } from "@/hooks/useRecurring";
+import { categoryLabel, enumLabel } from "@/lib/i18nLabels";
 import type { Recurring } from "@/lib/types";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 /**
@@ -21,6 +23,7 @@ import { toast } from "sonner";
  * before posting. On confirm, one transaction is created and the schedule advances.
  */
 export function PostRecurringDialog({ rule, onClose }: { rule: Recurring | null; onClose: () => void }) {
+  const { t } = useTranslation("recurring");
   const post = usePostRecurringOne();
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
@@ -33,42 +36,46 @@ export function PostRecurringDialog({ rule, onClose }: { rule: Recurring | null;
 
   async function submit() {
     const n = Number(amount);
-    if (!n || n <= 0) return toast.error("Enter an amount greater than 0");
+    if (!n || n <= 0) return toast.error(t("post.errors.amount"));
     try {
       await post.mutateAsync({ id: rule!._id, amount: n, date: new Date(date).toISOString() });
-      toast.success("Transaction posted");
+      toast.success(t("post.toast.posted"));
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to post");
+      toast.error(e instanceof Error ? e.message : t("post.toast.failed"));
     }
   }
 
   const title = rule
     ? rule.type === "transfer"
-      ? "Transfer"
-      : rule.category?.name ?? (rule.note || "Recurring")
+      ? t("txnType.transfer", { ns: "common" })
+      : rule.category?.name
+        ? categoryLabel(rule.category.name)
+        : rule.note || t("post.fallbackTitle")
     : "";
 
   return (
     <Dialog open={Boolean(rule)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Post · {title}</DialogTitle>
+          <DialogTitle>{t("post.dialogTitle", { title })}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Confirm the amount and date, then post this {rule?.frequency} {rule?.type}. The transaction is
-            linked to the rule and the schedule moves to the next occurrence.
+            {t("post.description", {
+              frequency: rule ? enumLabel("frequency", rule.frequency).toLowerCase() : "",
+              type: rule ? t(`txnType.${rule.type}`, { ns: "common" }).toLowerCase() : "",
+            })}
           </p>
           {rule?.loan && (
             <p className="rounded-lg border border-income/40 bg-income/5 p-2.5 text-xs">
-              This also reduces <span className="font-semibold">{rule.loan.name}</span>'s outstanding balance
-              by the amount posted.
+              {t("post.loanNotePrefix")} <span className="font-semibold">{rule.loan.name}</span>
+              {t("post.loanNoteSuffix")}
             </p>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="post-amount">Amount</Label>
+              <Label htmlFor="post-amount">{t("labels.amount", { ns: "common" })}</Label>
               <Input
                 id="post-amount"
                 type="number"
@@ -79,7 +86,7 @@ export function PostRecurringDialog({ rule, onClose }: { rule: Recurring | null;
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="post-date">Date</Label>
+              <Label htmlFor="post-date">{t("labels.date", { ns: "common" })}</Label>
               <Input id="post-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
           </div>
@@ -96,10 +103,10 @@ export function PostRecurringDialog({ rule, onClose }: { rule: Recurring | null;
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={post.isPending}>
-            Post transaction
+            {t("post.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

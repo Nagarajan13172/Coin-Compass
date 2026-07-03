@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { ArrowRight, MoreVertical, Pencil, Plus, Target, Trash2, Wallet } from "lucide-react";
@@ -19,8 +20,8 @@ import {
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { formatMoney } from "@/lib/format";
 import { periodRange } from "@/lib/dates";
+import { categoryLabel, enumLabel } from "@/lib/i18nLabels";
 import {
-  BUDGET_PERIOD_LABEL,
   BUDGET_PERIOD_ORDER,
   budgetPeriodToTxnPeriod,
   budgetStatus,
@@ -30,12 +31,6 @@ import { useByCategory } from "@/hooks/useReports";
 import { BudgetFormDialog } from "@/features/budgets/BudgetFormDialog";
 import type { Budget, BudgetPeriod } from "@/lib/types";
 import { toast } from "sonner";
-
-const SCOPE_TAB_LABEL: Record<BudgetPeriod, string> = {
-  weekly: "Weekly",
-  monthly: "Monthly",
-  yearly: "Yearly",
-};
 
 /** Deep-link to Transactions filtered by this budget's category (and period, when it maps). */
 function txnLink(b: Budget): string {
@@ -48,6 +43,7 @@ function txnLink(b: Budget): string {
 }
 
 export default function BudgetsPage() {
+  const { t } = useTranslation("planning");
   const { data: budgets, isLoading } = useBudgets();
   const del = useDeleteBudget();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -94,9 +90,9 @@ export default function BudgetsPage() {
     setDialogOpen(true);
   }
   async function handleDelete(b: Budget) {
-    if (!confirm("Delete this budget?")) return;
+    if (!confirm(t("budgets.confirmDelete"))) return;
     await del.mutateAsync(b._id);
-    toast.success("Budget deleted");
+    toast.success(t("budgets.deleted"));
   }
 
   const newBudgetPeriod = effectiveScope !== "all" ? effectiveScope : undefined;
@@ -104,11 +100,11 @@ export default function BudgetsPage() {
   return (
     <div>
       <PageHeader
-        title="Budgets"
-        description="Set spending limits and track progress"
+        title={t("budgets.title")}
+        description={t("budgets.description")}
         actions={
           <Button onClick={() => openNew({ period: newBudgetPeriod })}>
-            <Plus /> New budget
+            <Plus /> {t("budgets.newBudget")}
           </Button>
         }
       />
@@ -125,10 +121,10 @@ export default function BudgetsPage() {
             {showScope ? (
               <Tabs value={scope} onValueChange={(v) => setScope(v as "all" | BudgetPeriod)}>
                 <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="all">{t("labels.all", { ns: "common" })}</TabsTrigger>
                   {presentPeriods.map((p) => (
                     <TabsTrigger key={p} value={p}>
-                      {SCOPE_TAB_LABEL[p]}
+                      {enumLabel("frequency", p)}
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -138,13 +134,19 @@ export default function BudgetsPage() {
             )}
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Wallet className="h-3.5 w-3.5 shrink-0" />
-              Budgets track spending across all your accounts.
+              {t("budgets.tracksAcrossAccounts")}
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((b, i) => {
               const status = budgetStatus(b);
+              const statusLabel =
+                status.badge === "expense"
+                  ? t("budgets.status.overBy", { amount: formatMoney(Math.max(0, b.spent - b.amount)) })
+                  : status.badge === "warning"
+                    ? t("budgets.status.nearLimit")
+                    : t("budgets.status.onTrack");
               return (
                 <motion.div
                   key={b._id}
@@ -157,31 +159,33 @@ export default function BudgetsPage() {
                       <div className="flex items-start gap-3">
                         <CategoryIcon icon={b.category?.icon} color={b.category?.color} size="md" />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-semibold">{b.category?.name ?? "Overall"}</p>
-                          <p className="text-xs text-muted-foreground">{BUDGET_PERIOD_LABEL[b.period]}</p>
+                          <p className="truncate font-semibold">
+                            {b.category ? categoryLabel(b.category.name) : t("budgets.overall")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{t(`budgets.period.${b.period}`)}</p>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon-sm" aria-label="Budget actions">
+                            <Button variant="ghost" size="icon-sm" aria-label={t("budgets.budgetActions")}>
                               <MoreVertical />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEdit(b)}>
-                              <Pencil /> Edit
+                              <Pencil /> {t("actions.edit", { ns: "common" })}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() => handleDelete(b)}
                             >
-                              <Trash2 /> Delete
+                              <Trash2 /> {t("actions.delete", { ns: "common" })}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
 
                       <Badge variant={status.badge} className="w-fit">
-                        {status.label}
+                        {statusLabel}
                       </Badge>
 
                       <Progress
@@ -189,24 +193,29 @@ export default function BudgetsPage() {
                         indicatorClassName={status.tone}
                         tooltip={
                           <span className="tnum">
-                            {formatMoney(b.spent)} of {formatMoney(b.amount)} · {b.percent}% used ·{" "}
+                            {t("budgets.spentOfTotal", { spent: formatMoney(b.spent), total: formatMoney(b.amount) })} ·{" "}
+                            {t("budgets.percentUsed", { percent: b.percent })} ·{" "}
                             {b.over
-                              ? `${formatMoney(b.spent - b.amount)} over`
-                              : `${formatMoney(b.remaining)} left`}
+                              ? t("budgets.amountOver", { amount: formatMoney(b.spent - b.amount) })
+                              : t("budgets.amountLeft", { amount: formatMoney(b.remaining) })}
                           </span>
                         }
                       />
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="tnum text-muted-foreground">
-                          {formatMoney(b.spent)} of {formatMoney(b.amount)}
+                          {t("budgets.spentOfTotal", { spent: formatMoney(b.spent), total: formatMoney(b.amount) })}
                         </span>
                         {b.over ? (
-                          <span className="tnum font-medium text-expense">{b.percent}% used</span>
+                          <span className="tnum font-medium text-expense">
+                            {t("budgets.percentUsed", { percent: b.percent })}
+                          </span>
                         ) : b.spent === 0 ? (
-                          <span className="text-xs text-muted-foreground">No spending yet</span>
+                          <span className="text-xs text-muted-foreground">{t("budgets.noSpendingYet")}</span>
                         ) : (
-                          <span className="tnum font-medium text-income">{formatMoney(b.remaining)} left</span>
+                          <span className="tnum font-medium text-income">
+                            {t("budgets.amountLeft", { amount: formatMoney(b.remaining) })}
+                          </span>
                         )}
                       </div>
 
@@ -215,7 +224,7 @@ export default function BudgetsPage() {
                           to={txnLink(b)}
                           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                         >
-                          View transactions
+                          {t("budgets.viewTransactions")}
                           <ArrowRight className="h-3 w-3" />
                         </Link>
                       </div>
@@ -228,24 +237,26 @@ export default function BudgetsPage() {
 
           {suggestions.length > 0 && (
             <section className="mt-8">
-              <h2 className="text-sm font-semibold">Unbudgeted spending this month</h2>
+              <h2 className="text-sm font-semibold">{t("budgets.unbudgetedTitle")}</h2>
               <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
-                You've spent in these categories but haven't set a budget yet.
+                {t("budgets.unbudgetedDescription")}
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {suggestions.map((c) => (
                   <div key={c.categoryId} className="flex items-center gap-3 rounded-xl border p-3">
                     <CategoryIcon icon={c.icon} color={c.color} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{c.name}</p>
-                      <p className="tnum text-xs text-muted-foreground">{formatMoney(c.total)} spent</p>
+                      <p className="truncate text-sm font-medium">{categoryLabel(c.name)}</p>
+                      <p className="tnum text-xs text-muted-foreground">
+                        {t("budgets.amountSpent", { amount: formatMoney(c.total) })}
+                      </p>
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => openNew({ category: c.categoryId, period: "monthly" })}
                     >
-                      Set budget
+                      {t("budgets.setBudget")}
                     </Button>
                   </div>
                 ))}
@@ -256,11 +267,11 @@ export default function BudgetsPage() {
       ) : (
         <EmptyState
           icon={Target}
-          title="No budgets yet"
-          description="Create a budget to keep your spending on track."
+          title={t("budgets.emptyTitle")}
+          description={t("budgets.emptyDescription")}
           action={
             <Button onClick={() => openNew()}>
-              <Plus /> New budget
+              <Plus /> {t("budgets.newBudget")}
             </Button>
           }
         />

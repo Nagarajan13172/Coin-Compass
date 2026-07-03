@@ -15,57 +15,59 @@ import {
   Settings,
   type LucideIcon,
 } from "lucide-react";
+/** A key into the `nav` translation namespace; resolved to a label at render time. */
+type NavLabelKey = string;
 
 export interface NavItem {
   to: string;
-  label: string;
+  labelKey: NavLabelKey;
   icon: LucideIcon;
 }
 
 export interface NavGroup {
-  label: string;
+  labelKey: NavLabelKey;
   items: NavItem[];
 }
 
-/** Sidebar navigation, grouped into labelled sections. */
+/** Sidebar navigation, grouped into labelled sections. Labels are translation keys. */
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Overview",
+    labelKey: "groups.overview",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/reports", label: "Reports", icon: PieChart },
-      { to: "/calendar", label: "Calendar", icon: CalendarDays },
+      { to: "/", labelKey: "items.dashboard", icon: LayoutDashboard },
+      { to: "/reports", labelKey: "items.reports", icon: PieChart },
+      { to: "/calendar", labelKey: "items.calendar", icon: CalendarDays },
     ],
   },
   {
-    label: "Money",
+    labelKey: "groups.money",
     items: [
-      { to: "/transactions", label: "Transactions", icon: ArrowRightLeft },
-      { to: "/accounts", label: "Accounts", icon: Wallet },
-      { to: "/recurring", label: "Recurring", icon: Repeat },
-      { to: "/categories", label: "Categories", icon: Shapes },
+      { to: "/transactions", labelKey: "items.transactions", icon: ArrowRightLeft },
+      { to: "/accounts", labelKey: "items.accounts", icon: Wallet },
+      { to: "/recurring", labelKey: "items.recurring", icon: Repeat },
+      { to: "/categories", labelKey: "items.categories", icon: Shapes },
     ],
   },
   {
-    label: "Planning",
+    labelKey: "groups.planning",
     items: [
-      { to: "/budgets", label: "Budgets", icon: Target },
-      { to: "/goals", label: "Goals", icon: Trophy },
+      { to: "/budgets", labelKey: "items.budgets", icon: Target },
+      { to: "/goals", labelKey: "items.goals", icon: Trophy },
     ],
   },
   {
-    label: "Wealth",
+    labelKey: "groups.wealth",
     items: [
-      { to: "/net-worth", label: "Net Worth", icon: Landmark },
-      { to: "/loans", label: "Loans", icon: HandCoins },
-      { to: "/credits", label: "Credits", icon: HeartHandshake },
-      { to: "/gold", label: "Gold", icon: Coins },
+      { to: "/net-worth", labelKey: "items.netWorth", icon: Landmark },
+      { to: "/loans", labelKey: "items.loans", icon: HandCoins },
+      { to: "/credits", labelKey: "items.credits", icon: HeartHandshake },
+      { to: "/gold", labelKey: "items.gold", icon: Coins },
     ],
   },
 ];
 
 /** Settings lives in the sidebar footer, separate from the grouped nav. */
-export const SETTINGS_ITEM: NavItem = { to: "/settings", label: "Settings", icon: Settings };
+export const SETTINGS_ITEM: NavItem = { to: "/settings", labelKey: "items.settings", icon: Settings };
 
 /**
  * Destinations that reveal net-worth figures. Hidden from the nav (and blocked

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -22,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCreateCredit, useUpdateCredit } from "@/hooks/useCredits";
+import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { CREDIT_METHODS, type Credit, type CreditDirection, type CreditMethod } from "@/lib/types";
 
@@ -38,12 +40,13 @@ function refId(v: { _id: string } | string | null | undefined): string {
   return typeof v === "string" ? v : v._id;
 }
 
-const DIRECTIONS: { value: CreditDirection; label: string; cls: string }[] = [
-  { value: "given", label: "You gave", cls: "data-[active=true]:bg-expense data-[active=true]:text-expense-foreground" },
-  { value: "received", label: "You received", cls: "data-[active=true]:bg-income data-[active=true]:text-income-foreground" },
+const DIRECTIONS: { value: CreditDirection; cls: string }[] = [
+  { value: "given", cls: "data-[active=true]:bg-expense data-[active=true]:text-expense-foreground" },
+  { value: "received", cls: "data-[active=true]:bg-income data-[active=true]:text-income-foreground" },
 ];
 
 export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: Props) {
+  const { t } = useTranslation("credits");
   const { data: accounts } = useAccounts();
   const create = useCreateCredit();
   const update = useUpdateCredit();
@@ -71,11 +74,11 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
   }, [open, credit, defaultPerson, accounts]);
 
   async function submit() {
-    if (!person.trim()) return toast.error("Enter who this is with");
+    if (!person.trim()) return toast.error(t("toast.enterPerson"));
     const amt = Number(amount);
-    if (!(amt > 0)) return toast.error("Enter an amount greater than 0");
+    if (!(amt > 0)) return toast.error(t("toast.enterAmount"));
     // The account only matters (and is required) when reflecting into balances.
-    if (reflected && !accountId) return toast.error("Select an account to reflect this in your balances");
+    if (reflected && !accountId) return toast.error(t("toast.selectAccount"));
 
     const payload = {
       person: person.trim(),
@@ -91,14 +94,14 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
     try {
       if (isEdit && credit) {
         await update.mutateAsync({ id: credit._id, ...payload });
-        toast.success("Credit updated");
+        toast.success(t("toast.updated"));
       } else {
         await create.mutateAsync(payload);
-        toast.success("Credit added");
+        toast.success(t("toast.added"));
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(e instanceof Error ? e.message : t("toast.saveFailed"));
     }
   }
 
@@ -106,16 +109,16 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit credit" : "Add credit"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("form.titleEdit") : t("page.addCredit")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="credit-person">Name</Label>
+            <Label htmlFor="credit-person">{t("labels.name", { ns: "common" })}</Label>
             <Input
               id="credit-person"
               value={person}
               onChange={(e) => setPerson(e.target.value)}
-              placeholder="e.g. Rahul"
+              placeholder={t("form.personPlaceholder")}
               autoFocus={!isEdit}
             />
           </div>
@@ -133,14 +136,14 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
                   direction !== d.value && "hover:bg-accent"
                 )}
               >
-                {d.label}
+                {t(`direction.${d.value}`)}
               </button>
             ))}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="credit-amount">Amount</Label>
+              <Label htmlFor="credit-amount">{t("labels.amount", { ns: "common" })}</Label>
               <Input
                 id="credit-amount"
                 type="number"
@@ -151,13 +154,13 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="credit-date">Date</Label>
+              <Label htmlFor="credit-date">{t("labels.date", { ns: "common" })}</Label>
               <Input id="credit-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Payment method</Label>
+            <Label>{t("form.method")}</Label>
             <Select value={method} onValueChange={(v) => setMethod(v as CreditMethod)}>
               <SelectTrigger>
                 <SelectValue />
@@ -165,28 +168,31 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
               <SelectContent>
                 {CREDIT_METHODS.map((m) => (
                   <SelectItem key={m} value={m}>
-                    {m}
+                    {enumLabel("method", m)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              How the money moved (GPay, PhonePe, …) — just a record, separate from which account changes.
+              {t("form.methodHelp")}
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="credit-note">Note</Label>
-            <Input id="credit-note" placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
+            <Label htmlFor="credit-note">{t("labels.note", { ns: "common" })}</Label>
+            <Input
+              id="credit-note"
+              placeholder={t("labels.optional", { ns: "common" })}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div className="pr-4">
-              <p className="text-sm font-medium">Reflect in accounts &amp; transactions</p>
+              <p className="text-sm font-medium">{t("form.reflect")}</p>
               <p className="text-xs text-muted-foreground">
-                {reflected
-                  ? `Adds a transaction and updates the selected account's balance.`
-                  : `Tracked only here on the Credits page — your accounts and transactions stay untouched.`}
+                {reflected ? t("form.reflectOn") : t("form.reflectOff")}
               </p>
             </div>
             <Switch checked={reflected} onCheckedChange={setReflected} />
@@ -194,10 +200,10 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
 
           {reflected && (
             <div className="space-y-1.5">
-              <Label>Account to update</Label>
+              <Label>{t("form.account")}</Label>
               <Select value={accountId} onValueChange={setAccountId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
+                  <SelectValue placeholder={t("form.accountPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts?.map((a) => (
@@ -208,7 +214,7 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                The bank/cash account whose balance moves (e.g. your HDFC account that GPay &amp; PhonePe draw from).
+                {t("form.accountHelp")}
               </p>
             </div>
           )}
@@ -216,10 +222,10 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={create.isPending || update.isPending}>
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? t("actions.save", { ns: "common" }) : t("actions.add", { ns: "common" })}
           </Button>
         </DialogFooter>
       </DialogContent>

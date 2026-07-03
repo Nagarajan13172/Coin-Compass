@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,6 +22,7 @@ import { useCreateHolding, useUpdateHolding } from "@/hooks/useHoldings";
 import { useSettings } from "@/hooks/useSettings";
 import { SAVING_SUBTYPES, INVESTMENT_SUBTYPES, holdingGrowth, formatMonths } from "@/lib/networth";
 import { formatMoney } from "@/lib/format";
+import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import type { Holding, HoldingClass, HoldingSubtype } from "@/lib/types";
 
@@ -36,6 +38,7 @@ interface Props {
 }
 
 export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
+  const { t } = useTranslation("wealth");
   const { data: settings } = useSettings();
   const create = useCreateHolding();
   const update = useUpdateHolding();
@@ -94,9 +97,9 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
   }
 
   async function submit() {
-    if (!name.trim()) return toast.error("Enter a name");
+    if (!name.trim()) return toast.error(t("holdingForm.enterName"));
     const v = Number(value);
-    if (!(v >= 0)) return toast.error("Enter a valid value");
+    if (!(v >= 0)) return toast.error(t("holdingForm.enterValidValue"));
     const payload = {
       name: name.trim(),
       class: cls,
@@ -113,14 +116,14 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
     try {
       if (isEdit && holding) {
         await update.mutateAsync({ id: holding._id, ...payload });
-        toast.success("Asset updated");
+        toast.success(t("holdingForm.updated"));
       } else {
         await create.mutateAsync(payload);
-        toast.success("Asset added");
+        toast.success(t("holdingForm.added"));
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(e instanceof Error ? e.message : t("toast.failedToSave"));
     }
   }
 
@@ -128,33 +131,33 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit asset" : "Add asset"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("holdingForm.editTitle") : t("holdingForm.addTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="hold-name">Name</Label>
+            <Label htmlFor="hold-name">{t("labels.name", { ns: "common" })}</Label>
             <Input
               id="hold-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. HDFC FD / Nifty index fund / Gold coins"
+              placeholder={t("holdingForm.namePlaceholder")}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label>{t("labels.type", { ns: "common" })}</Label>
               <Select value={cls} onValueChange={(v) => changeClass(v as HoldingClass)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="saving">Saving</SelectItem>
-                  <SelectItem value="investment">Investment</SelectItem>
+                  <SelectItem value="saving">{enumLabel("holdingClass", "saving")}</SelectItem>
+                  <SelectItem value="investment">{enumLabel("holdingClass", "investment")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Category</Label>
+              <Label>{t("labels.category", { ns: "common" })}</Label>
               <Select value={subtype} onValueChange={(v) => setSubtype(v as HoldingSubtype)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -162,7 +165,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                 <SelectContent>
                   {subtypes.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
-                      {s.label}
+                      {enumLabel("holding", s.value)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -170,7 +173,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="hold-value">Current value</Label>
+            <Label htmlFor="hold-value">{t("holdingForm.currentValue")}</Label>
             <Input
               id="hold-value"
               type="number"
@@ -181,12 +184,12 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="hold-provider">Provider / institution</Label>
+            <Label htmlFor="hold-provider">{t("holdingForm.providerInstitution")}</Label>
             <Input
               id="hold-provider"
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
-              placeholder="Optional (e.g. HDFC Bank, Zerodha)"
+              placeholder={t("holdingForm.providerPlaceholder")}
             />
           </div>
 
@@ -194,18 +197,18 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
           {showGrowth ? (
             <div className="space-y-3 rounded-lg border border-dashed p-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-muted-foreground">Deposit / growth details</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("holdingForm.depositGrowthDetails")}</p>
                 <button
                   type="button"
                   className="text-xs text-muted-foreground hover:text-foreground hover:underline"
                   onClick={() => setShowGrowth(false)}
                 >
-                  Hide
+                  {t("holdingForm.hide")}
                 </button>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="hold-invested">Amount invested</Label>
+                <Label htmlFor="hold-invested">{t("holdingForm.amountInvested")}</Label>
                 <Input
                   id="hold-invested"
                   type="number"
@@ -218,7 +221,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="hold-start">Start date</Label>
+                  <Label htmlFor="hold-start">{t("labels.startDate", { ns: "common" })}</Label>
                   <Input
                     id="hold-start"
                     type="date"
@@ -227,7 +230,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="hold-maturity">Maturity date</Label>
+                  <Label htmlFor="hold-maturity">{t("holdingForm.maturityDate")}</Label>
                   <Input
                     id="hold-maturity"
                     type="date"
@@ -239,7 +242,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="hold-rate">Interest rate (% / yr)</Label>
+                  <Label htmlFor="hold-rate">{t("holdingForm.interestRatePerYr")}</Label>
                   <Input
                     id="hold-rate"
                     type="number"
@@ -250,7 +253,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="hold-maturity-value">Maturity value</Label>
+                  <Label htmlFor="hold-maturity-value">{t("holdingForm.maturityValue")}</Label>
                   <Input
                     id="hold-maturity-value"
                     type="number"
@@ -263,25 +266,25 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
               </div>
 
               <p className="text-[11px] leading-snug text-muted-foreground">
-                Enter <b>either</b> the interest rate or the maturity value — the other is
-                calculated for you from the dates.
+                {t("holdingForm.enterEitherPre")} <b>{t("holdingForm.either")}</b>{" "}
+                {t("holdingForm.enterEitherPost")}
               </p>
 
               {/* Live calculation readout */}
               {(growth.termYears != null || growth.gain != null || growth.projectedNow != null) && (
                 <div className="space-y-1.5 rounded-md bg-muted/60 p-2.5 text-xs">
                   {growth.termYears != null && (
-                    <ReadoutRow label="Term" value={formatMonths(Math.round(growth.termYears * 12))} />
+                    <ReadoutRow label={t("holdingForm.term")} value={formatMonths(Math.round(growth.termYears * 12))} />
                   )}
                   {growth.rate != null && (
                     <ReadoutRow
-                      label={growth.rateDerived ? "Return (calculated)" : "Return"}
-                      value={`${growth.rate.toFixed(1)}% / yr`}
+                      label={growth.rateDerived ? t("holdingForm.returnCalculated") : t("holdingForm.return")}
+                      value={t("units.perYearRate", { rate: growth.rate.toFixed(1) })}
                     />
                   )}
                   {growth.gain != null && (
                     <ReadoutRow
-                      label="Total gain"
+                      label={t("holdingForm.totalGain")}
                       value={`${growth.gain >= 0 ? "+" : "−"}${formatMoney(Math.abs(growth.gain))}${
                         growth.gainPct != null ? ` (${Math.round(growth.gainPct)}%)` : ""
                       }`}
@@ -290,7 +293,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                   )}
                   {growth.projectedNow != null && (
                     <div className="flex items-center justify-between gap-2 pt-0.5">
-                      <span className="text-muted-foreground">Worth today (est.)</span>
+                      <span className="text-muted-foreground">{t("holdingForm.worthToday")}</span>
                       <span className="flex items-center gap-2">
                         <span className="tnum font-medium">{formatMoney(Math.round(growth.projectedNow))}</span>
                         <Button
@@ -300,7 +303,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                           className="h-6 px-2 text-[11px]"
                           onClick={() => setValue(String(Math.round(growth.projectedNow!)))}
                         >
-                          Use as value
+                          {t("holdingForm.useAsValue")}
                         </Button>
                       </span>
                     </div>
@@ -313,7 +316,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                       className="text-primary hover:underline"
                       onClick={() => setRate(growth.rate!.toFixed(2))}
                     >
-                      Fill rate with {growth.rate.toFixed(1)}%
+                      {t("holdingForm.fillRate", { rate: growth.rate.toFixed(1) })}
                     </button>
                   )}
                   {maturityValue === "" && growth.maturityValue != null && growth.maturityDerived && (
@@ -322,7 +325,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                       className="block text-primary hover:underline"
                       onClick={() => setMaturityValue(String(Math.round(growth.maturityValue!)))}
                     >
-                      Fill maturity value with {formatMoney(Math.round(growth.maturityValue))}
+                      {t("holdingForm.fillMaturity", { amount: formatMoney(Math.round(growth.maturityValue)) })}
                     </button>
                   )}
                 </div>
@@ -334,17 +337,17 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
               className="text-xs font-medium text-primary hover:underline"
               onClick={() => setShowGrowth(true)}
             >
-              + Add deposit / growth details (rate, maturity, gain)
+              {t("holdingForm.addGrowthDetails")}
             </button>
           )}
           {isEdit && holding && <RecordMeta createdAt={holding.createdAt} updatedAt={holding.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={create.isPending || update.isPending}>
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? t("actions.save", { ns: "common" }) : t("actions.add", { ns: "common" })}
           </Button>
         </DialogFooter>
       </DialogContent>

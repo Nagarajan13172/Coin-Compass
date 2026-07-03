@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateBudget, useUpdateBudget } from "@/hooks/useBudgets";
 import { RecordMeta } from "@/components/common/RecordMeta";
+import { categoryLabel, enumLabel } from "@/lib/i18nLabels";
 import type { Budget, BudgetPeriod } from "@/lib/types";
 
 const OVERALL = "__overall__";
@@ -34,6 +36,7 @@ interface Props {
 }
 
 export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, defaultPeriod }: Props) {
+  const { t } = useTranslation("planning");
   const { data: categories } = useCategories("expense");
   const create = useCreateBudget();
   const update = useUpdateBudget();
@@ -52,7 +55,7 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
 
   async function submit() {
     const amt = Number(amount);
-    if (!amt || amt <= 0) return toast.error("Enter a valid amount");
+    if (!amt || amt <= 0) return toast.error(t("budgetForm.invalidAmount"));
     const payload = {
       category: category === OVERALL ? null : category,
       amount: amt,
@@ -61,14 +64,14 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
     try {
       if (isEdit && budget) {
         await update.mutateAsync({ id: budget._id, ...payload });
-        toast.success("Budget updated");
+        toast.success(t("budgetForm.updated"));
       } else {
         await create.mutateAsync(payload);
-        toast.success("Budget created");
+        toast.success(t("budgetForm.created"));
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(e instanceof Error ? e.message : t("budgetForm.saveFailed"));
     }
   }
 
@@ -76,20 +79,20 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit budget" : "New budget"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("budgetForm.editTitle") : t("budgetForm.newTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Category</Label>
+            <Label>{t("labels.category", { ns: "common" })}</Label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={OVERALL}>Overall (all expenses)</SelectItem>
+                <SelectItem value={OVERALL}>{t("budgetForm.overallOption")}</SelectItem>
                 {categories?.map((c) => (
                   <SelectItem key={c._id} value={c._id}>
-                    {c.name}
+                    {categoryLabel(c.name)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -97,7 +100,7 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="budget-amt">Amount</Label>
+              <Label htmlFor="budget-amt">{t("labels.amount", { ns: "common" })}</Label>
               <Input
                 id="budget-amt"
                 type="number"
@@ -108,15 +111,15 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Period</Label>
+              <Label>{t("budgetForm.period")}</Label>
               <Select value={period} onValueChange={(v) => setPeriod(v as BudgetPeriod)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
+                  <SelectItem value="weekly">{enumLabel("frequency", "weekly")}</SelectItem>
+                  <SelectItem value="monthly">{enumLabel("frequency", "monthly")}</SelectItem>
+                  <SelectItem value="yearly">{enumLabel("frequency", "yearly")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -125,10 +128,10 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={create.isPending || update.isPending}>
-            {isEdit ? "Save" : "Create"}
+            {isEdit ? t("actions.save", { ns: "common" }) : t("actions.create", { ns: "common" })}
           </Button>
         </DialogFooter>
       </DialogContent>

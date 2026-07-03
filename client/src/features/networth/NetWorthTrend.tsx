@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { format, parseISO, subDays } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { compactNumber, formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
 import type { NetWorthSnapshot } from "@/lib/types";
 
 type Range = "1m" | "3m" | "1y" | "all";
@@ -13,13 +15,14 @@ const RANGE_DAYS: Record<Range, number> = { "1m": 30, "3m": 90, "1y": 365, all: 
 
 function labelFor(date: string) {
   try {
-    return format(parseISO(date), "dd MMM");
+    return format(parseISO(date), "dd MMM", { locale: dateFnsLocale() });
   } catch {
     return date;
   }
 }
 
 export function NetWorthTrend({ data, loading }: { data: NetWorthSnapshot[] | undefined; loading: boolean }) {
+  const { t } = useTranslation("wealth");
   const [range, setRange] = useState<Range>("3m");
 
   const points = useMemo(() => {
@@ -47,7 +50,7 @@ export function NetWorthTrend({ data, loading }: { data: NetWorthSnapshot[] | un
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
         <div className="min-w-0">
-          <CardTitle as="h2">Net worth over time</CardTitle>
+          <CardTitle as="h2">{t("trend.title")}</CardTitle>
           {latest && (
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
               <span className={`tnum font-semibold ${negative ? "text-expense" : "text-income"}`}>
@@ -65,10 +68,10 @@ export function NetWorthTrend({ data, loading }: { data: NetWorthSnapshot[] | un
         </div>
         <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
           <TabsList className="h-8">
-            <TabsTrigger value="1m" className="text-xs">1M</TabsTrigger>
-            <TabsTrigger value="3m" className="text-xs">3M</TabsTrigger>
-            <TabsTrigger value="1y" className="text-xs">1Y</TabsTrigger>
-            <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+            <TabsTrigger value="1m" className="text-xs">{t("trend.range1m")}</TabsTrigger>
+            <TabsTrigger value="3m" className="text-xs">{t("trend.range3m")}</TabsTrigger>
+            <TabsTrigger value="1y" className="text-xs">{t("trend.range1y")}</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs">{t("trend.rangeAll")}</TabsTrigger>
           </TabsList>
         </Tabs>
       </CardHeader>
@@ -112,7 +115,7 @@ export function NetWorthTrend({ data, loading }: { data: NetWorthSnapshot[] | un
                   fontSize: 12,
                 }}
                 labelFormatter={(l) => labelFor(String(l))}
-                formatter={(value: number) => [formatMoney(value), "Net worth"]}
+                formatter={(value: number) => [formatMoney(value), t("trend.seriesName")]}
               />
               <Area type="monotone" dataKey="netWorth" stroke={stroke} strokeWidth={2} fill={`url(#${fillId})`} />
             </AreaChart>
@@ -122,9 +125,9 @@ export function NetWorthTrend({ data, loading }: { data: NetWorthSnapshot[] | un
             <div className="rounded-full bg-secondary p-3">
               <TrendingUp className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-sm font-medium">Your trend starts building today</p>
+            <p className="text-sm font-medium">{t("trend.emptyTitle")}</p>
             <p className="max-w-xs text-xs text-muted-foreground">
-              We record one net-worth point each day you open this page. Check back over the coming days to watch it grow.
+              {t("trend.emptyDesc")}
             </p>
           </div>
         )}

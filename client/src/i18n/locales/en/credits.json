@@ -1,0 +1,99 @@
+{
+  "page": {
+    "title": "Credits",
+    "description": "Money you've given to or received from friends & family",
+    "addCredit": "Add credit"
+  },
+  "totals": {
+    "owed": "You're owed",
+    "owe": "You owe",
+    "net": "Net"
+  },
+  "empty": {
+    "title": "No credits yet",
+    "description": "Track money you give to or receive from friends and family — optionally reflect it in your accounts."
+  },
+  "person": {
+    "entries_one": "{{count}} entry",
+    "entries_other": "{{count}} entries",
+    "owesYou": "Owes you {{amount}}",
+    "youOwe": "You owe {{amount}}",
+    "addWith": "Add credit with {{person}}"
+  },
+  "direction": {
+    "given": "You gave",
+    "received": "You received"
+  },
+  "entry": {
+    "reflected": "Reflected in accounts",
+    "notReflected": "Not reflected — Credits page only",
+    "via": "via {{method}}",
+    "actions": "Credit entry actions"
+  },
+  "delete": {
+    "confirm": "Delete this credit entry with {{person}}?",
+    "success": "Credit deleted"
+  },
+  "form": {
+    "titleEdit": "Edit credit",
+    "personPlaceholder": "e.g. Rahul",
+    "method": "Payment method",
+    "methodHelp": "How the money moved (GPay, PhonePe, …) — just a record, separate from which account changes.",
+    "reflect": "Reflect in accounts & transactions",
+    "reflectOn": "Adds a transaction and updates the selected account's balance.",
+    "reflectOff": "Tracked only here on the Credits page — your accounts and transactions stay untouched.",
+    "account": "Account to update",
+    "accountPlaceholder": "Select account",
+    "accountHelp": "The bank/cash account whose balance moves (e.g. your HDFC account that GPay & PhonePe draw from)."
+  },
+  "toast": {
+    "enterPerson": "Enter who this is with",
+    "enterAmount": "Enter an amount greater than 0",
+    "selectAccount": "Select an account to reflect this in your balances",
+    "updated": "Credit updated",
+    "added": "Credit added",
+    "saveFailed": "Failed to save"
+  },
+  "gold": {
+    "title": "Gold & Silver",
+    "description": "Live precious-metal rates in ₹ · auto-refreshed daily, or refresh now",
+    "cityAria": "City",
+    "refreshAria": "Refresh rates now",
+    "view": "View",
+    "metal": {
+      "gold": "Gold",
+      "silver": "Silver"
+    },
+    "approx": "approx",
+    "perGram22k": "22K / gram",
+    "perGram24k": "24K / gram",
+    "perGram18k": "18K / gram",
+    "approxDetail": "≈ spot 22K {{spot}} · +{{premium}}% (duty, GST, margin)",
+    "sourceDetail": "{{source}} · spot 22K {{spot}}",
+    "spotOz": "Spot {{value}}/oz",
+    "spot22kCard": "Spot 22K {{value}}",
+    "lastClose": "Last close · {{date}}",
+    "asOf": "As of {{date}}",
+    "asOfLower": "as of {{date}}",
+    "cardHeadline": "Gold · 22K / gram · {{city}}",
+    "silverLine": "Silver · 999 / gram",
+    "seriesGold": "22K / g",
+    "seriesOther": "/ g",
+    "notConfiguredTitle": "Gold tracking isn’t set up yet",
+    "notConfiguredDesc": "Add a free GOLD_API_KEY (from goldapi.io) to the server environment to enable daily gold & silver rates.",
+    "noRatesTitle": "No rates yet",
+    "noRatesDesc": "The first snapshot will appear after the next daily fetch. Check back shortly.",
+    "history": "Price history",
+    "range": {
+      "7d": "7D",
+      "30d": "30D",
+      "90d": "90D",
+      "1y": "1Y"
+    },
+    "historyBuildingTitle": "History is still building.",
+    "historyBuildingDesc": "A new data point is added each day — check back tomorrow.",
+    "disclaimer": "Spot from goldapi.io (international spot × ₹). Chennai shows GRT Jewellers’ published counter rate (from grtjewels.com); other cities estimate spot + a local premium (duty, GST & margin) and exclude making charges. Refreshed automatically once a day, or on demand with the refresh button above (max once every 15 minutes).",
+    "refreshed": "Rates refreshed",
+    "refreshFailed": "Couldn't refresh rates"
+  }
+}

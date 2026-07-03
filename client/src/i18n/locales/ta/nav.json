@@ -1,0 +1,29 @@
+{
+  "groups": {
+    "overview": "கண்ணோட்டம்",
+    "money": "பணம்",
+    "planning": "திட்டமிடல்",
+    "wealth": "செல்வம்"
+  },
+  "items": {
+    "dashboard": "டாஷ்போர்டு",
+    "reports": "அறிக்கைகள்",
+    "calendar": "நாட்காட்டி",
+    "transactions": "பரிவர்த்தனைகள்",
+    "accounts": "கணக்குகள்",
+    "recurring": "தொடர்வன",
+    "categories": "வகைகள்",
+    "budgets": "பட்ஜெட்டுகள்",
+    "goals": "இலக்குகள்",
+    "netWorth": "நிகர மதிப்பு",
+    "loans": "கடன்கள்",
+    "credits": "கொடுக்கல் வாங்கல்",
+    "gold": "தங்கம்",
+    "settings": "அமைப்புகள்"
+  },
+  "more": "மேலும்",
+  "menu": "மெனு",
+  "expandSidebar": "பக்கப்பட்டியை விரிவாக்கு",
+  "collapseSidebar": "பக்கப்பட்டியைச் சுருக்கு",
+  "accountMenu": "கணக்கு மெனு"
+}

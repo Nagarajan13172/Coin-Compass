@@ -1,0 +1,164 @@
+{
+  "page": {
+    "title": "Recurring",
+    "description": "Automatically post rent, salary, subscriptions and other regular transactions.",
+    "runDue": "Run due",
+    "newRule": "New rule",
+    "actionsAria": "Recurring actions"
+  },
+  "summary": {
+    "income": "Monthly income",
+    "expenses": "Monthly expenses",
+    "net": "Net / month"
+  },
+  "badges": {
+    "overdue": "Overdue",
+    "ended": "Ended",
+    "paused": "Paused"
+  },
+  "every": {
+    "day_one": "Every day",
+    "day_other": "Every {{count}} days",
+    "week_one": "Every week",
+    "week_other": "Every {{count}} weeks",
+    "month_one": "Every month",
+    "month_other": "Every {{count}} months",
+    "year_one": "Every year",
+    "year_other": "Every {{count}} years"
+  },
+  "status": {
+    "ended": "Ended {{date}}",
+    "paused": "Paused",
+    "overdueSince": "Overdue since {{date}}",
+    "next": "Next {{date}}",
+    "endsSuffix": " · Ends {{date}}",
+    "lastPostedSuffix": " · Last posted {{date}}"
+  },
+  "menu": {
+    "runNow": "Run now",
+    "skipNext": "Skip next",
+    "pause": "Pause",
+    "resume": "Resume",
+    "viewPosted": "View posted"
+  },
+  "title": {
+    "fallback": "Recurring"
+  },
+  "confirm": {
+    "delete": "Delete this recurring rule?"
+  },
+  "toast": {
+    "posted_one": "Posted {{count}} transaction",
+    "posted_other": "Posted {{count}} transactions",
+    "nothingDueRule": "Nothing due for this rule",
+    "skipped": "Skipped the next occurrence",
+    "deleted": "Deleted"
+  },
+  "empty": {
+    "title": "No recurring transactions",
+    "description": "Automate rent, salary, subscriptions and more.",
+    "action": "New recurring"
+  },
+  "form": {
+    "editTitle": "Edit recurring",
+    "newTitle": "New recurring transaction",
+    "starts": "Starts",
+    "fromAccount": "From account",
+    "toAccount": "To account",
+    "repeatEvery": "Repeat every",
+    "frequency": "Frequency",
+    "freqOption": {
+      "daily": "Day(s)",
+      "weekly": "Week(s)",
+      "monthly": "Month(s)",
+      "yearly": "Year(s)"
+    },
+    "endsOptional": "Ends (optional)",
+    "payee": "Payee",
+    "applyToLoan": "Apply to loan (EMI)",
+    "loanLeft": "{{amount}} left",
+    "emiPrefix": "Each EMI: ≈",
+    "emiSuffix": "to principal · {{interest}} interest.",
+    "emiHint": "Each posted EMI reduces the loan's balance by its principal portion.",
+    "nextOccurrences": "Next occurrences",
+    "errors": {
+      "amount": "Enter a valid amount",
+      "account": "Select an account",
+      "accountsDiffer": "Accounts must differ",
+      "category": "Pick a category",
+      "endAfterStart": "End date must be after the start date"
+    },
+    "toast": {
+      "updated": "Recurring updated",
+      "created": "Recurring created",
+      "saveFailed": "Failed to save"
+    }
+  },
+  "post": {
+    "dialogTitle": "Post · {{title}}",
+    "description": "Confirm the amount and date, then post this {{frequency}} {{type}}. The transaction is linked to the rule and the schedule moves to the next occurrence.",
+    "loanNotePrefix": "This also reduces",
+    "loanNoteSuffix": "'s outstanding balance by the amount posted.",
+    "submit": "Post transaction",
+    "fallbackTitle": "Recurring",
+    "errors": {
+      "amount": "Enter an amount greater than 0"
+    },
+    "toast": {
+      "posted": "Transaction posted",
+      "failed": "Failed to post"
+    }
+  },
+  "runDue": {
+    "title": "Run due recurring",
+    "descChoose": "Choose which rules to post now. Each posts every occurrence due up to today.",
+    "descCaughtUp": "You're all caught up — nothing is due right now.",
+    "posting_one": "Posting {{count}} transaction",
+    "posting_other": "Posting {{count}} transactions",
+    "net": "Net",
+    "expenses": "Expenses",
+    "income": "Income",
+    "postBtn_one": "Post {{count}} transaction",
+    "postBtn_other": "Post {{count}} transactions",
+    "postingProgress": "Posting…",
+    "view": "View",
+    "toast": {
+      "posted_one": "Posted {{count}} recurring transaction",
+      "posted_other": "Posted {{count}} recurring transactions",
+      "nothingDue": "Nothing was due",
+      "failed": "Failed to run"
+    }
+  },
+  "occurrences": {
+    "title": "Posted transactions",
+    "deleteAria": "Delete transaction",
+    "empty": "This rule hasn't posted any transactions yet.",
+    "toast": {
+      "deleted": "Transaction deleted"
+    }
+  },
+  "category": {
+    "editTitle": "Edit category",
+    "newTitle": "New category",
+    "namePlaceholder": "e.g. Coffee",
+    "deleteAnyway": "Delete anyway and clear it from those transactions?",
+    "errors": {
+      "name": "Enter a name"
+    },
+    "toast": {
+      "updated": "Category updated",
+      "created": "Category created",
+      "saveFailed": "Failed to save",
+      "deleted": "Category deleted",
+      "deleteFailed": "Failed"
+    }
+  },
+  "categoriesPage": {
+    "title": "Categories",
+    "description": "Organise income and expenses",
+    "newCategory": "New category",
+    "emptyExpense": "No expense categories",
+    "emptyIncome": "No income categories",
+    "emptyDescription": "Add a category to start classifying transactions."
+  }
+}

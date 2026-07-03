@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { addDays, format, parseISO } from "date-fns";
 import { CalendarRange, ChevronDown, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ function csvUrl(from?: string, to?: string) {
 
 /** Export CSV control: this period, all time, or a custom date range. */
 export function ExportMenu({ range, periodLabel }: ExportMenuProps) {
+  const { t } = useTranslation("reports");
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState(() => format(parseISO(range.from), "yyyy-MM-dd"));
   const [to, setTo] = useState(() => format(parseISO(range.to), "yyyy-MM-dd"));
@@ -37,13 +39,13 @@ export function ExportMenu({ range, periodLabel }: ExportMenuProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline">
-          <Download /> Export CSV
+          <Download /> {t("export.button")}
           <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-0">
         <div className="border-b p-3">
-          <p className="mb-1 px-1 text-xs font-medium text-muted-foreground">Download transactions</p>
+          <p className="mb-1 px-1 text-xs font-medium text-muted-foreground">{t("export.downloadTransactions")}</p>
           <a
             href={csvUrl(range.from, range.to)}
             onClick={() => setOpen(false)}
@@ -51,7 +53,7 @@ export function ExportMenu({ range, periodLabel }: ExportMenuProps) {
           >
             <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1">
-              This period
+              {t("export.thisPeriod")}
               <span className="block truncate text-xs text-muted-foreground">{periodLabel}</span>
             </span>
           </a>
@@ -61,15 +63,15 @@ export function ExportMenu({ range, periodLabel }: ExportMenuProps) {
             className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
           >
             <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="flex-1">All transactions</span>
+            <span className="flex-1">{t("export.allTransactions")}</span>
           </a>
         </div>
 
         <div className="space-y-2 p-3">
-          <p className="px-1 text-xs font-medium text-muted-foreground">Custom range</p>
+          <p className="px-1 text-xs font-medium text-muted-foreground">{t("export.customRange")}</p>
           <div className="flex items-center gap-2">
             <div className="flex-1 space-y-1">
-              <Label htmlFor="export-from" className="text-[11px] text-muted-foreground">From</Label>
+              <Label htmlFor="export-from" className="text-[11px] text-muted-foreground">{t("labels.from", { ns: "common" })}</Label>
               <Input
                 id="export-from"
                 type="date"
@@ -80,7 +82,7 @@ export function ExportMenu({ range, periodLabel }: ExportMenuProps) {
               />
             </div>
             <div className="flex-1 space-y-1">
-              <Label htmlFor="export-to" className="text-[11px] text-muted-foreground">To</Label>
+              <Label htmlFor="export-to" className="text-[11px] text-muted-foreground">{t("labels.to", { ns: "common" })}</Label>
               <Input
                 id="export-to"
                 type="date"
@@ -94,11 +96,11 @@ export function ExportMenu({ range, periodLabel }: ExportMenuProps) {
           <Button asChild={!!customUrl} className="w-full" disabled={!customUrl}>
             {customUrl ? (
               <a href={customUrl} onClick={() => setOpen(false)}>
-                <Download /> Export range
+                <Download /> {t("export.exportRange")}
               </a>
             ) : (
               <span>
-                <Download /> Export range
+                <Download /> {t("export.exportRange")}
               </span>
             )}
           </Button>

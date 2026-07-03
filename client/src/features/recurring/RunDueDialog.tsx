@@ -16,9 +16,13 @@ import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { Money } from "@/components/common/Money";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/i18nLabels";
+import { dateFnsLocale } from "@/lib/dates";
 import { useRunRecurringOne } from "@/hooks/useRecurring";
-import { dueDates, ruleTitle } from "@/lib/recurring";
+import { dueDates } from "@/lib/recurring";
 import type { Recurring } from "@/lib/types";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { toast } from "sonner";
 
 interface Props {
@@ -27,12 +31,19 @@ interface Props {
   rules: Recurring[] | undefined;
 }
 
+/** Human label for a rule — its category (translated), or the note/transfer fallback. */
+function ruleName(r: Recurring, t: TFunction) {
+  if (r.type === "transfer") return t("txnType.transfer", { ns: "common" });
+  return r.category?.name ? categoryLabel(r.category.name) : r.note || t("title.fallback");
+}
+
 /**
  * Preview-and-confirm dialog for "Run due". Lists every rule with occurrences due
  * right now, lets the user pick which to post, and shows the net cash impact before
  * anything is written — so a burst of transactions is never posted by accident.
  */
 export function RunDueDialog({ open, onOpenChange, rules }: Props) {
+  const { t } = useTranslation("recurring");
   const navigate = useNavigate();
   const runOne = useRunRecurringOne();
   const [running, setRunning] = useState(false);
@@ -87,14 +98,14 @@ export function RunDueDialog({ open, onOpenChange, rules }: Props) {
       }
       onOpenChange(false);
       if (created > 0) {
-        toast.success(`Posted ${created} recurring transaction${created === 1 ? "" : "s"}`, {
-          action: { label: "View", onClick: () => navigate("/transactions") },
+        toast.success(t("runDue.toast.posted", { count: created }), {
+          action: { label: t("runDue.view"), onClick: () => navigate("/transactions") },
         });
       } else {
-        toast.success("Nothing was due");
+        toast.success(t("runDue.toast.nothingDue"));
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to run");
+      toast.error(e instanceof Error ? e.message : t("runDue.toast.failed"));
     } finally {
       setRunning(false);
     }
@@ -104,11 +115,9 @@ export function RunDueDialog({ open, onOpenChange, rules }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Run due recurring</DialogTitle>
+          <DialogTitle>{t("runDue.title")}</DialogTitle>
           <DialogDescription>
-            {due.length > 0
-              ? "Choose which rules to post now. Each posts every occurrence due up to today."
-              : "You're all caught up — nothing is due right now."}
+            {due.length > 0 ? t("runDue.descChoose") : t("runDue.descCaughtUp")}
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +152,7 @@ export function RunDueDialog({ open, onOpenChange, rules }: Props) {
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <p className="truncate text-sm font-medium">{ruleTitle(rule)}</p>
+                          <p className="truncate text-sm font-medium">{ruleName(rule, t)}</p>
                           {dates.length > 1 && (
                             <span className="shrink-0 rounded bg-muted px-1.5 text-xs tabular-nums text-muted-foreground">
                               ×{dates.length}
@@ -158,8 +167,8 @@ export function RunDueDialog({ open, onOpenChange, rules }: Props) {
                             </>
                           )}
                           <span aria-hidden>·</span>
-                          {format(dates[0], "dd MMM")}
-                          {dates.length > 1 && ` – ${format(dates[dates.length - 1], "dd MMM")}`}
+                          {format(dates[0], "dd MMM", { locale: dateFnsLocale() })}
+                          {dates.length > 1 && ` – ${format(dates[dates.length - 1], "dd MMM", { locale: dateFnsLocale() })}`}
                         </p>
                       </div>
                       <Money amount={total} type={rule.type} signed className="shrink-0 text-sm" />
@@ -172,7 +181,7 @@ export function RunDueDialog({ open, onOpenChange, rules }: Props) {
             <div className="rounded-lg border bg-muted/30 p-3 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
-                  Posting {count} transaction{count === 1 ? "" : "s"}
+                  {t("runDue.posting", { count })}
                 </span>
                 <span
                   className={cn(
@@ -180,13 +189,13 @@ export function RunDueDialog({ open, onOpenChange, rules }: Props) {
                     net > 0 ? "text-income" : net < 0 ? "text-expense" : "text-muted-foreground"
                   )}
                 >
-                  Net {formatMoney(net, { signed: true })}
+                  {t("runDue.net")} {formatMoney(net, { signed: true })}
                 </span>
               </div>
               {(income > 0 || expense > 0) && (
                 <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
-                  {expense > 0 && <span>Expenses −{formatMoney(expense)}</span>}
-                  {income > 0 && <span>Income +{formatMoney(income)}</span>}
+                  {expense > 0 && <span>{t("runDue.expenses")} −{formatMoney(expense)}</span>}
+                  {income > 0 && <span>{t("runDue.income")} +{formatMoney(income)}</span>}
                 </div>
               )}
             </div>
@@ -195,13 +204,11 @@ export function RunDueDialog({ open, onOpenChange, rules }: Props) {
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            {due.length > 0 ? "Cancel" : "Close"}
+            {due.length > 0 ? t("actions.cancel", { ns: "common" }) : t("actions.close", { ns: "common" })}
           </Button>
           {due.length > 0 && (
             <Button onClick={run} disabled={running || chosen.length === 0}>
-              {running
-                ? "Posting…"
-                : `Post ${count} transaction${count === 1 ? "" : "s"}`}
+              {running ? t("runDue.postingProgress") : t("runDue.postBtn", { count })}
             </Button>
           )}
         </DialogFooter>

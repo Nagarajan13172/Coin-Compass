@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   AreaChart,
@@ -11,16 +12,15 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { TrendDatum } from "@/lib/types";
-
-const SERIES_LABEL: Record<string, string> = { income: "Income", expense: "Expense" };
 
 function labelFor(bucket: string) {
   // bucket is YYYY-MM-DD or YYYY-MM
   try {
-    if (/^\d{4}-\d{2}$/.test(bucket)) return format(parseISO(`${bucket}-01`), "MMM");
-    if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) return format(parseISO(bucket), "dd MMM");
+    if (/^\d{4}-\d{2}$/.test(bucket)) return format(parseISO(`${bucket}-01`), "MMM", { locale: dateFnsLocale() });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) return format(parseISO(bucket), "dd MMM", { locale: dateFnsLocale() });
   } catch {
     /* noop */
   }
@@ -39,6 +39,8 @@ export function TrendArea({
   data: TrendDatum[];
   onSelect?: (bucket: string) => void;
 }) {
+  const { t } = useTranslation("common");
+  const seriesLabel = (key: string) => t(`txnType.${key}`, { defaultValue: key });
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setHidden((h) => ({ ...h, [key]: !h[key] }));
 
@@ -91,7 +93,7 @@ export function TrendArea({
             fontSize: 12,
           }}
           labelFormatter={(l) => labelFor(String(l))}
-          formatter={(value: number, name) => [formatMoney(value), SERIES_LABEL[String(name)] ?? name]}
+          formatter={(value: number, name) => [formatMoney(value), seriesLabel(String(name))]}
         />
         <Legend
           iconType="circle"
@@ -106,7 +108,7 @@ export function TrendArea({
                   hidden[key] && "text-muted-foreground/50 line-through"
                 )}
               >
-                {SERIES_LABEL[String(value)] ?? value}
+                {seriesLabel(String(value))}
               </span>
             );
           }}

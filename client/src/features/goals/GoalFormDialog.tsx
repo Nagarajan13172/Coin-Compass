@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
+  const { t } = useTranslation("planning");
   const { data: settings } = useSettings();
   const create = useCreateGoal();
   const update = useUpdateGoal();
@@ -49,9 +51,9 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
   }, [open, goal]);
 
   async function submit() {
-    if (!name.trim()) return toast.error("Enter a goal name");
+    if (!name.trim()) return toast.error(t("goalForm.enterName"));
     const target = Number(targetAmount) || 0;
-    if (target <= 0) return toast.error("Enter a target amount greater than 0");
+    if (target <= 0) return toast.error(t("goalForm.enterTarget"));
 
     const payload = {
       name: name.trim(),
@@ -66,14 +68,14 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
     try {
       if (isEdit && goal) {
         await update.mutateAsync({ id: goal._id, ...payload });
-        toast.success("Goal updated");
+        toast.success(t("goalForm.updated"));
       } else {
         await create.mutateAsync(payload);
-        toast.success("Goal created");
+        toast.success(t("goalForm.created"));
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(e instanceof Error ? e.message : t("goalForm.saveFailed"));
     }
   }
 
@@ -81,21 +83,21 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit goal" : "New savings goal"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("goalForm.editTitle") : t("goalForm.newTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="goal-name">Name</Label>
+            <Label htmlFor="goal-name">{t("labels.name", { ns: "common" })}</Label>
             <Input
               id="goal-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. New bike"
+              placeholder={t("goalForm.namePlaceholder")}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="goal-target">Target amount</Label>
+              <Label htmlFor="goal-target">{t("goalForm.targetAmount")}</Label>
               <Input
                 id="goal-target"
                 type="number"
@@ -106,7 +108,7 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="goal-saved">Saved so far</Label>
+              <Label htmlFor="goal-saved">{t("goalForm.savedSoFar")}</Label>
               <Input
                 id="goal-saved"
                 type="number"
@@ -118,18 +120,18 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="goal-monthly">Monthly saving</Label>
+              <Label htmlFor="goal-monthly">{t("goalForm.monthlySaving")}</Label>
               <Input
                 id="goal-monthly"
                 type="number"
                 inputMode="decimal"
                 value={monthlyContribution}
                 onChange={(e) => setMonthlyContribution(e.target.value)}
-                placeholder="Optional"
+                placeholder={t("labels.optional", { ns: "common" })}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="goal-date">Target date</Label>
+              <Label htmlFor="goal-date">{t("goalForm.targetDate")}</Label>
               <Input
                 id="goal-date"
                 type="date"
@@ -139,24 +141,24 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            A monthly saving amount lets us estimate when you'll reach the goal.
+            {t("goalForm.monthlyHint")}
           </p>
           <div className="space-y-1.5">
-            <Label>Color</Label>
+            <Label>{t("labels.color", { ns: "common" })}</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
           <div className="space-y-1.5">
-            <Label>Icon</Label>
+            <Label>{t("labels.icon", { ns: "common" })}</Label>
             <IconPicker value={icon} color={color} onChange={setIcon} />
           </div>
           {isEdit && goal && <RecordMeta createdAt={goal.createdAt} updatedAt={goal.updatedAt} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={create.isPending || update.isPending}>
-            {isEdit ? "Save" : "Create"}
+            {isEdit ? t("actions.save", { ns: "common" }) : t("actions.create", { ns: "common" })}
           </Button>
         </DialogFooter>
       </DialogContent>

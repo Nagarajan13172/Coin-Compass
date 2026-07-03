@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ArrowRight, Link2, X } from "lucide-react";
@@ -23,6 +24,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
+import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { useUIStore } from "@/stores/ui";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -39,10 +41,10 @@ import { CategoryPicker } from "./CategoryPicker";
 
 const NO_LOAN = "__none__";
 
-const TYPE_TABS: { value: TxnType; label: string; cls: string }[] = [
-  { value: "expense", label: "Expense", cls: "data-[active=true]:bg-expense data-[active=true]:text-expense-foreground" },
-  { value: "income", label: "Income", cls: "data-[active=true]:bg-income data-[active=true]:text-income-foreground" },
-  { value: "transfer", label: "Transfer", cls: "data-[active=true]:bg-primary data-[active=true]:text-primary-foreground" },
+const TYPE_TABS: { value: TxnType; cls: string }[] = [
+  { value: "expense", cls: "data-[active=true]:bg-expense data-[active=true]:text-expense-foreground" },
+  { value: "income", cls: "data-[active=true]:bg-income data-[active=true]:text-income-foreground" },
+  { value: "transfer", cls: "data-[active=true]:bg-primary data-[active=true]:text-primary-foreground" },
 ];
 
 function refId(v: RefLite | string | null | undefined): string | null {
@@ -51,6 +53,7 @@ function refId(v: RefLite | string | null | undefined): string | null {
 }
 
 export function TransactionSheet() {
+  const { t } = useTranslation("transactions");
   const open = useUIStore((s) => s.txnSheetOpen);
   const close = useUIStore((s) => s.closeTxnSheet);
   const editing = useUIStore((s) => s.editingTxn);
@@ -155,14 +158,14 @@ export function TransactionSheet() {
   );
 
   async function handleSubmit() {
-    if (amount <= 0) return toast.error("Enter an amount greater than zero");
-    if (!accountId) return toast.error("Select an account");
+    if (amount <= 0) return toast.error(t("toast.amountRequired"));
+    if (!accountId) return toast.error(t("toast.accountRequired"));
     if (type === "transfer" && accountId === toAccountId)
-      return toast.error("Source and destination must differ");
+      return toast.error(t("toast.accountsDiffer"));
     if (personMode) {
-      if (!person.trim()) return toast.error("Enter who this is with");
+      if (!person.trim()) return toast.error(t("toast.personRequired"));
     } else if (type !== "transfer" && !categoryId) {
-      return toast.error("Pick a category");
+      return toast.error(t("toast.categoryRequired"));
     }
 
     try {
@@ -179,7 +182,7 @@ export function TransactionSheet() {
           note,
           reflected: true,
         });
-        toast.success("Transaction added");
+        toast.success(t("toast.added"));
         close();
         return;
       }
@@ -200,14 +203,14 @@ export function TransactionSheet() {
 
       if (isEdit && editing) {
         await updateTxn.mutateAsync({ id: editing._id, ...payload });
-        toast.success("Transaction updated");
+        toast.success(t("toast.updated"));
       } else {
         await createTxn.mutateAsync(payload);
-        toast.success("Transaction added");
+        toast.success(t("toast.added"));
       }
       close();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(e instanceof Error ? e.message : t("toast.saveFailed"));
     }
   }
 
@@ -215,10 +218,10 @@ export function TransactionSheet() {
     if (!editing) return;
     try {
       await deleteTxn.mutateAsync(editing._id);
-      toast.success("Transaction deleted");
+      toast.success(t("toast.deleted"));
       close();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete");
+      toast.error(e instanceof Error ? e.message : t("toast.deleteFailed"));
     }
   }
 
@@ -231,25 +234,25 @@ export function TransactionSheet() {
         className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
       >
         <SheetHeader className="border-b">
-          <SheetTitle>{isEdit ? "Edit transaction" : "New transaction"}</SheetTitle>
+          <SheetTitle>{isEdit ? t("sheet.editTitle") : t("sheet.newTitle")}</SheetTitle>
         </SheetHeader>
 
         {/* type segmented control */}
         <div className="grid grid-cols-3 gap-1 p-4 pb-2">
-          {TYPE_TABS.map((t) => (
+          {TYPE_TABS.map((tab) => (
             <button
-              key={t.value}
+              key={tab.value}
               type="button"
-              data-active={type === t.value}
-              onClick={() => setType(t.value)}
+              data-active={type === tab.value}
+              onClick={() => setType(tab.value)}
               className={cn(
                 "rounded-lg border py-2 text-sm font-semibold text-muted-foreground transition-colors",
                 "data-[active=true]:border-transparent",
-                t.cls,
-                type !== t.value && "hover:bg-accent"
+                tab.cls,
+                type !== tab.value && "hover:bg-accent"
               )}
             >
-              {t.label}
+              {t(`txnType.${tab.value}`, { ns: "common" })}
             </button>
           ))}
         </div>
@@ -262,18 +265,18 @@ export function TransactionSheet() {
             {type === "transfer" ? (
               <div className="flex items-end gap-2">
                 <div className="flex-1 space-y-1.5">
-                  <Label>From</Label>
+                  <Label>{t("labels.from", { ns: "common" })}</Label>
                   <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
                 </div>
                 <ArrowRight className="mb-2.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="flex-1 space-y-1.5">
-                  <Label>To</Label>
+                  <Label>{t("labels.to", { ns: "common" })}</Label>
                   <AccountSelect accounts={accounts} value={toAccountId} onChange={setToAccountId} />
                 </div>
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label>Account</Label>
+                <Label>{t("labels.account", { ns: "common" })}</Label>
                 <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
               </div>
             )}
@@ -283,11 +286,12 @@ export function TransactionSheet() {
               <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
                 <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span>
-                  Linked to credit ·{" "}
+                  {t("sheet.linkedPrefix")}{" "}
                   <span className="font-medium">
-                    {linkedCredit.direction === "given" ? "You gave" : "You received"} {linkedCredit.person}
+                    {linkedCredit.direction === "given" ? t("sheet.linkedGave") : t("sheet.linkedReceived")}{" "}
+                    {linkedCredit.person}
                   </span>
-                  . Edit the person/note from the Credits page.
+                  {t("sheet.linkedSuffix")}
                 </span>
               </div>
             )}
@@ -296,8 +300,8 @@ export function TransactionSheet() {
             {!isEdit && type !== "transfer" && (
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="pr-4">
-                  <p className="text-sm font-medium">Money to/from a person</p>
-                  <p className="text-xs text-muted-foreground">Also track this on the Credits page</p>
+                  <p className="text-sm font-medium">{t("sheet.personTitle")}</p>
+                  <p className="text-xs text-muted-foreground">{t("sheet.personSubtitle")}</p>
                 </div>
                 <Switch checked={personMode} onCheckedChange={setPersonMode} />
               </div>
@@ -305,17 +309,17 @@ export function TransactionSheet() {
             {!isEdit && personMode && type !== "transfer" ? (
               <>
                 <div className="space-y-1.5">
-                  <Label htmlFor="txn-person">Name</Label>
+                  <Label htmlFor="txn-person">{t("labels.name", { ns: "common" })}</Label>
                   <Input
                     id="txn-person"
                     value={person}
                     onChange={(e) => setPerson(e.target.value)}
-                    placeholder="e.g. Rahul"
+                    placeholder={t("sheet.personNamePlaceholder")}
                     autoFocus
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Payment method</Label>
+                  <Label>{t("sheet.paymentMethod")}</Label>
                   <Select value={method} onValueChange={(v) => setMethod(v as CreditMethod)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -323,13 +327,13 @@ export function TransactionSheet() {
                     <SelectContent>
                       {CREDIT_METHODS.map((m) => (
                         <SelectItem key={m} value={m}>
-                          {m}
+                          {enumLabel("method", m)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    How it moved (GPay, PhonePe, …). The account above is the balance that changes.
+                    {t("sheet.methodHelp")}
                   </p>
                 </div>
               </>
@@ -337,7 +341,7 @@ export function TransactionSheet() {
               type !== "transfer" &&
               !linkedCredit && (
                 <div className="space-y-1.5">
-                  <Label>Category</Label>
+                  <Label>{t("labels.category", { ns: "common" })}</Label>
                   <CategoryPicker type={type} value={categoryId} onChange={setCategoryId} />
                 </div>
               )
@@ -345,7 +349,7 @@ export function TransactionSheet() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="txn-date">Date</Label>
+                <Label htmlFor="txn-date">{t("labels.date", { ns: "common" })}</Label>
                 <Input
                   id="txn-date"
                   type="date"
@@ -354,10 +358,10 @@ export function TransactionSheet() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="txn-note">Note</Label>
+                <Label htmlFor="txn-note">{t("labels.note", { ns: "common" })}</Label>
                 <Input
                   id="txn-note"
-                  placeholder="Optional"
+                  placeholder={t("labels.optional", { ns: "common" })}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                 />
@@ -365,25 +369,25 @@ export function TransactionSheet() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="txn-tags">Tags</Label>
+              <Label htmlFor="txn-tags">{t("sheet.tags")}</Label>
               <Input
                 id="txn-tags"
-                placeholder="Add a tag, press Enter (e.g. Hari, Bed)"
+                placeholder={t("sheet.tagsPlaceholder")}
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagKey}
               />
               {tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {tags.map((t) => (
+                  {tags.map((tag) => (
                     <button
-                      key={t}
+                      key={tag}
                       type="button"
-                      onClick={() => setTags((prev) => prev.filter((x) => x !== t))}
+                      onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
                       className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/70"
-                      aria-label={`Remove tag ${t}`}
+                      aria-label={t("sheet.removeTag", { tag })}
                     >
-                      {t}
+                      {tag}
                       <X className="h-3 w-3" />
                     </button>
                   ))}
@@ -399,7 +403,7 @@ export function TransactionSheet() {
                 if (options.length === 0) return null;
                 return (
                   <div className="space-y-1.5">
-                    <Label>Apply to loan (repayment)</Label>
+                    <Label>{t("sheet.applyToLoan")}</Label>
                     <Select
                       value={loanId || NO_LOAN}
                       onValueChange={(v) => setLoanId(v === NO_LOAN ? "" : v)}
@@ -408,10 +412,10 @@ export function TransactionSheet() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={NO_LOAN}>None</SelectItem>
+                        <SelectItem value={NO_LOAN}>{t("labels.none", { ns: "common" })}</SelectItem>
                         {options.map((l) => (
                           <SelectItem key={l._id} value={l._id}>
-                            {l.name} · {formatMoney(l.outstanding)} left
+                            {l.name} · {t("sheet.loanLeft", { amount: formatMoney(l.outstanding) })}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -427,12 +431,11 @@ export function TransactionSheet() {
                           <p className="text-xs text-muted-foreground">
                             {amount > 0 ? (
                               <>
-                                ≈ <span className="font-medium text-foreground">{formatMoney(principal)}</span> to
-                                principal · {formatMoney(Math.min(interest, amount))} interest — reduces the balance
-                                &amp; tenure.
+                                ≈ <span className="font-medium text-foreground">{formatMoney(principal)}</span>{" "}
+                                {t("sheet.loanBreakdown", { interest: formatMoney(Math.min(interest, amount)) })}
                               </>
                             ) : (
-                              "Only the principal portion (payment minus interest) reduces the balance."
+                              t("sheet.loanPrincipalOnly")
                             )}
                           </p>
                         );
@@ -456,7 +459,7 @@ export function TransactionSheet() {
               onClick={handleDelete}
               disabled={deleteTxn.isPending}
             >
-              Delete
+              {t("actions.delete", { ns: "common" })}
             </Button>
           )}
           <Button
@@ -465,7 +468,11 @@ export function TransactionSheet() {
             onClick={handleSubmit}
             disabled={saving}
           >
-            {saving ? "Saving…" : isEdit ? "Save changes" : "Add transaction"}
+            {saving
+              ? t("states.saving", { ns: "common" })
+              : isEdit
+                ? t("actions.saveChanges", { ns: "common" })
+                : t("actions.addTransaction", { ns: "common" })}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -482,10 +489,11 @@ function AccountSelect({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { t } = useTranslation("transactions");
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger>
-        <SelectValue placeholder="Select account" />
+        <SelectValue placeholder={t("sheet.selectAccount")} />
       </SelectTrigger>
       <SelectContent>
         {accounts?.map((a) => (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { addMonths, differenceInCalendarMonths, format } from "date-fns";
 import {
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
-import { fmtDate } from "@/lib/dates";
+import { fmtDate, dateFnsLocale } from "@/lib/dates";
 import { useGoals, useDeleteGoal, useContributeGoal } from "@/hooks/useGoals";
 import { GoalFormDialog } from "@/features/goals/GoalFormDialog";
 import type { Goal } from "@/lib/types";
@@ -49,6 +50,7 @@ import { toast } from "sonner";
 type ContributeState = { goal: Goal; mode: "add" | "withdraw" };
 
 export default function GoalsPage() {
+  const { t } = useTranslation("planning");
   const { data: goals, isLoading } = useGoals();
   const del = useDeleteGoal();
   const [formOpen, setFormOpen] = useState(false);
@@ -71,9 +73,9 @@ export default function GoalsPage() {
     setFormOpen(true);
   }
   async function handleDelete(g: Goal) {
-    if (!confirm(`Delete goal "${g.name}"?`)) return;
+    if (!confirm(t("goals.confirmDelete", { name: g.name }))) return;
     await del.mutateAsync(g._id);
-    toast.success("Goal deleted");
+    toast.success(t("goals.deleted"));
   }
 
   function renderCard(g: Goal, i: number) {
@@ -97,11 +99,11 @@ export default function GoalsPage() {
   return (
     <div>
       <PageHeader
-        title="Goals"
-        description="Save towards what matters"
+        title={t("goals.title")}
+        description={t("goals.description")}
         actions={
           <Button onClick={openNew}>
-            <Plus /> New goal
+            <Plus /> {t("goals.newGoal")}
           </Button>
         }
       />
@@ -119,15 +121,17 @@ export default function GoalsPage() {
             <CardContent className="space-y-3 p-5">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total saved</p>
+                  <p className="text-sm text-muted-foreground">{t("goals.totalSaved")}</p>
                   <p className="tnum text-3xl font-extrabold">{formatMoney(totalSaved)}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    All-time · {active.length} active
-                    {completed.length > 0 && ` · ${completed.length} completed`}
+                    {t("goals.allTime")} · {t("goals.activeCount", { count: active.length })}
+                    {completed.length > 0 && ` · ${t("goals.completedCount", { count: completed.length })}`}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="tnum text-sm text-muted-foreground">of {formatMoney(totalTarget)}</p>
+                  <p className="tnum text-sm text-muted-foreground">
+                    {t("goals.ofAmount", { amount: formatMoney(totalTarget) })}
+                  </p>
                   <p className="tnum text-lg font-semibold">{overallPct}%</p>
                 </div>
               </div>
@@ -138,7 +142,7 @@ export default function GoalsPage() {
           {/* active */}
           {active.length > 0 && (
             <section className="space-y-3">
-              {completed.length > 0 && <SectionHeading title="Active goals" count={active.length} />}
+              {completed.length > 0 && <SectionHeading title={t("goals.activeGoals")} count={active.length} />}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {active.map(renderCard)}
               </div>
@@ -148,7 +152,7 @@ export default function GoalsPage() {
           {/* completed */}
           {completed.length > 0 && (
             <section className="space-y-3">
-              <SectionHeading title="Completed" count={completed.length} />
+              <SectionHeading title={t("goals.completed")} count={completed.length} />
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {completed.map(renderCard)}
               </div>
@@ -158,11 +162,11 @@ export default function GoalsPage() {
       ) : (
         <EmptyState
           icon={Target}
-          title="No goals yet"
-          description="Set a savings goal like a trip or a new gadget and track your progress."
+          title={t("goals.emptyTitle")}
+          description={t("goals.emptyDescription")}
           action={
             <Button onClick={openNew}>
-              <Plus /> New goal
+              <Plus /> {t("goals.newGoal")}
             </Button>
           }
         />
@@ -185,13 +189,13 @@ function SectionHeading({ title, count }: { title: string; count: number }) {
   );
 }
 
-/** On-track / ahead / behind vs the target date, from the planned ETA. */
-function schedule(g: Goal): { label: string; tone: "income" | "expense" } | null {
+/** On-track / ahead / behind vs the target date, from the planned ETA. Label is built by the caller. */
+function schedule(g: Goal): { kind: "ahead" | "onTrack" | "behind"; months: number; tone: "income" | "expense" } | null {
   if (g.complete || !g.targetDate || g.monthsLeft == null) return null;
   const diff = differenceInCalendarMonths(new Date(g.targetDate), new Date()) - g.monthsLeft;
-  if (diff > 0) return { label: `Ahead ${diff} mo`, tone: "income" };
-  if (diff === 0) return { label: "On track", tone: "income" };
-  return { label: `Behind ${-diff} mo`, tone: "expense" };
+  if (diff > 0) return { kind: "ahead", months: diff, tone: "income" };
+  if (diff === 0) return { kind: "onTrack", months: 0, tone: "income" };
+  return { kind: "behind", months: -diff, tone: "expense" };
 }
 
 function GoalCard({
@@ -205,17 +209,25 @@ function GoalCard({
   onDelete: () => void;
   onContribute: (mode: "add" | "withdraw") => void;
 }) {
+  const { t } = useTranslation("planning");
   const eta =
     g.monthsLeft != null
-      ? `~${g.monthsLeft} month${g.monthsLeft === 1 ? "" : "s"} · ${format(addMonths(new Date(), g.monthsLeft), "MMM yyyy")}`
+      ? `${t("goals.months", { count: g.monthsLeft })} · ${format(addMonths(new Date(), g.monthsLeft), "MMM yyyy", { locale: dateFnsLocale() })}`
       : g.targetDate
-        ? `Target ${fmtDate(g.targetDate, "dd MMM yyyy")}`
+        ? t("goals.targetOn", { date: fmtDate(g.targetDate, "dd MMM yyyy") })
         : null;
   const etaHelp =
     g.monthsLeft != null
-      ? `Estimated from your planned monthly saving of ${formatMoney(g.monthlyContribution)}.`
-      : "Add a monthly saving amount to this goal to see a projected completion date.";
+      ? t("goals.etaHelp", { amount: formatMoney(g.monthlyContribution) })
+      : t("goals.etaHelpEmpty");
   const sched = schedule(g);
+  const schedLabel = sched
+    ? sched.kind === "ahead"
+      ? t("goals.aheadMonths", { count: sched.months })
+      : sched.kind === "behind"
+        ? t("goals.behindMonths", { count: sched.months })
+        : t("goals.onTrack")
+    : null;
 
   return (
     <Card className="relative flex h-full flex-col overflow-hidden">
@@ -227,30 +239,30 @@ function GoalCard({
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{g.name}</p>
             <p className="tnum text-xs text-muted-foreground">
-              {formatMoney(g.savedAmount)} of {formatMoney(g.targetAmount)}
+              {t("goals.savedOfTarget", { saved: formatMoney(g.savedAmount), target: formatMoney(g.targetAmount) })}
             </p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${g.name}`}>
+              <Button variant="ghost" size="icon-sm" aria-label={t("goals.actionsFor", { name: g.name })}>
                 <MoreVertical />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {g.complete && (
                 <DropdownMenuItem onClick={() => onContribute("add")}>
-                  <Plus /> Add money
+                  <Plus /> {t("goals.addMoney")}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => onContribute("withdraw")} disabled={g.savedAmount <= 0}>
-                <Minus /> Withdraw
+                <Minus /> {t("goals.withdraw")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onEdit}>
-                <Pencil /> Edit
+                <Pencil /> {t("actions.edit", { ns: "common" })}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
-                <Trash2 /> Delete
+                <Trash2 /> {t("actions.delete", { ns: "common" })}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -261,8 +273,10 @@ function GoalCard({
           indicatorClassName={g.complete ? "bg-income" : undefined}
           tooltip={
             <span className="tnum">
-              {formatMoney(g.savedAmount)} of {formatMoney(g.targetAmount)} · {g.percent}%
-              {g.complete ? " · Done" : ` · ${formatMoney(g.remaining)} to go`}
+              {t("goals.savedOfTarget", { saved: formatMoney(g.savedAmount), target: formatMoney(g.targetAmount) })} · {g.percent}%
+              {g.complete
+                ? ` · ${t("actions.done", { ns: "common" })}`
+                : ` · ${t("goals.amountToGo", { amount: formatMoney(g.remaining) })}`}
             </span>
           }
         />
@@ -271,10 +285,12 @@ function GoalCard({
         <div className="flex items-center justify-between text-sm">
           {g.complete ? (
             <Badge variant="income" className="gap-1">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Completed
+              <CheckCircle2 className="h-3.5 w-3.5" /> {t("goals.completed")}
             </Badge>
           ) : (
-            <span className="tnum font-medium text-income">{formatMoney(g.remaining)} to go</span>
+            <span className="tnum font-medium text-income">
+              {t("goals.amountToGo", { amount: formatMoney(g.remaining) })}
+            </span>
           )}
           <span className="tnum text-xs text-muted-foreground">{g.percent}%</span>
         </div>
@@ -284,7 +300,9 @@ function GoalCard({
           {g.complete ? (
             <p className="flex items-center gap-1.5 text-xs font-medium text-income">
               <Trophy className="h-3.5 w-3.5" />
-              Achieved{g.achievedAt ? ` ${fmtDate(g.achievedAt, "dd MMM yyyy")}` : ""}
+              {g.achievedAt
+                ? t("goals.achievedOn", { date: fmtDate(g.achievedAt, "dd MMM yyyy") })
+                : t("goals.achieved")}
             </p>
           ) : (
             <div className="flex items-center justify-between gap-2 text-xs">
@@ -292,7 +310,7 @@ function GoalCard({
                 <TooltipTrigger asChild>
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <TrendingUp className="h-3.5 w-3.5" />
-                    {eta ?? "No ETA yet"}
+                    {eta ?? t("goals.noEta")}
                     <Info className="h-3 w-3 opacity-60" />
                   </span>
                 </TooltipTrigger>
@@ -305,7 +323,7 @@ function GoalCard({
                     sched.tone === "income" ? "text-income" : "text-expense"
                   )}
                 >
-                  {sched.label}
+                  {schedLabel}
                 </span>
               )}
             </div>
@@ -313,7 +331,7 @@ function GoalCard({
 
           {!g.complete && (
             <Button variant="outline" size="sm" className="w-full" onClick={() => onContribute("add")}>
-              <Plus /> Add money
+              <Plus /> {t("goals.addMoney")}
             </Button>
           )}
         </div>
@@ -329,6 +347,7 @@ function ContributeDialog({
   state: ContributeState | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("planning");
   const contribute = useContributeGoal();
   const [amount, setAmount] = useState("");
 
@@ -346,15 +365,19 @@ function ContributeDialog({
 
   async function submit() {
     if (!goal) return;
-    if (!n || n <= 0) return toast.error("Enter an amount greater than 0");
-    if (!isAdd && n > goal.savedAmount) return toast.error("Can't withdraw more than saved");
+    if (!n || n <= 0) return toast.error(t("contribute.enterAmount"));
+    if (!isAdd && n > goal.savedAmount) return toast.error(t("contribute.cantWithdrawMore"));
     try {
       await contribute.mutateAsync({ id: goal._id, amount: delta });
-      toast.success(`${isAdd ? "Added" : "Withdrew"} ${formatMoney(n)} · ${goal.name}`);
+      toast.success(
+        isAdd
+          ? t("contribute.added", { amount: formatMoney(n), name: goal.name })
+          : t("contribute.withdrew", { amount: formatMoney(n), name: goal.name })
+      );
       setAmount("");
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(e instanceof Error ? e.message : t("contribute.failed"));
     }
   }
 
@@ -371,13 +394,15 @@ function ContributeDialog({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
-            {isAdd ? "Add to" : "Withdraw from"} {goal?.name}
+            {isAdd
+              ? t("contribute.addTo", { name: goal?.name ?? "" })
+              : t("contribute.withdrawFrom", { name: goal?.name ?? "" })}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="contrib">Amount</Label>
+            <Label htmlFor="contrib">{t("labels.amount", { ns: "common" })}</Label>
             <Input
               id="contrib"
               type="number"
@@ -408,7 +433,7 @@ function ContributeDialog({
                   size="sm"
                   onClick={() => setAmount(String(goal.remaining))}
                 >
-                  Fill remaining
+                  {t("contribute.fillRemaining")}
                 </Button>
               )}
               {!isAdd && goal && goal.savedAmount > 0 && (
@@ -418,7 +443,7 @@ function ContributeDialog({
                   size="sm"
                   onClick={() => setAmount(String(goal.savedAmount))}
                 >
-                  Withdraw all
+                  {t("contribute.withdrawAll")}
                 </Button>
               )}
             </div>
@@ -439,7 +464,7 @@ function ContributeDialog({
 
           <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
-            Updates this goal's progress only — it doesn't move money between your accounts.
+            {t("contribute.note")}
           </p>
         </div>
 
@@ -451,10 +476,10 @@ function ContributeDialog({
               onClose();
             }}
           >
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={contribute.isPending}>
-            {isAdd ? "Add money" : "Withdraw"}
+            {isAdd ? t("goals.addMoney") : t("goals.withdraw")}
           </Button>
         </DialogFooter>
       </DialogContent>

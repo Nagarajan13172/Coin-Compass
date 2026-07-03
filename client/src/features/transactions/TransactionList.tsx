@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { dateGroupLabel, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
@@ -12,6 +13,7 @@ interface TransactionListProps {
 
 /** Transactions grouped by day with a per-day net total header. */
 export function TransactionList({ transactions }: TransactionListProps) {
+  const { t } = useTranslation("transactions");
   const groups = useMemo(() => {
     type Group = {
       label: string;
@@ -52,12 +54,14 @@ export function TransactionList({ transactions }: TransactionListProps) {
                 <p className="text-sm font-semibold text-foreground">{group.label}</p>
                 {(mixed || group.transfers > 0) && (
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tnum text-muted-foreground">
-                    {group.income > 0 && <span className="text-income">+{formatMoney(group.income)} in</span>}
-                    {group.expense > 0 && <span className="text-expense">−{formatMoney(group.expense)} out</span>}
+                    {group.income > 0 && (
+                      <span className="text-income">{t("group.in", { amount: formatMoney(group.income) })}</span>
+                    )}
+                    {group.expense > 0 && (
+                      <span className="text-expense">{t("group.out", { amount: formatMoney(group.expense) })}</span>
+                    )}
                     {group.transfers > 0 && (
-                      <span>
-                        {group.transfers} transfer{group.transfers === 1 ? "" : "s"}
-                      </span>
+                      <span>{t("group.transfers", { count: group.transfers })}</span>
                     )}
                   </p>
                 )}
@@ -66,7 +70,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
                 <span
                   className={`tnum shrink-0 text-sm font-semibold ${net >= 0 ? "text-income" : "text-expense"}`}
                 >
-                  Net {net >= 0 ? "+" : "−"}
+                  {t("group.net")} {net >= 0 ? "+" : "−"}
                   {formatMoney(Math.abs(net))}
                 </span>
               )}

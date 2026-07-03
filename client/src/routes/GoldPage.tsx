@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { Coins, RefreshCw, TrendingUp } from "lucide-react";
@@ -18,6 +19,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
 import { useMetalHistory, useMetalsLatest, useRefreshMetals } from "@/hooks/useMetals";
 import type { Metal, MetalPrice } from "@/lib/types";
 import { METAL_META } from "@/features/metals/meta";
@@ -38,7 +40,7 @@ function istToday() {
 
 function asOf(date: string) {
   try {
-    return format(parseISO(date), "dd MMM yyyy");
+    return format(parseISO(date), "dd MMM yyyy", { locale: dateFnsLocale() });
   } catch {
     return date;
   }
@@ -54,6 +56,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal; city?: GoldCity }) {
+  const { t } = useTranslation("credits");
   const meta = METAL_META[metal];
   const stale = price.date !== istToday();
   const isGold = metal === "gold";
@@ -65,10 +68,10 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2">
-          <Coins className="h-4 w-4" style={{ color: meta.color }} /> {meta.label}
+          <Coins className="h-4 w-4" style={{ color: meta.color }} /> {t(`gold.metal.${metal}`)}
           {resolved && city && (
             <Badge variant="secondary" className="font-normal">
-              {city.label} · {resolved.approx ? "approx" : "GRT"}
+              {city.label} · {resolved.approx ? t("gold.approx") : "GRT"}
             </Badge>
           )}
         </CardTitle>
@@ -76,29 +79,39 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <p className="text-xs text-muted-foreground">{isGold ? "22K / gram" : "24K / gram"}</p>
+          <p className="text-xs text-muted-foreground">{isGold ? t("gold.perGram22k") : t("gold.perGram24k")}</p>
           <p className="tnum text-3xl font-extrabold tracking-tight">
             {formatMoney(headline, { currency: "INR" })}
           </p>
           {resolved && city && (
             <p className="tnum mt-0.5 text-[11px] text-muted-foreground">
               {resolved.approx
-                ? `≈ spot 22K ${formatMoney(price.pricePerGram22k, { currency: "INR" })} · +${city.premiumPct}% (duty, GST, margin)`
-                : `${resolved.source} · spot 22K ${formatMoney(price.pricePerGram22k, { currency: "INR" })}`}
+                ? t("gold.approxDetail", {
+                    spot: formatMoney(price.pricePerGram22k, { currency: "INR" }),
+                    premium: city.premiumPct,
+                  })
+                : t("gold.sourceDetail", {
+                    source: resolved.source,
+                    spot: formatMoney(price.pricePerGram22k, { currency: "INR" }),
+                  })}
             </p>
           )}
         </div>
         {isGold && resolved && (
           <div className="grid grid-cols-2 gap-2">
-            <Stat label="24K / gram" value={resolved.gram24k} />
-            <Stat label="18K / gram" value={resolved.gram18k} />
+            <Stat label={t("gold.perGram24k")} value={resolved.gram24k} />
+            <Stat label={t("gold.perGram18k")} value={resolved.gram18k} />
           </div>
         )}
         <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
           <span className="tnum">
-            Spot {formatMoney(price.pricePerOunce, { currency: "INR", compact: true })}/oz
+            {t("gold.spotOz", { value: formatMoney(price.pricePerOunce, { currency: "INR", compact: true }) })}
           </span>
-          <span>{stale ? `Last close · ${asOf(price.date)}` : `As of ${asOf(price.date)}`}</span>
+          <span>
+            {stale
+              ? t("gold.lastClose", { date: asOf(price.date) })
+              : t("gold.asOf", { date: asOf(price.date) })}
+          </span>
         </div>
       </CardContent>
     </Card>
@@ -106,6 +119,7 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
 }
 
 export default function GoldPage() {
+  const { t } = useTranslation("credits");
   const [metal, setMetal] = useState<Metal>("gold");
   const [days, setDays] = useState(90);
   const [cityKey, setCityKey] = useState(DEFAULT_CITY);
@@ -117,21 +131,21 @@ export default function GoldPage() {
   async function refreshNow() {
     try {
       await refresh.mutateAsync();
-      toast.success("Rates refreshed");
+      toast.success(t("gold.refreshed"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't refresh rates");
+      toast.error(e instanceof Error ? e.message : t("gold.refreshFailed"));
     }
   }
 
   return (
     <div>
       <PageHeader
-        title="Gold & Silver"
-        description="Live precious-metal rates in ₹ · auto-refreshed daily, or refresh now"
+        title={t("gold.title")}
+        description={t("gold.description")}
         actions={
           <div className="flex items-center gap-2">
             <Select value={cityKey} onValueChange={setCityKey}>
-              <SelectTrigger className="w-40" aria-label="City">
+              <SelectTrigger className="w-40" aria-label={t("gold.cityAria")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -145,7 +159,7 @@ export default function GoldPage() {
             <Button
               variant="outline"
               size="icon"
-              aria-label="Refresh rates now"
+              aria-label={t("gold.refreshAria")}
               onClick={refreshNow}
               disabled={refresh.isPending}
             >
@@ -166,14 +180,14 @@ export default function GoldPage() {
       ) : !latest?.configured ? (
         <EmptyState
           icon={Coins}
-          title="Gold tracking isn’t set up yet"
-          description="Add a free GOLD_API_KEY (from goldapi.io) to the server environment to enable daily gold & silver rates."
+          title={t("gold.notConfiguredTitle")}
+          description={t("gold.notConfiguredDesc")}
         />
       ) : !latest.gold && !latest.silver ? (
         <EmptyState
           icon={TrendingUp}
-          title="No rates yet"
-          description="The first snapshot will appear after the next daily fetch. Check back shortly."
+          title={t("gold.noRatesTitle")}
+          description={t("gold.noRatesDesc")}
         />
       ) : (
         <div className="space-y-5">
@@ -184,20 +198,20 @@ export default function GoldPage() {
 
           <Card>
             <CardHeader className="flex-col items-start gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle>Price history</CardTitle>
+              <CardTitle>{t("gold.history")}</CardTitle>
               <div className="flex flex-wrap items-center gap-2">
                 <Tabs value={metal} onValueChange={(v) => setMetal(v as Metal)}>
                   <TabsList className="h-8">
-                    <TabsTrigger value="gold">Gold</TabsTrigger>
-                    <TabsTrigger value="silver">Silver</TabsTrigger>
+                    <TabsTrigger value="gold">{t("gold.metal.gold")}</TabsTrigger>
+                    <TabsTrigger value="silver">{t("gold.metal.silver")}</TabsTrigger>
                   </TabsList>
                 </Tabs>
                 <Tabs value={String(days)} onValueChange={(v) => setDays(Number(v))}>
                   <TabsList className="h-8">
-                    <TabsTrigger value="7">7D</TabsTrigger>
-                    <TabsTrigger value="30">30D</TabsTrigger>
-                    <TabsTrigger value="90">90D</TabsTrigger>
-                    <TabsTrigger value="365">1Y</TabsTrigger>
+                    <TabsTrigger value="7">{t("gold.range.7d")}</TabsTrigger>
+                    <TabsTrigger value="30">{t("gold.range.30d")}</TabsTrigger>
+                    <TabsTrigger value="90">{t("gold.range.90d")}</TabsTrigger>
+                    <TabsTrigger value="365">{t("gold.range.1y")}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
@@ -208,9 +222,9 @@ export default function GoldPage() {
               ) : (
                 <div className="flex h-[280px] flex-col items-center justify-center gap-1 text-center text-sm text-muted-foreground">
                   <TrendingUp className="h-6 w-6" />
-                  <p>History is still building.</p>
+                  <p>{t("gold.historyBuildingTitle")}</p>
                   <p className="text-xs">
-                    A new data point is added each day — check back tomorrow.
+                    {t("gold.historyBuildingDesc")}
                   </p>
                 </div>
               )}
@@ -218,10 +232,7 @@ export default function GoldPage() {
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">
-            Spot from goldapi.io (international spot × ₹). Chennai shows GRT Jewellers’ published
-            counter rate (from grtjewels.com); other cities estimate spot + a local premium (duty,
-            GST &amp; margin) and exclude making charges. Refreshed automatically once a day, or
-            on demand with the refresh button above (max once every 15 minutes).
+            {t("gold.disclaimer")}
           </p>
         </div>
       )}

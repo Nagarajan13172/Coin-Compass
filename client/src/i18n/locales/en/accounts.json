@@ -1,0 +1,60 @@
+{
+  "page": {
+    "title": "Accounts",
+    "description": "Cash, bank, cards & wallets"
+  },
+  "newAccount": "New account",
+  "editAccount": "Edit account",
+  "deleteAccount": "Delete account",
+  "accountActions": "Account actions",
+  "notInTotal": "Not in total",
+  "totalBalance": "Total balance",
+  "across_one": "Across {{count}} account",
+  "across_other": "Across {{count}} accounts",
+  "assets": "Assets",
+  "owed": "Owed",
+  "sinceOpening": "{{amount}} since opening",
+  "flow": {
+    "in": "In",
+    "out": "Out"
+  },
+  "empty": {
+    "title": "No accounts yet",
+    "description": "Create an account to start tracking your money."
+  },
+  "detail": {
+    "back": "Accounts",
+    "typeAccount": "{{type}} account",
+    "currentBalance": "Current balance",
+    "transfersIn": "Transfers in",
+    "transfersOut": "Transfers out",
+    "openingBalance": "Opening balance {{amount}}",
+    "transactions": "Transactions",
+    "notFoundTitle": "Account not found",
+    "notFoundDescription": "This account may have been deleted.",
+    "backToAccounts": "Back to accounts",
+    "noTransactionsTitle": "No transactions",
+    "noTransactionsDescription": "Transactions on this account will show up here."
+  },
+  "form": {
+    "namePlaceholder": "e.g. HDFC Savings",
+    "initialBalance": "Initial balance",
+    "startingBalance": "Starting balance",
+    "includeInTotal": "Include in total",
+    "includeInTotalHelp": "Count this account in net worth"
+  },
+  "confirm": {
+    "deleteList": "Delete \"{{name}}\"? Transactions on it will block deletion unless forced.",
+    "deleteDetail": "Delete \"{{name}}\"? Its transactions will block deletion unless forced.",
+    "deleteWithTxns": "{{message}}\n\nDelete the account AND its transactions?"
+  },
+  "toast": {
+    "deleted": "Account deleted",
+    "deletedWithTxns": "Account and its transactions deleted",
+    "created": "Account created",
+    "updated": "Account updated",
+    "enterName": "Enter an account name",
+    "failed": "Failed",
+    "failedSave": "Failed to save"
+  }
+}

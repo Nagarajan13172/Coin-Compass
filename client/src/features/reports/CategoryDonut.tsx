@@ -1,6 +1,8 @@
+import { useTranslation } from "react-i18next";
 import { Cell, Pie, PieChart } from "recharts";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/i18nLabels";
 import { cn } from "@/lib/utils";
 import type { CategoryDatum } from "@/lib/types";
 
@@ -19,10 +21,12 @@ export function CategoryDonut({
   data,
   total,
   onSelect,
-  centerLabel = "Total spent",
+  centerLabel,
   showBars = false,
   wideLegend = false,
 }: CategoryDonutProps) {
+  const { t } = useTranslation("reports");
+  const resolvedCenterLabel = centerLabel ?? t("centerLabel.spent");
   const max = data.reduce((m, d) => Math.max(m, d.total), 0) || 1;
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
@@ -51,7 +55,7 @@ export function CategoryDonut({
           </Pie>
         </PieChart>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xs text-muted-foreground">{centerLabel}</span>
+          <span className="text-xs text-muted-foreground">{resolvedCenterLabel}</span>
           <span className="tnum text-lg font-bold">{formatMoney(total, { compact: total > 99999 })}</span>
         </div>
       </div>
@@ -63,7 +67,7 @@ export function CategoryDonut({
         )}
       >
         {data.map((d) => {
-          const label = d.name || "Uncategorized";
+          const label = categoryLabel(d.name);
           const percent = (
             <span className="tnum shrink-0 text-xs text-muted-foreground">{d.percent}%</span>
           );
@@ -76,7 +80,7 @@ export function CategoryDonut({
                   "group flex w-full min-w-0 flex-col gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors",
                   onSelect && "hover:bg-accent"
                 )}
-                title={onSelect ? `View ${label} transactions` : label}
+                title={onSelect ? t("viewTransactionsFor", { name: label }) : label}
               >
                 <span className="flex w-full min-w-0 items-center gap-2.5">
                   <CategoryIcon icon={d.icon} color={d.color} size="md" />

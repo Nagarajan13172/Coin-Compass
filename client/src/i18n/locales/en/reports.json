@@ -1,0 +1,89 @@
+{
+  "title": "Reports",
+  "description": "Analyse your income and spending",
+  "showing": "Showing",
+  "viewLabel": "{{period}} · {{view}}",
+  "viewName": {
+    "week": "Week view",
+    "month": "Month view",
+    "year": "Year view"
+  },
+  "noun": {
+    "week": "week",
+    "month": "month",
+    "year": "year"
+  },
+  "net": "Net",
+  "avgDailySpend": "Avg daily spend",
+  "avgDailyHint": "Total spent ÷ days elapsed in this period, so a partial month isn't divided by a full 30 days.",
+  "overDays_one": "over {{count}} day",
+  "overDays_other": "over {{count}} days",
+  "savingsRate": "Savings rate",
+  "savingsRateHint": "Share of income kept after spending: (income − expense) ÷ income × 100.",
+  "biggestExpense": "Biggest expense",
+  "spendingVsLast": {
+    "week": "Spending vs last week",
+    "month": "Spending vs last month",
+    "year": "Spending vs last year"
+  },
+  "lastPeriodAmount": {
+    "week": "Last week: {{amount}}",
+    "month": "Last month: {{amount}}",
+    "year": "Last year: {{amount}}"
+  },
+  "changeDir": {
+    "higher": "higher",
+    "lower": "lower",
+    "same": "same"
+  },
+  "aboutLabel": "About {{label}}",
+  "insight": {
+    "biggestPrefix": "This {{period}} your biggest expense is",
+    "ofSpending": " ({{amount}}, {{percent}}% of spending)",
+    "overallPrefix": ". Overall spending is",
+    "higher": "higher",
+    "lower": "lower",
+    "same": "the same",
+    "thanLast": {
+      "week": "than last week",
+      "month": "than last month",
+      "year": "than last year"
+    }
+  },
+  "byCategory": "By category",
+  "centerLabel": {
+    "spent": "Total spent",
+    "earned": "Total earned"
+  },
+  "noData": "No data",
+  "noTxnsInPeriod": "No transactions in this period.",
+  "incomeVsExpense": "Income vs Expense",
+  "noDataForPeriod": "No data for this period",
+  "byAccount": "By account",
+  "moneyInVsOut": "Money in vs out per account",
+  "netCashFlow": "Net cash flow",
+  "incomeMinusExpense": "Income minus expense over time",
+  "inLabel": "In",
+  "outLabel": "Out",
+  "viewTransactionsFor": "View {{name}} transactions",
+  "export": {
+    "button": "Export CSV",
+    "downloadTransactions": "Download transactions",
+    "thisPeriod": "This period",
+    "allTransactions": "All transactions",
+    "customRange": "Custom range",
+    "exportRange": "Export range"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "description": "Spending day by day",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "hasRecurring": "Has recurring transactions",
+    "transactions": "Transactions",
+    "clearFilter": "Clear filter",
+    "noTxnsOnDay": "No transactions on this day",
+    "addOnThisDay": "Add on this day",
+    "viewInTransactions": "View in Transactions"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "account": {
+    "cash": "ரொக்கம்",
+    "bank": "வங்கி",
+    "card": "அட்டை",
+    "wallet": "வாலட்",
+    "upi": "UPI",
+    "savings": "சேமிப்பு"
+  },
+  "loan": {
+    "home": "வீடு",
+    "personal": "தனிநபர்",
+    "car": "கார்",
+    "education": "கல்வி",
+    "gold": "தங்கம்",
+    "business": "வணிகம்",
+    "other": "மற்றவை"
+  },
+  "holdingClass": {
+    "saving": "சேமிப்பு",
+    "investment": "முதலீடு"
+  },
+  "holding": {
+    "fixed_deposit": "நிலையான வைப்பு",
+    "recurring_deposit": "தொடர் வைப்பு",
+    "emergency_fund": "அவசர நிதி",
+    "retirement_fund": "ஓய்வூதிய நிதி",
+    "stocks": "பங்குகள்",
+    "mutual_funds": "பரஸ்பர நிதிகள்",
+    "real_estate": "ரியல் எஸ்டேட்",
+    "bonds": "பத்திரங்கள்",
+    "gold": "தங்கம்"
+  },
+  "method": {
+    "cash": "ரொக்கம்",
+    "gpay": "GPay",
+    "phonepe": "PhonePe",
+    "paytm": "Paytm",
+    "upi": "UPI",
+    "net_banking": "நெட் பேங்கிங்",
+    "debit_card": "டெபிட் கார்டு",
+    "credit_card": "கிரெடிட் கார்டு",
+    "cheque": "காசோலை",
+    "bank_transfer": "வங்கி பரிமாற்றம்",
+    "other": "மற்றவை"
+  },
+  "frequency": {
+    "daily": "தினசரி",
+    "weekly": "வாராந்திரம்",
+    "monthly": "மாதாந்திரம்",
+    "yearly": "ஆண்டுதோறும்"
+  }
+}

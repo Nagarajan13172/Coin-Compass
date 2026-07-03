@@ -1,4 +1,5 @@
 import { useNavigate, NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { ChevronsUpDown, Compass, LogOut, PanelLeft, PanelLeftClose, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { useMe, useLogout, useCanSeeWealth } from "@/hooks/useAuth";
 import { WealthLockMenuItems, WealthUnlockDialog } from "@/features/settings/WealthLock";
 
 export function Sidebar() {
+  const { t } = useTranslation("nav");
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggle = useUIStore((s) => s.toggleSidebar);
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
@@ -41,7 +43,7 @@ export function Sidebar() {
         {collapsed ? (
           <button
             onClick={toggle}
-            aria-label="Expand sidebar"
+            aria-label={t("expandSidebar")}
             className="group mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Compass className="h-5 w-5 group-hover:hidden" />
@@ -58,7 +60,7 @@ export function Sidebar() {
               size="icon-sm"
               className="ml-auto text-muted-foreground"
               onClick={toggle}
-              aria-label="Collapse sidebar"
+              aria-label={t("collapseSidebar")}
             >
               <PanelLeftClose />
             </Button>
@@ -73,19 +75,19 @@ export function Sidebar() {
           onClick={() => openTxnSheet({ type: "expense" })}
         >
           <Plus />
-          {!collapsed && "Add transaction"}
+          {!collapsed && t("actions.addTransaction", { ns: "common" })}
         </Button>
       </div>
 
       {/* Grouped navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 no-scrollbar">
         {groups.map((group, gi) => (
-          <div key={group.label} className={cn("space-y-1", gi > 0 && "pt-4")}>
+          <div key={group.labelKey} className={cn("space-y-1", gi > 0 && "pt-4")}>
             {collapsed
               ? gi > 0 && <div className="mx-2 mb-3 h-px bg-border/60" />
               : (
                 <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                  {group.label}
+                  {t(group.labelKey)}
                 </p>
               )}
             {group.items.map((item) => (
@@ -105,11 +107,13 @@ export function Sidebar() {
 }
 
 function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+  const { t } = useTranslation("nav");
+  const label = t(item.labelKey);
   return (
     <NavLink
       to={item.to}
       end={item.to === "/"}
-      title={collapsed ? item.label : undefined}
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
           "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -129,7 +133,7 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
             />
           )}
           <item.icon className="h-5 w-5 shrink-0" />
-          {!collapsed && <span className="truncate">{item.label}</span>}
+          {!collapsed && <span className="truncate">{label}</span>}
         </>
       )}
     </NavLink>
@@ -142,6 +146,7 @@ function initials(name: string, email: string) {
 }
 
 function SidebarUser({ collapsed }: { collapsed: boolean }) {
+  const { t } = useTranslation(["nav", "common"]);
   const navigate = useNavigate();
   const { data: me } = useMe();
   const logout = useLogout();
@@ -169,13 +174,15 @@ function SidebarUser({ collapsed }: { collapsed: boolean }) {
               "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent",
               collapsed && "justify-center p-1.5"
             )}
-            aria-label="Account menu"
+            aria-label={t("accountMenu")}
           >
             {avatar}
             {!collapsed && (
               <>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{me.name || "Account"}</span>
+                  <span className="block truncate text-sm font-medium">
+                    {me.name || t("account", { ns: "common" })}
+                  </span>
                   <span className="block truncate text-xs text-muted-foreground">{me.email}</span>
                 </span>
                 <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -185,13 +192,13 @@ function SidebarUser({ collapsed }: { collapsed: boolean }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" className="w-56">
           <DropdownMenuLabel className="flex flex-col">
-            <span className="truncate font-medium">{me.name || "Account"}</span>
+            <span className="truncate font-medium">{me.name || t("account", { ns: "common" })}</span>
             <span className="truncate text-xs font-normal text-muted-foreground">{me.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <WealthLockMenuItems onUnlock={() => setUnlockOpen(true)} />
           <DropdownMenuItem onClick={signOut} disabled={logout.isPending}>
-            <LogOut /> Sign out
+            <LogOut /> {t("actions.signOut", { ns: "common" })}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

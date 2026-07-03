@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 export const PALETTE = [
@@ -23,6 +24,7 @@ export function ColorPicker({
   value: string;
   onChange: (c: string) => void;
 }) {
+  const { t } = useTranslation("misc");
   return (
     <div className="flex flex-wrap gap-2">
       {PALETTE.map((c) => (
@@ -35,7 +37,7 @@ export function ColorPicker({
             value === c && "ring-2 ring-offset-2 ring-offset-background"
           )}
           style={{ backgroundColor: c, ...(value === c ? { boxShadow: `0 0 0 2px ${c}` } : {}) }}
-          aria-label={`Color ${c}`}
+          aria-label={t("colorPicker.swatch", { color: c })}
         >
           {value === c && <Check className="h-4 w-4 text-white" />}
         </button>

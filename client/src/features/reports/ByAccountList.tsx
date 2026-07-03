@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AccountDatum } from "@/lib/types";
@@ -9,6 +10,7 @@ interface ByAccountListProps {
 
 /** Per-account income vs expense with proportional bars and a net figure. */
 export function ByAccountList({ data, onSelect }: ByAccountListProps) {
+  const { t } = useTranslation("reports");
   const max = data.reduce((m, d) => Math.max(m, d.income, d.expense), 0) || 1;
 
   return (
@@ -20,7 +22,7 @@ export function ByAccountList({ data, onSelect }: ByAccountListProps) {
             <button
               type="button"
               onClick={() => onSelect?.(a._id)}
-              title={onSelect ? `View ${a.name} transactions` : undefined}
+              title={onSelect ? t("viewTransactionsFor", { name: a.name }) : undefined}
               className={cn(
                 "flex w-full flex-col gap-2 px-2 py-3 text-left transition-colors",
                 onSelect && "hover:bg-accent"
@@ -40,8 +42,8 @@ export function ByAccountList({ data, onSelect }: ByAccountListProps) {
               </div>
 
               <div className="flex flex-col gap-1">
-                <Bar label="In" value={a.income} max={max} tone="income" />
-                <Bar label="Out" value={a.expense} max={max} tone="expense" />
+                <Bar label={t("inLabel")} value={a.income} max={max} tone="income" />
+                <Bar label={t("outLabel")} value={a.expense} max={max} tone="expense" />
               </div>
             </button>
           </li>

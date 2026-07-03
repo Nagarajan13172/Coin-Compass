@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRightLeft, Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -15,10 +16,11 @@ import { useTransactionList } from "@/hooks/useTransactions";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
-import { accountTypeLabel } from "@/lib/accounts";
+import { enumLabel } from "@/lib/i18nLabels";
 import { toast } from "sonner";
 
 export default function AccountDetailPage() {
+  const { t } = useTranslation("accounts");
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: account, isLoading } = useAccount(id);
@@ -29,16 +31,16 @@ export default function AccountDetailPage() {
 
   async function handleDelete() {
     if (!account) return;
-    if (!confirm(`Delete "${account.name}"? Its transactions will block deletion unless forced.`)) return;
+    if (!confirm(t("confirm.deleteDetail", { name: account.name }))) return;
     try {
       await del.mutateAsync({ id: account._id });
-      toast.success("Account deleted");
+      toast.success(t("toast.deleted"));
       navigate("/accounts", { replace: true });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed";
-      if (msg.includes("transaction") && confirm(`${msg}\n\nDelete the account AND its transactions?`)) {
+      const msg = e instanceof Error ? e.message : t("toast.failed");
+      if (msg.includes("transaction") && confirm(t("confirm.deleteWithTxns", { message: msg }))) {
         await del.mutateAsync({ id: account._id, force: true });
-        toast.success("Account and its transactions deleted");
+        toast.success(t("toast.deletedWithTxns"));
         navigate("/accounts", { replace: true });
       } else {
         toast.error(msg);
@@ -59,11 +61,11 @@ export default function AccountDetailPage() {
     return (
       <EmptyState
         icon={Receipt}
-        title="Account not found"
-        description="This account may have been deleted."
+        title={t("detail.notFoundTitle")}
+        description={t("detail.notFoundDescription")}
         action={
           <Button asChild>
-            <Link to="/accounts">Back to accounts</Link>
+            <Link to="/accounts">{t("detail.backToAccounts")}</Link>
           </Button>
         }
       />
@@ -78,25 +80,25 @@ export default function AccountDetailPage() {
     <div>
       <Button asChild variant="ghost" size="sm" className="mb-3 -ml-2 text-muted-foreground">
         <Link to="/accounts">
-          <ArrowLeft /> Accounts
+          <ArrowLeft /> {t("detail.back")}
         </Link>
       </Button>
 
       <PageHeader
         title={account.name}
-        description={`${accountTypeLabel(account.type)} account`}
+        description={t("detail.typeAccount", { type: enumLabel("account", account.type) })}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => openTxnSheet({ type: "transfer" })}>
-              <ArrowRightLeft /> Transfer
+              <ArrowRightLeft /> {t("txnType.transfer", { ns: "common" })}
             </Button>
-            <Button variant="outline" size="icon" aria-label="Edit account" onClick={() => setEditOpen(true)}>
+            <Button variant="outline" size="icon" aria-label={t("editAccount")} onClick={() => setEditOpen(true)}>
               <Pencil />
             </Button>
             <Button
               variant="outline"
               size="icon"
-              aria-label="Delete account"
+              aria-label={t("deleteAccount")}
               className="text-destructive hover:text-destructive"
               onClick={handleDelete}
             >
@@ -117,7 +119,7 @@ export default function AccountDetailPage() {
               <Icon className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-sm text-muted-foreground">Current balance</p>
+              <p className="text-sm text-muted-foreground">{t("detail.currentBalance")}</p>
               <CountUp
                 value={account.balance ?? 0}
                 className={`tnum block text-3xl font-extrabold ${negative ? "text-expense" : ""}`}
@@ -126,14 +128,16 @@ export default function AccountDetailPage() {
           </div>
           {stats && (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Income" value={stats.income} tone="income" />
-              <Stat label="Expense" value={stats.expense} tone="expense" />
-              <Stat label="Transfers in" value={stats.transferIn} />
-              <Stat label="Transfers out" value={stats.transferOut} />
+              <Stat label={t("txnType.income", { ns: "common" })} value={stats.income} tone="income" />
+              <Stat label={t("txnType.expense", { ns: "common" })} value={stats.expense} tone="expense" />
+              <Stat label={t("detail.transfersIn")} value={stats.transferIn} />
+              <Stat label={t("detail.transfersOut")} value={stats.transferOut} />
             </div>
           )}
           <p className="mt-3 text-xs text-muted-foreground tnum">
-            Opening balance {formatMoney(account.initialBalance, { currency: account.currency })}
+            {t("detail.openingBalance", {
+              amount: formatMoney(account.initialBalance, { currency: account.currency }),
+            })}
           </p>
           <RecordMeta createdAt={account.createdAt} updatedAt={account.updatedAt} className="mt-1" />
         </CardContent>
@@ -141,9 +145,9 @@ export default function AccountDetailPage() {
 
       {/* transactions */}
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Transactions</h2>
+        <h2 className="text-sm font-semibold">{t("detail.transactions")}</h2>
         <Button size="sm" onClick={() => openTxnSheet({ type: "expense" })}>
-          <Plus /> Add
+          <Plus /> {t("actions.add", { ns: "common" })}
         </Button>
       </div>
 
@@ -154,11 +158,11 @@ export default function AccountDetailPage() {
       ) : (
         <EmptyState
           icon={Receipt}
-          title="No transactions"
-          description="Transactions on this account will show up here."
+          title={t("detail.noTransactionsTitle")}
+          description={t("detail.noTransactionsDescription")}
           action={
             <Button onClick={() => openTxnSheet({ type: "expense" })}>
-              <Plus /> Add transaction
+              <Plus /> {t("actions.addTransaction", { ns: "common" })}
             </Button>
           }
         />

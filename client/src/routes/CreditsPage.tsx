@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { HeartHandshake, Link2, Link2Off, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
@@ -17,6 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCreditSummary, useDeleteCredit } from "@/hooks/useCredits";
 import { formatMoney } from "@/lib/format";
+import { enumLabel } from "@/lib/i18nLabels";
+import { dateFnsLocale } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { Credit, CreditPersonSummary } from "@/lib/types";
 import { CreditFormDialog } from "@/features/credits/CreditFormDialog";
@@ -27,13 +30,14 @@ function initials(name: string) {
 
 function dayLabel(d: string) {
   try {
-    return format(parseISO(d), "dd MMM yyyy");
+    return format(parseISO(d), "dd MMM yyyy", { locale: dateFnsLocale() });
   } catch {
     return d;
   }
 }
 
 export default function CreditsPage() {
+  const { t } = useTranslation("credits");
   const { data: people, isLoading } = useCreditSummary();
   const del = useDeleteCredit();
   const [open, setOpen] = useState(false);
@@ -57,19 +61,19 @@ export default function CreditsPage() {
     setOpen(true);
   }
   async function handleDelete(c: Credit) {
-    if (!confirm(`Delete this credit entry with ${c.person}?`)) return;
+    if (!confirm(t("delete.confirm", { person: c.person }))) return;
     await del.mutateAsync(c._id);
-    toast.success("Credit deleted");
+    toast.success(t("delete.success"));
   }
 
   return (
     <div>
       <PageHeader
-        title="Credits"
-        description="Money you've given to or received from friends & family"
+        title={t("page.title")}
+        description={t("page.description")}
         actions={
           <Button onClick={() => openNew()}>
-            <Plus /> Add credit
+            <Plus /> {t("page.addCredit")}
           </Button>
         }
       />
@@ -86,9 +90,9 @@ export default function CreditsPage() {
       ) : people && people.length > 0 ? (
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Stat label="You're owed" tone="income" value={formatMoney(totals.owedToYou)} />
-            <Stat label="You owe" tone="expense" value={formatMoney(totals.youOwe)} />
-            <Stat label="Net" value={formatMoney(totals.net, { signed: true })} />
+            <Stat label={t("totals.owed")} tone="income" value={formatMoney(totals.owedToYou)} />
+            <Stat label={t("totals.owe")} tone="expense" value={formatMoney(totals.youOwe)} />
+            <Stat label={t("totals.net")} value={formatMoney(totals.net, { signed: true })} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -106,11 +110,11 @@ export default function CreditsPage() {
       ) : (
         <EmptyState
           icon={HeartHandshake}
-          title="No credits yet"
-          description="Track money you give to or receive from friends and family — optionally reflect it in your accounts."
+          title={t("empty.title")}
+          description={t("empty.description")}
           action={
             <Button onClick={() => openNew()}>
-              <Plus /> Add credit
+              <Plus /> {t("page.addCredit")}
             </Button>
           }
         />
@@ -151,6 +155,7 @@ function PersonCard({
   onEdit: (c: Credit) => void;
   onDelete: (c: Credit) => void;
 }) {
+  const { t } = useTranslation("credits");
   const { person, net, entries } = summary;
   return (
     <Card>
@@ -164,17 +169,24 @@ function PersonCard({
               {person}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              {entries.length} entr{entries.length === 1 ? "y" : "ies"}
+              {t("person.entries", { count: entries.length })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {net !== 0 && (
             <Badge variant={net > 0 ? "income" : "expense"}>
-              {net > 0 ? `Owes you ${formatMoney(net)}` : `You owe ${formatMoney(-net)}`}
+              {net > 0
+                ? t("person.owesYou", { amount: formatMoney(net) })
+                : t("person.youOwe", { amount: formatMoney(-net) })}
             </Badge>
           )}
-          <Button variant="ghost" size="icon-sm" aria-label={`Add credit with ${person}`} onClick={onAdd}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("person.addWith", { person })}
+            onClick={onAdd}
+          >
             <Plus className="h-4 w-4" />
           </Button>
         </div>
@@ -189,6 +201,7 @@ function PersonCard({
 }
 
 function EntryRow({ credit: c, onEdit, onDelete }: { credit: Credit; onEdit: () => void; onDelete: () => void }) {
+  const { t } = useTranslation("credits");
   const accountName = typeof c.account === "string" ? "" : c.account?.name;
   return (
     <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50">
@@ -197,14 +210,16 @@ function EntryRow({ credit: c, onEdit, onDelete }: { credit: Credit; onEdit: () 
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
           c.direction === "given" ? "bg-expense/10 text-expense" : "bg-income/10 text-income"
         )}
-        title={c.reflected ? "Reflected in accounts" : "Not reflected — Credits page only"}
+        title={c.reflected ? t("entry.reflected") : t("entry.notReflected")}
       >
         {c.reflected ? <Link2 className="h-3.5 w-3.5" /> : <Link2Off className="h-3.5 w-3.5" />}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm">
-          {c.direction === "given" ? "You gave" : "You received"}
-          {c.method && <span className="text-muted-foreground"> · via {c.method}</span>}
+          {t(`direction.${c.direction}`)}
+          {c.method && (
+            <span className="text-muted-foreground"> · {t("entry.via", { method: enumLabel("method", c.method) })}</span>
+          )}
           {c.reflected && accountName && <span className="text-muted-foreground"> · {accountName}</span>}
         </p>
         <p className="truncate text-xs text-muted-foreground">
@@ -218,16 +233,16 @@ function EntryRow({ credit: c, onEdit, onDelete }: { credit: Credit; onEdit: () 
       </span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Credit entry actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t("entry.actions")}>
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onEdit}>
-            <Pencil /> Edit
+            <Pencil /> {t("actions.edit", { ns: "common" })}
           </DropdownMenuItem>
           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
-            <Trash2 /> Delete
+            <Trash2 /> {t("actions.delete", { ns: "common" })}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

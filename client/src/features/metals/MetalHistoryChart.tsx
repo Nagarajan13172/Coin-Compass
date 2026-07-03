@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   AreaChart,
@@ -10,11 +11,12 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
 import type { Metal, MetalPrice } from "@/lib/types";
 
 function dayLabel(d: string) {
   try {
-    return format(parseISO(d), "dd MMM");
+    return format(parseISO(d), "dd MMM", { locale: dateFnsLocale() });
   } catch {
     return d;
   }
@@ -34,9 +36,10 @@ export function MetalHistoryChart({
   color?: string;
   metal?: Metal;
 }) {
+  const { t } = useTranslation("credits");
   const gradId = useId();
   const field = metal === "gold" ? "pricePerGram22k" : "pricePerGram24k";
-  const seriesLabel = metal === "gold" ? "22K / g" : "/ g";
+  const seriesLabel = metal === "gold" ? t("gold.seriesGold") : t("gold.seriesOther");
   return (
     <ResponsiveContainer width="100%" height={280}>
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>

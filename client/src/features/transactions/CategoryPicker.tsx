@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { useCategories } from "@/hooks/useCategories";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryFormDialog } from "@/features/categories/CategoryFormDialog";
 import { cn } from "@/lib/utils";
+import { categoryLabel } from "@/lib/i18nLabels";
 import type { CategoryType } from "@/lib/types";
 
 interface CategoryPickerProps {
@@ -14,6 +16,7 @@ interface CategoryPickerProps {
 }
 
 export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
+  const { t } = useTranslation("transactions");
   const { data: categories, isLoading } = useCategories(type);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -45,7 +48,7 @@ export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
               )}
             >
               <CategoryIcon icon={c.icon} color={c.color} size="md" />
-              <span className="line-clamp-2 text-[11px] font-medium leading-tight">{c.name}</span>
+              <span className="line-clamp-2 text-[11px] font-medium leading-tight">{categoryLabel(c.name)}</span>
             </button>
           );
         })}
@@ -59,7 +62,7 @@ export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
             <Plus className="h-5 w-5" />
           </span>
-          <span className="line-clamp-2 text-[11px] font-medium leading-tight">New</span>
+          <span className="line-clamp-2 text-[11px] font-medium leading-tight">{t("picker.new")}</span>
         </button>
       </div>
 

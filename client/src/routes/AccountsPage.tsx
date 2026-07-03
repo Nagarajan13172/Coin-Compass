@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import {
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
-import { accountTypeLabel } from "@/lib/accounts";
+import { enumLabel } from "@/lib/i18nLabels";
 import { CountUp } from "@/components/common/CountUp";
 import { useAccounts, useDeleteAccount } from "@/hooks/useAccounts";
 import { useCanSeeWealth } from "@/hooks/useAuth";
@@ -37,6 +38,7 @@ import type { Account } from "@/lib/types";
 import { toast } from "sonner";
 
 export default function AccountsPage() {
+  const { t } = useTranslation("accounts");
   const { data: accounts, isLoading } = useAccounts();
   const del = useDeleteAccount();
   const canSeeWealth = useCanSeeWealth();
@@ -68,16 +70,16 @@ export default function AccountsPage() {
   }
 
   async function handleDelete(a: Account) {
-    if (!confirm(`Delete "${a.name}"? Transactions on it will block deletion unless forced.`)) return;
+    if (!confirm(t("confirm.deleteList", { name: a.name }))) return;
     try {
       await del.mutateAsync({ id: a._id });
-      toast.success("Account deleted");
+      toast.success(t("toast.deleted"));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed";
+      const msg = e instanceof Error ? e.message : t("toast.failed");
       if (msg.includes("transaction")) {
-        if (confirm(`${msg}\n\nDelete the account AND its transactions?`)) {
+        if (confirm(t("confirm.deleteWithTxns", { message: msg }))) {
           await del.mutateAsync({ id: a._id, force: true });
-          toast.success("Account and its transactions deleted");
+          toast.success(t("toast.deletedWithTxns"));
         }
       } else {
         toast.error(msg);
@@ -88,11 +90,11 @@ export default function AccountsPage() {
   return (
     <div>
       <PageHeader
-        title="Accounts"
-        description="Cash, bank, cards & wallets"
+        title={t("page.title")}
+        description={t("page.description")}
         actions={
           <Button onClick={openNew}>
-            <Plus /> New account
+            <Plus /> {t("newAccount")}
           </Button>
         }
       />
@@ -116,16 +118,16 @@ export default function AccountsPage() {
                       <Wallet className="h-5 w-5" />
                     </span>
                     <div>
-                      <p className="text-sm text-muted-foreground">Total balance</p>
+                      <p className="text-sm text-muted-foreground">{t("totalBalance")}</p>
                       <CountUp value={total} className="tnum block text-3xl font-extrabold tracking-tight" />
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Across {included.length} {included.length === 1 ? "account" : "accounts"}
+                        {t("across", { count: included.length })}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <HeroStat label="Assets" value={assets} tone="income" />
-                    {owed > 0 && <HeroStat label="Owed" value={owed} tone="expense" />}
+                    <HeroStat label={t("assets")} value={assets} tone="income" />
+                    {owed > 0 && <HeroStat label={t("owed")} value={owed} tone="expense" />}
                   </div>
                 </div>
 
@@ -166,11 +168,11 @@ export default function AccountsPage() {
       ) : (
         <EmptyState
           icon={Wallet}
-          title="No accounts yet"
-          description="Create an account to start tracking your money."
+          title={t("empty.title")}
+          description={t("empty.description")}
           action={
             <Button onClick={openNew}>
-              <Plus /> New account
+              <Plus /> {t("newAccount")}
             </Button>
           }
         />
@@ -192,6 +194,7 @@ function AccountCard({
   onTransfer: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation("accounts");
   const Icon = getIcon(a.icon);
   const balance = a.balance ?? 0;
   const negative = balance < 0;
@@ -221,19 +224,19 @@ function AccountCard({
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Account actions">
+              <Button variant="ghost" size="icon-sm" aria-label={t("accountActions")}>
                 <MoreVertical />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onEdit}>
-                <Pencil /> Edit
+                <Pencil /> {t("actions.edit", { ns: "common" })}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onTransfer}>
-                <ArrowRightLeft /> Transfer
+                <ArrowRightLeft /> {t("txnType.transfer", { ns: "common" })}
               </DropdownMenuItem>
               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
-                <Trash2 /> Delete
+                <Trash2 /> {t("actions.delete", { ns: "common" })}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -246,11 +249,11 @@ function AccountCard({
           <p className="truncate font-semibold group-hover:underline">{a.name}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge variant="secondary" className="font-normal">
-              {accountTypeLabel(a.type)}
+              {enumLabel("account", a.type)}
             </Badge>
             {!a.includeInTotal && (
               <Badge variant="outline" className="font-normal text-muted-foreground">
-                Not in total
+                {t("notInTotal")}
               </Badge>
             )}
           </div>
@@ -264,7 +267,9 @@ function AccountCard({
               }`}
             >
               {delta > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-              {formatMoney(Math.abs(delta), { currency: a.currency, compact: true })} since opening
+              {t("sinceOpening", {
+                amount: formatMoney(Math.abs(delta), { currency: a.currency, compact: true }),
+              })}
             </p>
           )}
         </Link>
@@ -277,14 +282,14 @@ function AccountCard({
           </div>
           <div className="flex items-start justify-between text-xs">
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">In</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{t("flow.in")}</p>
               <span className="tnum flex items-center gap-1 font-semibold text-income">
                 <ArrowDownLeft className="h-3 w-3" />
                 {formatMoney(inflow, { currency: a.currency, compact: true })}
               </span>
             </div>
             <div className="text-right">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Out</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{t("flow.out")}</p>
               <span className="tnum flex items-center justify-end gap-1 font-semibold text-expense">
                 <ArrowUpRight className="h-3 w-3" />
                 {formatMoney(outflow, { currency: a.currency, compact: true })}

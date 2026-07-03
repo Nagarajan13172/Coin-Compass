@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Repeat } from "lucide-react";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { Money } from "@/components/common/Money";
 import { useUIStore } from "@/stores/ui";
 import { fmtDate } from "@/lib/dates";
+import { categoryLabel } from "@/lib/i18nLabels";
 import type { RefLite, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -16,13 +18,14 @@ function ref(v: RefLite | string | null | undefined): RefLite | null {
  * groups by day, so it leaves it off.
  */
 export function TransactionRow({ txn, showDate = false }: { txn: Transaction; showDate?: boolean }) {
+  const { t } = useTranslation("transactions");
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const account = ref(txn.account);
   const toAccount = ref(txn.toAccount);
   const category = ref(txn.category);
 
   const isTransfer = txn.type === "transfer";
-  const title = isTransfer ? "Transfer" : category?.name ?? "Uncategorized";
+  const title = isTransfer ? t("txnType.transfer", { ns: "common" }) : categoryLabel(category?.name);
   const icon = isTransfer ? "repeat" : category?.icon;
   const color = isTransfer ? "#3B82F6" : category?.color;
 
@@ -61,7 +64,7 @@ export function TransactionRow({ txn, showDate = false }: { txn: Transaction; sh
           {txn.recurring && (
             <Repeat
               className="h-3 w-3 shrink-0 text-muted-foreground"
-              aria-label="Auto-posted by a recurring rule"
+              aria-label={t("row.recurringAria")}
             />
           )}
         </p>

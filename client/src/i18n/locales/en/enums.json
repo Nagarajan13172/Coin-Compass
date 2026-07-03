@@ -1,0 +1,53 @@
+{
+  "account": {
+    "cash": "Cash",
+    "bank": "Bank",
+    "card": "Card",
+    "wallet": "Wallet",
+    "upi": "UPI",
+    "savings": "Savings"
+  },
+  "loan": {
+    "home": "Home",
+    "personal": "Personal",
+    "car": "Car",
+    "education": "Education",
+    "gold": "Gold",
+    "business": "Business",
+    "other": "Other"
+  },
+  "holdingClass": {
+    "saving": "Saving",
+    "investment": "Investment"
+  },
+  "holding": {
+    "fixed_deposit": "Fixed Deposit",
+    "recurring_deposit": "Recurring Deposit",
+    "emergency_fund": "Emergency Fund",
+    "retirement_fund": "Retirement Fund",
+    "stocks": "Stocks",
+    "mutual_funds": "Mutual Funds",
+    "real_estate": "Real Estate",
+    "bonds": "Bonds",
+    "gold": "Gold"
+  },
+  "method": {
+    "cash": "Cash",
+    "gpay": "GPay",
+    "phonepe": "PhonePe",
+    "paytm": "Paytm",
+    "upi": "UPI",
+    "net_banking": "Net Banking",
+    "debit_card": "Debit Card",
+    "credit_card": "Credit Card",
+    "cheque": "Cheque",
+    "bank_transfer": "Bank Transfer",
+    "other": "Other"
+  },
+  "frequency": {
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "yearly": "Yearly"
+  }
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Delete, Lock } from "lucide-react";
 import { useUIStore } from "@/stores/ui";
@@ -6,6 +7,7 @@ import { verifyPin } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
 
 export function PinLock() {
+  const { t } = useTranslation("settings");
   const locked = useUIStore((s) => s.locked);
   const setLocked = useUIStore((s) => s.setLocked);
   const [pin, setPin] = useState("");
@@ -38,7 +40,7 @@ export function PinLock() {
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
         <Lock className="h-7 w-7" />
       </div>
-      <h1 className="mt-5 text-lg font-semibold">Enter your PIN</h1>
+      <h1 className="mt-5 text-lg font-semibold">{t("pinLock.title")}</h1>
       <motion.div
         className="mt-6 flex gap-3"
         animate={error ? { x: [0, -8, 8, -6, 6, 0] } : {}}
@@ -64,7 +66,7 @@ export function PinLock() {
         ))}
         <span />
         <PinKey onClick={() => press("0")}>0</PinKey>
-        <PinKey onClick={() => setPin((p) => p.slice(0, -1))} aria-label="Delete">
+        <PinKey onClick={() => setPin((p) => p.slice(0, -1))} aria-label={t("pinLock.delete")}>
           <Delete className="h-5 w-5" />
         </PinKey>
       </div>

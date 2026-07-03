@@ -1,0 +1,106 @@
+{
+  "subtitle": "உங்கள் பணம் ஒரே பார்வையில்",
+  "manage": "நிர்வகி",
+  "greeting": {
+    "morning": "காலை வணக்கம்",
+    "afternoon": "மதிய வணக்கம்",
+    "evening": "மாலை வணக்கம்",
+    "morningNamed": "காலை வணக்கம், {{name}}",
+    "afternoonNamed": "மதிய வணக்கம், {{name}}",
+    "eveningNamed": "மாலை வணக்கம், {{name}}"
+  },
+  "period": {
+    "week": "இந்த வாரம்",
+    "month": "இந்த மாதம்",
+    "year": "இந்த ஆண்டு"
+  },
+  "tabs": {
+    "week": "வாரம்",
+    "month": "மாதம்",
+    "year": "ஆண்டு"
+  },
+  "netWorth": {
+    "title": "நிகர மதிப்பு",
+    "breakdown": "விவரம்",
+    "sumOf_one": "{{count}} கணக்கின் கூட்டுத்தொகை",
+    "sumOf_other": "{{count}} கணக்குகளின் கூட்டுத்தொகை",
+    "includedTitle": "நிகர மதிப்பில் சேர்க்கப்பட்டவை",
+    "noneIncluded": "எந்தக் கணக்கும் சேர்க்கப்படவில்லை"
+  },
+  "stats": {
+    "net": "நிகரம்"
+  },
+  "savingsRate": {
+    "none": "இந்தக் காலத்தில் வருமானம் இல்லை",
+    "saved": "வருமானத்தில் {{percent}}% சேமிக்கப்பட்டது",
+    "over": "செலவு வருமானத்தை மிஞ்சுகிறது"
+  },
+  "insights": {
+    "avgPerDay": "நாள் சராசரி செலவு",
+    "biggestCategory": "மிகப்பெரிய வகை",
+    "transactions": "பரிவர்த்தனைகள்"
+  },
+  "cashFlow": {
+    "title": "பணப்பாய்வு",
+    "netThisPeriod": "இந்தக் காலத்தின் நிகரம்:",
+    "incomeMinusExpense": "(வருமானம் − செலவு)",
+    "noData": "இந்தக் காலத்திற்குத் தரவு இல்லை"
+  },
+  "accounts": {
+    "title": "கணக்குகள்",
+    "empty": "இன்னும் கணக்குகள் இல்லை"
+  },
+  "credits": {
+    "title": "கொடுக்கல் வாங்கல்",
+    "owedToYou": "உங்களுக்கு வர வேண்டியது",
+    "youOwe": "நீங்கள் தர வேண்டியது"
+  },
+  "spending": {
+    "title": "வகை வாரியான செலவு",
+    "viewInReports": "அறிக்கைகளில் பார்",
+    "emptyTitle": "இன்னும் செலவு இல்லை",
+    "emptyDescription": "வகை வாரியான பிரிப்பைக் காண ஒரு செலவைச் சேர்க்கவும்."
+  },
+  "recent": {
+    "title": "சமீபத்தியவை",
+    "emptyTitle": "பரிவர்த்தனைகள் இல்லை",
+    "emptyDescription": "உங்கள் முதல் பரிவர்த்தனையைச் சேர்த்துத் தொடங்குங்கள்."
+  },
+  "dueSoon": {
+    "title": "விரைவில் செலுத்த வேண்டியவை",
+    "overdue": "தவணை தாண்டியது",
+    "dueToday": "இன்று செலுத்த வேண்டும்",
+    "dueTomorrow": "நாளை செலுத்த வேண்டும்",
+    "dueIn_one": "{{count}} நாளில் செலுத்த வேண்டும்",
+    "dueIn_other": "{{count}} நாட்களில் செலுத்த வேண்டும்",
+    "recurring": "தொடர்",
+    "post": "பதிவு செய்"
+  },
+  "freq": {
+    "every": {
+      "day_one": "ஒவ்வொரு {{count}} நாளுக்கும்",
+      "day_other": "ஒவ்வொரு {{count}} நாட்களுக்கும்",
+      "week_one": "ஒவ்வொரு {{count}} வாரத்திற்கும்",
+      "week_other": "ஒவ்வொரு {{count}} வாரங்களுக்கும்",
+      "month_one": "ஒவ்வொரு {{count}} மாதத்திற்கும்",
+      "month_other": "ஒவ்வொரு {{count}} மாதங்களுக்கும்",
+      "year_one": "ஒவ்வொரு {{count}} ஆண்டிற்கும்",
+      "year_other": "ஒவ்வொரு {{count}} ஆண்டுகளுக்கும்"
+    }
+  },
+  "budgets": {
+    "title": "பட்ஜெட்டுகள்",
+    "overall": "ஒட்டுமொத்தம்",
+    "statusOver": "மீறியது",
+    "statusClose": "நெருங்கியது",
+    "statusOnTrack": "சரியான பாதையில்",
+    "amountOfTotal": "{{total}} இல் {{amount}}",
+    "overBy": "{{amount}} அதிகம்",
+    "leftBy": "{{amount}} மீதம்"
+  },
+  "goals": {
+    "title": "இலக்குகள்",
+    "done": "முடிந்தது",
+    "toGo": "இன்னும் {{amount}}"
+  }
+}

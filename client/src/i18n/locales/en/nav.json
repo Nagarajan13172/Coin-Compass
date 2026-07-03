@@ -1,0 +1,29 @@
+{
+  "groups": {
+    "overview": "Overview",
+    "money": "Money",
+    "planning": "Planning",
+    "wealth": "Wealth"
+  },
+  "items": {
+    "dashboard": "Dashboard",
+    "reports": "Reports",
+    "calendar": "Calendar",
+    "transactions": "Transactions",
+    "accounts": "Accounts",
+    "recurring": "Recurring",
+    "categories": "Categories",
+    "budgets": "Budgets",
+    "goals": "Goals",
+    "netWorth": "Net Worth",
+    "loans": "Loans",
+    "credits": "Credits",
+    "gold": "Gold",
+    "settings": "Settings"
+  },
+  "more": "More",
+  "menu": "Menu",
+  "expandSidebar": "Expand sidebar",
+  "collapseSidebar": "Collapse sidebar",
+  "accountMenu": "Account menu"
+}

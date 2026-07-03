@@ -61,6 +61,27 @@ npm run dev
 - API: http://localhost:4000/api
 - DB inspector (optional): http://localhost:8081
 
+> `npm run dev` first runs `docker start local-mongo`, so it brings the database
+> up automatically if it was stopped. Set `MONGO_CONTAINER` to use a different
+> container name, or `SKIP_DB_START=1` if you run MongoDB some other way.
+
+### Troubleshooting: login shows "Request failed with status code 500"
+
+Almost always this means **MongoDB isn't running**, so the backend can't start and
+`/api` calls are refused. Fix it with a single command:
+
+```bash
+docker start local-mongo    # start the local dev database
+```
+
+Then start the app with `npm run dev`. A healthy backend prints
+`✓ MongoDB connected` and `✓ API listening on http://localhost:4000/api`.
+Make the DB survive reboots so this can't recur:
+
+```bash
+docker update --restart unless-stopped local-mongo
+```
+
 > OAuth callbacks are exact-match. In local dev this repo defaults to
 > `http://localhost:4000/api/auth/oauth/<provider>/callback`, so keep that same
 > URI registered in the provider console unless you intentionally override it.

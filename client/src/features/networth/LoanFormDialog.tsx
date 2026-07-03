@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { addMonths, format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -22,6 +23,8 @@ import { useCreateLoan, useUpdateLoan } from "@/hooks/useLoans";
 import { useSettings } from "@/hooks/useSettings";
 import { LOAN_TYPE_META, computePayoff, formatMonths } from "@/lib/networth";
 import { formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
+import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import type { Loan, LoanStatus, LoanType } from "@/lib/types";
 
@@ -40,6 +43,7 @@ function chargeDefault(type: LoanType): string {
 }
 
 export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
+  const { t } = useTranslation("wealth");
   const { data: settings } = useSettings();
   const create = useCreateLoan();
   const update = useUpdateLoan();
@@ -102,9 +106,9 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
   }
 
   async function submit() {
-    if (!name.trim()) return toast.error("Enter a loan name");
+    if (!name.trim()) return toast.error(t("loanForm.enterName"));
     const out = Number(outstanding);
-    if (!(out >= 0)) return toast.error("Enter the outstanding amount");
+    if (!(out >= 0)) return toast.error(t("loanForm.enterOutstanding"));
     const payload = {
       name: name.trim(),
       lender: lender.trim(),
@@ -122,14 +126,14 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
     try {
       if (isEdit && loan) {
         await update.mutateAsync({ id: loan._id, ...payload });
-        toast.success("Loan updated");
+        toast.success(t("loanForm.updated"));
       } else {
         await create.mutateAsync(payload);
-        toast.success("Loan added");
+        toast.success(t("loanForm.added"));
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(e instanceof Error ? e.message : t("toast.failedToSave"));
     }
   }
 
@@ -137,71 +141,71 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit loan" : "Add loan"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("loanForm.editTitle") : t("loanForm.addTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="loan-name">Name</Label>
-              <Input id="loan-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Home loan" />
+              <Label htmlFor="loan-name">{t("labels.name", { ns: "common" })}</Label>
+              <Input id="loan-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("loanForm.namePlaceholder")} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="loan-lender">Provider</Label>
+              <Label htmlFor="loan-lender">{t("loanForm.provider")}</Label>
               <Input id="loan-lender" value={lender} onChange={(e) => setLender(e.target.value)} placeholder="HDFC" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label>{t("labels.type", { ns: "common" })}</Label>
               <Select value={type} onValueChange={(v) => onTypeChange(v as LoanType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {LOAN_TYPE_ENTRIES.map(([value, meta]) => (
+                  {LOAN_TYPE_ENTRIES.map(([value]) => (
                     <SelectItem key={value} value={value}>
-                      {meta.label}
+                      {enumLabel("loan", value)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Status</Label>
+              <Label>{t("labels.status", { ns: "common" })}</Label>
               <Select value={status} onValueChange={(v) => setStatus(v as LoanStatus)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
+                  <SelectItem value="active">{t("status.active")}</SelectItem>
+                  <SelectItem value="closed">{t("status.closed")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="loan-out">Outstanding</Label>
+              <Label htmlFor="loan-out">{t("fields.outstanding")}</Label>
               <Input id="loan-out" type="number" inputMode="decimal" value={outstanding} onChange={(e) => setOutstanding(e.target.value)} placeholder="500000" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="loan-principal">Original amount</Label>
-              <Input id="loan-principal" type="number" inputMode="decimal" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="Optional" />
+              <Label htmlFor="loan-principal">{t("loanForm.originalAmount")}</Label>
+              <Input id="loan-principal" type="number" inputMode="decimal" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder={t("labels.optional", { ns: "common" })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="loan-roi">Interest rate (% p.a.)</Label>
+              <Label htmlFor="loan-roi">{t("loanForm.interestRate")}</Label>
               <Input id="loan-roi" type="number" inputMode="decimal" value={roi} onChange={(e) => setRoi(e.target.value)} placeholder="8.5" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="loan-emi">Monthly EMI</Label>
+              <Label htmlFor="loan-emi">{t("loanForm.monthlyEmi")}</Label>
               <Input id="loan-emi" type="number" inputMode="decimal" value={emi} onChange={(e) => setEmi(e.target.value)} placeholder="12000" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="loan-foreclose">Prepay / preclose charge (%)</Label>
+              <Label htmlFor="loan-foreclose">{t("loanForm.prepayPrecloseCharge")}</Label>
               <Input
                 id="loan-foreclose"
                 type="number"
@@ -211,20 +215,20 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
                   setForeclosureChargePct(e.target.value);
                   setChargeTouched(true);
                 }}
-                placeholder="e.g. 2"
+                placeholder={t("placeholders.eg2")}
               />
               <p className="text-xs text-muted-foreground">
-                Typical for {LOAN_TYPE_META[type].label.toLowerCase()}: {LOAN_TYPE_META[type].typicalChargePct}%
+                {t("loanForm.typicalCharge", { type: enumLabel("loan", type).toLowerCase(), pct: LOAN_TYPE_META[type].typicalChargePct })}
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="loan-start">Start date</Label>
+              <Label htmlFor="loan-start">{t("labels.startDate", { ns: "common" })}</Label>
               <Input id="loan-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="loan-tenure">Tenure (months)</Label>
+              <Label htmlFor="loan-tenure">{t("loanForm.tenureMonths")}</Label>
               <Input
                 id="loan-tenure"
                 type="number"
@@ -232,27 +236,27 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
                 min={0}
                 value={tenureMonths}
                 onChange={(e) => setTenureMonths(e.target.value)}
-                placeholder="e.g. 60"
+                placeholder={t("placeholders.eg60")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>End date</Label>
+              <Label>{t("labels.endDate", { ns: "common" })}</Label>
               <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground">
-                {derivedEnd ? format(derivedEnd, "dd MMM yyyy") : "Set start + tenure"}
+                {derivedEnd ? format(derivedEnd, "dd MMM yyyy", { locale: dateFnsLocale() }) : t("loanForm.setStartTenure")}
               </div>
             </div>
           </div>
           {payoff && (
             <p className="text-xs text-muted-foreground">
-              At {formatMoney(Number(emi) || 0)}/mo,{" "}
+              {t("loanForm.payoffPrefix", { rate: formatMoney(Number(emi) || 0) })}{" "}
               {payoff.feasible ? (
                 <>
-                  the balance clears in{" "}
-                  <span className="font-medium text-foreground">{formatMonths(payoff.months)}</span>. Linking a
-                  recurring EMI updates this automatically as it's paid.
+                  {t("loanForm.clearsInPre")}{" "}
+                  <span className="font-medium text-foreground">{formatMonths(payoff.months)}</span>
+                  {t("loanForm.clearsInPost")}
                 </>
               ) : (
-                <span className="text-expense">the EMI doesn't cover the monthly interest — the balance won't reduce.</span>
+                <span className="text-expense">{t("loanForm.emiTooLowLong")}</span>
               )}
             </p>
           )}
@@ -260,10 +264,10 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={create.isPending || update.isPending}>
-            {isEdit ? "Save" : "Add"}
+            {isEdit ? t("actions.save", { ns: "common" }) : t("actions.add", { ns: "common" })}
           </Button>
         </DialogFooter>
       </DialogContent>

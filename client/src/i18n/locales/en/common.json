@@ -1,0 +1,80 @@
+{
+  "brand": "CoinCompass",
+  "account": "Account",
+  "uncategorized": "Uncategorized",
+  "actions": {
+    "add": "Add",
+    "addTransaction": "Add transaction",
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "remove": "Remove",
+    "update": "Update",
+    "create": "Create",
+    "done": "Done",
+    "back": "Back",
+    "next": "Next",
+    "apply": "Apply",
+    "reset": "Reset",
+    "retry": "Retry",
+    "viewAll": "View all",
+    "seeMore": "See more",
+    "export": "Export",
+    "import": "Import",
+    "download": "Download",
+    "upload": "Upload",
+    "signOut": "Sign out"
+  },
+  "labels": {
+    "name": "Name",
+    "amount": "Amount",
+    "date": "Date",
+    "category": "Category",
+    "account": "Account",
+    "note": "Note",
+    "type": "Type",
+    "description": "Description",
+    "total": "Total",
+    "balance": "Balance",
+    "status": "Status",
+    "all": "All",
+    "none": "None",
+    "optional": "Optional",
+    "from": "From",
+    "to": "To",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "currency": "Currency",
+    "color": "Color",
+    "icon": "Icon"
+  },
+  "states": {
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "noResults": "No results",
+    "empty": "Nothing here yet"
+  },
+  "txnType": {
+    "expense": "Expense",
+    "income": "Income",
+    "transfer": "Transfer"
+  },
+  "language": {
+    "label": "Language",
+    "help": "Changes the language of the app’s text. Amounts and dates keep your regional format.",
+    "updated": "Language updated"
+  },
+  "date": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "search": {
+    "placeholder": "Search transactions…",
+    "ariaLabel": "Search all transactions",
+    "title": "Search transactions"
+  }
+}

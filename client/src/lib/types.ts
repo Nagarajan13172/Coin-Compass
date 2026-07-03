@@ -349,6 +349,7 @@ export interface Settings {
   baseCurrency: string;
   theme: "light" | "dark" | "system";
   locale: string;
+  language: "en" | "ta";
   firstDayOfWeek: number;
   monthStartDay: number;
   currencies: CurrencyConfig[];

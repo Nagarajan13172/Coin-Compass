@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   Area,
   AreaChart,
@@ -10,14 +11,15 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { TrendDatum } from "@/lib/types";
 
 function labelFor(bucket: string) {
   // bucket is YYYY-MM-DD or YYYY-MM
   try {
-    if (/^\d{4}-\d{2}$/.test(bucket)) return format(parseISO(`${bucket}-01`), "MMM");
-    if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) return format(parseISO(bucket), "dd MMM");
+    if (/^\d{4}-\d{2}$/.test(bucket)) return format(parseISO(`${bucket}-01`), "MMM", { locale: dateFnsLocale() });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) return format(parseISO(bucket), "dd MMM", { locale: dateFnsLocale() });
   } catch {
     /* noop */
   }
@@ -37,6 +39,7 @@ export function NetTrendArea({
   data: TrendDatum[];
   onSelect?: (bucket: string) => void;
 }) {
+  const { t } = useTranslation("reports");
   return (
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart
@@ -83,7 +86,7 @@ export function NetTrendArea({
             fontSize: 12,
           }}
           labelFormatter={(l) => labelFor(String(l))}
-          formatter={(value: number) => [formatMoney(value), "Net"]}
+          formatter={(value: number) => [formatMoney(value), t("net")]}
         />
         <Area
           type="monotone"

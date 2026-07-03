@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   BadgeCheck,
@@ -43,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { SUPPORTED_LANGUAGES, isSupportedLanguage } from "@/i18n";
 import { useUIStore } from "@/stores/ui";
 import {
   useDisablePin,
@@ -61,6 +63,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { dateFnsLocale } from "@/lib/dates";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useGoals } from "@/hooks/useGoals";
@@ -77,9 +80,9 @@ export default function SettingsPage() {
   async function sendTestReport() {
     try {
       const r = await sendReport.mutateAsync("monthly");
-      toast.success(`Report sent to ${r.sentTo}`);
+      toast.success(ts("reports.sentTo", { email: r.sentTo }));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send");
+      toast.error(e instanceof Error ? e.message : ts("reports.sendFailed"));
     }
   }
   const setPinMut = useSetPin();
@@ -94,6 +97,9 @@ export default function SettingsPage() {
   const changePassword = useChangePassword();
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
+  const setLanguage = useUIStore((s) => s.setLanguage);
+  const { t } = useTranslation();
+  const { t: ts } = useTranslation("settings");
 
   const importFile = useImportFile();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -128,19 +134,26 @@ export default function SettingsPage() {
     !!settings && (name.trim() !== settings.name || description.trim() !== (settings.description ?? ""));
 
   async function saveProfile() {
-    if (!name.trim()) return toast.error("Wallet name can't be empty");
+    if (!name.trim()) return toast.error(ts("wallet.nameEmpty"));
     await updateSettings.mutateAsync({ name: name.trim(), description: description.trim() });
-    toast.success("Profile updated");
+    toast.success(ts("wallet.profileUpdated"));
   }
 
   async function changeCurrency(code: string) {
     await updateSettings.mutateAsync({ baseCurrency: code });
-    toast.success("Base currency updated");
+    toast.success(ts("preferences.currencyUpdated"));
   }
 
   async function changeFirstDay(v: string) {
     await updateSettings.mutateAsync({ firstDayOfWeek: Number(v) });
-    toast.success("First day of week updated");
+    toast.success(ts("preferences.firstDayUpdated"));
+  }
+
+  async function changeLanguage(lang: string) {
+    if (!isSupportedLanguage(lang)) return;
+    setLanguage(lang); // apply instantly on this device…
+    await updateSettings.mutateAsync({ language: lang }); // …and remember it on the account
+    toast.success(t("language.updated"));
   }
 
   function openPinDialog(mode: "set" | "change") {
@@ -154,16 +167,16 @@ export default function SettingsPage() {
     if (enabled) openPinDialog("set");
     else {
       await disablePin.mutateAsync();
-      toast.success("PIN lock disabled");
+      toast.success(ts("pin.lockDisabled"));
     }
   }
 
   async function confirmPin() {
-    if (!/^\d{4,8}$/.test(pin)) return toast.error("PIN must be 4–8 digits");
-    if (pin !== pinConfirm) return toast.error("PINs don't match");
+    if (!/^\d{4,8}$/.test(pin)) return toast.error(ts("pin.mustBeDigits"));
+    if (pin !== pinConfirm) return toast.error(ts("pin.noMatch"));
     await setPinMut.mutateAsync(pin);
     setPinDialogOpen(false);
-    toast.success(pinMode === "change" ? "PIN changed" : "PIN lock enabled");
+    toast.success(pinMode === "change" ? ts("pin.changed") : ts("pin.lockEnabled"));
   }
 
   function openWealthDialog(mode: "set" | "change") {
@@ -177,27 +190,25 @@ export default function SettingsPage() {
     if (enabled) openWealthDialog("set");
     else {
       await disableWealthPass.mutateAsync();
-      toast.success("Net Worth lock disabled", {
-        description: "The Net Worth section is visible on every login now.",
+      toast.success(ts("wealth.lockDisabled"), {
+        description: ts("wealth.lockDisabledDesc"),
       });
     }
   }
 
   async function confirmWealthPasscode() {
     if (wealthPass.length < 4 || wealthPass.length > 32)
-      return toast.error("Passcode must be 4–32 characters");
-    if (wealthPass !== wealthConfirm) return toast.error("Passcodes don't match");
+      return toast.error(ts("wealth.passcodeLength"));
+    if (wealthPass !== wealthConfirm) return toast.error(ts("wealth.passcodeNoMatch"));
     try {
       await setWealthPass.mutateAsync(wealthPass);
       setWealthDialogOpen(false);
-      toast.success(wealthMode === "change" ? "Wealth passcode changed" : "Net Worth lock enabled", {
+      toast.success(wealthMode === "change" ? ts("wealth.passcodeChanged") : ts("wealth.lockEnabled"), {
         description:
-          wealthMode === "change"
-            ? undefined
-            : "New logins start in the everyday view; unlock with your passcode to reveal Net Worth.",
+          wealthMode === "change" ? undefined : ts("wealth.lockEnabledDesc"),
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't update passcode");
+      toast.error(e instanceof Error ? e.message : ts("wealth.passcodeUpdateFailed"));
     }
   }
 
@@ -209,18 +220,18 @@ export default function SettingsPage() {
   }
 
   async function confirmChangePassword() {
-    if (me?.hasPassword && !currentPassword) return toast.error("Enter your current password");
-    if (newPassword.length < 8) return toast.error("New password must be at least 8 characters");
-    if (newPassword !== newPasswordConfirm) return toast.error("New passwords don't match");
+    if (me?.hasPassword && !currentPassword) return toast.error(ts("password.enterCurrent"));
+    if (newPassword.length < 8) return toast.error(ts("password.minLength"));
+    if (newPassword !== newPasswordConfirm) return toast.error(ts("password.noMatch"));
     try {
       await changePassword.mutateAsync({
         currentPassword: me?.hasPassword ? currentPassword : undefined,
         newPassword,
       });
       setPasswordDialogOpen(false);
-      toast.success(me?.hasPassword ? "Password changed" : "Password set");
+      toast.success(me?.hasPassword ? ts("password.changed") : ts("password.set"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't update password");
+      toast.error(e instanceof Error ? e.message : ts("password.updateFailed"));
     }
   }
 
@@ -239,17 +250,17 @@ export default function SettingsPage() {
     try {
       const result = await importFile.mutateAsync(file);
       setImportResult(result);
-      if (result.imported > 0) toast.success(`Imported ${result.imported} transaction(s)`);
-      else toast.error("No transactions were imported");
+      if (result.imported > 0) toast.success(ts("import.imported", { count: result.imported }));
+      else toast.error(ts("import.noneImported"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      toast.error(err instanceof Error ? err.message : ts("import.failed"));
     }
   }
 
   const themeOptions = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
+    { value: "light", label: ts("preferences.theme.light"), icon: Sun },
+    { value: "dark", label: ts("preferences.theme.dark"), icon: Moon },
+    { value: "system", label: ts("preferences.theme.system"), icon: Monitor },
   ] as const;
 
   const pinEnabled = settings?.pinEnabled ?? false;
@@ -261,7 +272,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-5xl">
-      <PageHeader title="Settings" description="Preferences & data" />
+      <PageHeader title={ts("pageTitle")} description={ts("pageDescription")} />
 
       <div className="space-y-5">
         {/* Account hero — who's signed in, at a glance */}
@@ -277,17 +288,17 @@ export default function SettingsPage() {
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="truncate text-lg font-bold">{me.name || "Your account"}</h2>
+                    <h2 className="truncate text-lg font-bold">{me.name || ts("hero.yourAccount")}</h2>
                     {me.emailVerified ? (
                       <Badge variant="income" className="gap-1">
-                        <BadgeCheck className="h-3 w-3" /> Verified
+                        <BadgeCheck className="h-3 w-3" /> {ts("hero.verified")}
                       </Badge>
                     ) : (
-                      <Badge variant="outline">Unverified</Badge>
+                      <Badge variant="outline">{ts("hero.unverified")}</Badge>
                     )}
                     {me.mode === "superadmin" && (
                       <Badge variant="secondary" className="gap-1">
-                        <ShieldCheck className="h-3 w-3" /> Wealth view
+                        <ShieldCheck className="h-3 w-3" /> {ts("hero.wealthView")}
                       </Badge>
                     )}
                   </div>
@@ -296,18 +307,25 @@ export default function SettingsPage() {
                     <span className="truncate">{me.email}</span>
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {me.hasPassword ? "Email & password" : "Google account"}
-                    {me.createdAt && <> · Member since {format(new Date(me.createdAt), "MMMM yyyy")}</>}
+                    {me.hasPassword ? ts("hero.emailPassword") : ts("hero.googleAccount")}
+                    {me.createdAt && (
+                      <>
+                        {" · "}
+                        {ts("hero.memberSince", {
+                          date: format(new Date(me.createdAt), "MMMM yyyy", { locale: dateFnsLocale() }),
+                        })}
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
 
               {/* Your data at a glance */}
               <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Stat icon={Wallet} label="Accounts" value={accounts?.length} />
-                <Stat icon={Shapes} label="Categories" value={categories?.length} />
-                <Stat icon={Trophy} label="Goals" value={goals?.length} />
-                <Stat icon={HandCoins} label="Loans" value={loans?.length} />
+                <Stat icon={Wallet} label={ts("hero.accounts")} value={accounts?.length} />
+                <Stat icon={Shapes} label={ts("hero.categories")} value={categories?.length} />
+                <Stat icon={Trophy} label={ts("hero.goals")} value={goals?.length} />
+                <Stat icon={HandCoins} label={ts("hero.loans")} value={loans?.length} />
               </div>
             </CardContent>
           </Card>
@@ -319,35 +337,35 @@ export default function SettingsPage() {
         {/* Wallet */}
         <Card>
           <CardHeader>
-            <CardTitle>Wallet</CardTitle>
+            <CardTitle>{ts("wallet.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="profile-name">Wallet name</Label>
+              <Label htmlFor="profile-name">{ts("wallet.nameLabel")}</Label>
               <Input
                 id="profile-name"
                 value={name}
                 maxLength={60}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Wallet"
+                placeholder={ts("wallet.namePlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="profile-desc">Label</Label>
+              <Label htmlFor="profile-desc">{ts("wallet.labelLabel")}</Label>
               <Input
                 id="profile-desc"
                 value={description}
                 maxLength={120}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. Personal finances"
+                placeholder={ts("wallet.labelPlaceholder")}
               />
               <p className="text-xs text-muted-foreground">
-                An optional tag shown alongside your wallet name.
+                {ts("wallet.labelHelp")}
               </p>
             </div>
             <div className="flex justify-end">
               <Button onClick={saveProfile} disabled={!profileDirty || updateSettings.isPending}>
-                Save changes
+                {t("actions.saveChanges")}
               </Button>
             </div>
           </CardContent>
@@ -356,14 +374,32 @@ export default function SettingsPage() {
         {/* Preferences */}
         <Card>
           <CardHeader>
-            <CardTitle>Preferences</CardTitle>
+            <CardTitle>{ts("preferences.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-1.5">
-              <Label>Base currency</Label>
+              <Label>{t("language.label")}</Label>
+              <Select value={settings?.language ?? "en"} onValueChange={changeLanguage}>
+                <SelectTrigger className="w-full sm:w-72">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_LANGUAGES.map((l) => (
+                    <SelectItem key={l.code} value={l.code}>
+                      {l.nativeLabel}
+                      {l.nativeLabel !== l.label ? ` · ${l.label}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{t("language.help")}</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{ts("preferences.currencyLabel")}</Label>
               <Select value={settings?.baseCurrency} onValueChange={changeCurrency}>
                 <SelectTrigger className="w-full sm:w-72">
-                  <SelectValue placeholder="Currency" />
+                  <SelectValue placeholder={t("labels.currency")} />
                 </SelectTrigger>
                 <SelectContent>
                   {settings?.currencies.map((c) => (
@@ -374,12 +410,12 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                All amounts are shown in this currency. Multi-currency conversion isn’t enabled yet.
+                {ts("preferences.currencyHelp")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Theme</Label>
+              <Label>{ts("preferences.themeLabel")}</Label>
               <div className="grid max-w-sm grid-cols-3 gap-2">
                 {themeOptions.map((opt) => (
                   <button
@@ -398,24 +434,24 @@ export default function SettingsPage() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Applies instantly, on this device only.
+                {ts("preferences.themeHelp")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label>First day of week</Label>
+              <Label>{ts("preferences.firstDayLabel")}</Label>
               <Select value={String(settings?.firstDayOfWeek ?? 1)} onValueChange={changeFirstDay}>
                 <SelectTrigger className="w-full sm:w-72">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Monday</SelectItem>
-                  <SelectItem value="0">Sunday</SelectItem>
-                  <SelectItem value="6">Saturday</SelectItem>
+                  <SelectItem value="1">{ts("preferences.weekdays.monday")}</SelectItem>
+                  <SelectItem value="0">{ts("preferences.weekdays.sunday")}</SelectItem>
+                  <SelectItem value="6">{ts("preferences.weekdays.saturday")}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Used by the Calendar and weekly reports.
+                {ts("preferences.firstDayHelp")}
               </p>
             </div>
           </CardContent>
@@ -424,24 +460,24 @@ export default function SettingsPage() {
         {/* Email reports */}
         <Card>
           <CardHeader>
-            <CardTitle>Email reports</CardTitle>
+            <CardTitle>{ts("reports.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">Monthly & mid-month summary</p>
+                <p className="text-sm font-medium">{ts("reports.summaryTitle")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Emailed on the 1st (last month) and the 15th (this month so far).
+                  {ts("reports.summaryDesc")}
                 </p>
               </div>
               <Switch
                 checked={settings?.emailReports ?? true}
                 onCheckedChange={(v) => updateSettings.mutate({ emailReports: v })}
-                aria-label="Email reports"
+                aria-label={ts("reports.emailReportsAria")}
               />
             </div>
             <Button variant="outline" size="sm" disabled={sendReport.isPending} onClick={sendTestReport}>
-              {sendReport.isPending ? "Sending…" : "Send a test report now"}
+              {sendReport.isPending ? ts("reports.sending") : ts("reports.sendTest")}
             </Button>
           </CardContent>
         </Card>
@@ -449,7 +485,7 @@ export default function SettingsPage() {
         {/* Security */}
         <Card>
           <CardHeader>
-            <CardTitle>Security</CardTitle>
+            <CardTitle>{ts("security.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between gap-4">
@@ -458,16 +494,14 @@ export default function SettingsPage() {
                   <KeyRound className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium">Password</p>
+                  <p className="text-sm font-medium">{ts("password.title")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {me?.hasPassword
-                      ? "Change the password you sign in with."
-                      : "Set a password so you can also sign in with email."}
+                    {me?.hasPassword ? ts("password.changeDesc") : ts("password.setDesc")}
                   </p>
                 </div>
               </div>
               <Button variant="outline" size="sm" className="shrink-0" onClick={openPasswordDialog}>
-                {me?.hasPassword ? "Change" : "Set password"}
+                {me?.hasPassword ? ts("buttons.change") : ts("password.setPassword")}
               </Button>
             </div>
 
@@ -484,18 +518,16 @@ export default function SettingsPage() {
                   {pinEnabled ? <ShieldCheck className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
                 </span>
                 <div>
-                  <p className="text-sm font-medium">PIN lock</p>
+                  <p className="text-sm font-medium">{ts("pin.title")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {pinEnabled
-                      ? "A PIN is required to open the app on this device."
-                      : "Require a PIN to open the app (this device)."}
+                    {pinEnabled ? ts("pin.descEnabled") : ts("pin.descDisabled")}
                   </p>
                 </div>
               </div>
               {pinEnabled ? (
                 <div className="flex shrink-0 gap-2">
                   <Button variant="outline" size="sm" onClick={() => openPinDialog("change")}>
-                    Change PIN
+                    {ts("pin.changePin")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -503,17 +535,16 @@ export default function SettingsPage() {
                     onClick={() => togglePin(false)}
                     disabled={disablePin.isPending}
                   >
-                    Disable
+                    {ts("buttons.disable")}
                   </Button>
                 </div>
               ) : (
-                <Switch checked={false} onCheckedChange={togglePin} aria-label="Enable PIN lock" />
+                <Switch checked={false} onCheckedChange={togglePin} aria-label={ts("pin.enableAria")} />
               )}
             </div>
             <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
               <Info className="mt-0.5 h-3 w-3 shrink-0" />
-              The PIN only gates the app on your devices; your data stays intact. If you forget it,
-              disable it here while the app is unlocked.
+              {ts("pin.info")}
             </p>
           </CardContent>
         </Card>
@@ -524,7 +555,7 @@ export default function SettingsPage() {
         {/* Wealth lock */}
         <Card>
           <CardHeader>
-            <CardTitle>Net Worth lock</CardTitle>
+            <CardTitle>{ts("wealth.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between gap-4">
@@ -538,11 +569,9 @@ export default function SettingsPage() {
                   <Landmark className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium">Hide Net Worth behind a passcode</p>
+                  <p className="text-sm font-medium">{ts("wealth.hideLabel")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {wealthLockEnabled
-                      ? "Logins open in the everyday view; the Net Worth section stays hidden until unlocked."
-                      : "Require a separate passcode to reveal the Net Worth section."}
+                    {wealthLockEnabled ? ts("wealth.descEnabled") : ts("wealth.descDisabled")}
                   </p>
                 </div>
               </div>
@@ -550,7 +579,7 @@ export default function SettingsPage() {
                 canManageWealthLock ? (
                   <div className="flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" onClick={() => openWealthDialog("change")}>
-                      Change
+                      {ts("buttons.change")}
                     </Button>
                     <Button
                       variant="ghost"
@@ -558,7 +587,7 @@ export default function SettingsPage() {
                       onClick={() => toggleWealthLock(false)}
                       disabled={disableWealthPass.isPending}
                     >
-                      Disable
+                      {ts("buttons.disable")}
                     </Button>
                   </div>
                 ) : (
@@ -568,22 +597,22 @@ export default function SettingsPage() {
                     className="shrink-0"
                     onClick={() => setWealthUnlockOpen(true)}
                   >
-                    <ShieldCheck /> Unlock to manage
+                    <ShieldCheck /> {ts("wealth.unlockToManage")}
                   </Button>
                 )
               ) : (
                 <Switch
                   checked={false}
                   onCheckedChange={toggleWealthLock}
-                  aria-label="Enable Net Worth lock"
+                  aria-label={ts("wealth.enableAria")}
                 />
               )}
             </div>
             <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
               <Info className="mt-0.5 h-3 w-3 shrink-0" />
               {wealthLockEnabled && !canManageWealthLock
-                ? "Unlock Net Worth from the account menu to change or disable this passcode."
-                : "The everyday login can be shared safely — Net Worth (holdings & net-worth totals) stays hidden until the passcode is entered. Income, expenses and cash flow are always visible."}
+                ? ts("wealth.infoLocked")
+                : ts("wealth.infoDefault")}
             </p>
           </CardContent>
         </Card>
@@ -591,13 +620,13 @@ export default function SettingsPage() {
         {/* Data */}
         <Card>
           <CardHeader>
-            <CardTitle>Data</CardTitle>
+            <CardTitle>{ts("data.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium">Export transactions</p>
+              <p className="text-sm font-medium">{ts("data.exportTitle")}</p>
               <p className="text-xs text-muted-foreground">
-                All transactions across every account. Optionally limit to a date range. Saved as{" "}
+                {ts("data.exportDescBefore")}{" "}
                 <code className="rounded bg-muted px-1 py-0.5">
                   coincompass-transactions-YYYY-MM-DD-{settings?.baseCurrency ?? "INR"}.csv
                 </code>
@@ -606,7 +635,7 @@ export default function SettingsPage() {
               <div className="mt-3 flex flex-wrap items-end gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="exp-from" className="text-xs">
-                    From
+                    {t("labels.from")}
                   </Label>
                   <Input
                     id="exp-from"
@@ -619,7 +648,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="exp-to" className="text-xs">
-                    To
+                    {t("labels.to")}
                   </Label>
                   <Input
                     id="exp-to"
@@ -632,7 +661,7 @@ export default function SettingsPage() {
                 </div>
                 <Button variant="outline" asChild>
                   <a href={exportHref}>
-                    <Download /> Export CSV
+                    <Download /> {ts("data.exportCsv")}
                   </a>
                 </Button>
                 {(exportFrom || exportTo) && (
@@ -644,7 +673,7 @@ export default function SettingsPage() {
                       setExportTo("");
                     }}
                   >
-                    Clear
+                    {ts("data.clear")}
                   </Button>
                 )}
               </div>
@@ -654,17 +683,17 @@ export default function SettingsPage() {
 
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Import transactions</p>
+                <p className="text-sm font-medium">{ts("data.importTitle")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Upload a CSV or Excel (.xlsx) file. Missing categories &amp; accounts are created
-                  automatically.
+                  {ts("data.importDesc")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Required:</span> date, amount, type ·{" "}
-                  <span className="font-medium text-foreground">Optional:</span> category, account,
-                  note, payee.{" "}
+                  <span className="font-medium text-foreground">{ts("data.requiredLabel")}</span>{" "}
+                  {ts("data.requiredFields")} ·{" "}
+                  <span className="font-medium text-foreground">{ts("data.optionalLabel")}</span>{" "}
+                  {ts("data.optionalFields")}{" "}
                   <a href="/example-transactions.xlsx" download className="text-primary underline">
-                    Download sample
+                    {ts("data.downloadSample")}
                   </a>
                 </p>
               </div>
@@ -681,7 +710,7 @@ export default function SettingsPage() {
                 onClick={() => fileRef.current?.click()}
                 disabled={importFile.isPending}
               >
-                <Upload /> {importFile.isPending ? "Importing…" : "Import"}
+                <Upload /> {importFile.isPending ? ts("data.importing") : t("actions.import")}
               </Button>
             </div>
           </CardContent>
@@ -690,14 +719,14 @@ export default function SettingsPage() {
         {/* App info */}
         <Card>
           <CardHeader>
-            <CardTitle>App info</CardTitle>
+            <CardTitle>{ts("appInfo.title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <InfoRow label="App" value="CoinCompass" />
-            <InfoRow label="Version" value={APP_VERSION} />
-            <InfoRow label="Build" value="Local build · Single user" />
+            <InfoRow label={ts("appInfo.app")} value="CoinCompass" />
+            <InfoRow label={ts("appInfo.version")} value={APP_VERSION} />
+            <InfoRow label={ts("appInfo.build")} value={ts("appInfo.buildValue")} />
             <InfoRow
-              label="Region"
+              label={ts("appInfo.region")}
               value={`${settings?.baseCurrency ?? "INR"} · ${settings?.locale ?? "en-IN"}`}
             />
           </CardContent>
@@ -709,17 +738,17 @@ export default function SettingsPage() {
       <Dialog open={!!importResult} onOpenChange={(o) => !o && setImportResult(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Import complete</DialogTitle>
+            <DialogTitle>{ts("import.completeTitle")}</DialogTitle>
           </DialogHeader>
           {importResult && (
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Imported</p>
+                  <p className="text-xs text-muted-foreground">{ts("import.importedLabel")}</p>
                   <p className="text-lg font-semibold text-income">{importResult.imported}</p>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Skipped</p>
+                  <p className="text-xs text-muted-foreground">{ts("import.skippedLabel")}</p>
                   <p
                     className={cn(
                       "text-lg font-semibold",
@@ -734,8 +763,7 @@ export default function SettingsPage() {
               {importResult.createdCategories.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">
-                    {importResult.createdCategories.length} categor
-                    {importResult.createdCategories.length === 1 ? "y" : "ies"} created:
+                    {ts("import.categoriesCreated", { count: importResult.createdCategories.length })}
                   </span>{" "}
                   {importResult.createdCategories.join(", ")}
                 </p>
@@ -743,8 +771,7 @@ export default function SettingsPage() {
               {importResult.createdAccounts.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">
-                    {importResult.createdAccounts.length} account
-                    {importResult.createdAccounts.length === 1 ? "" : "s"} created:
+                    {ts("import.accountsCreated", { count: importResult.createdAccounts.length })}
                   </span>{" "}
                   {importResult.createdAccounts.join(", ")}
                 </p>
@@ -752,13 +779,13 @@ export default function SettingsPage() {
 
               {importResult.failed.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium">Skipped rows</p>
+                  <p className="text-xs font-medium">{ts("import.skippedRows")}</p>
                   <ScrollArea className="max-h-40 rounded-lg border">
                     <div className="divide-y">
                       {importResult.failed.map((f) => (
                         <div key={f.row} className="flex gap-2 px-3 py-1.5 text-xs">
                           <span className="shrink-0 font-medium text-muted-foreground">
-                            Row {f.row}
+                            {ts("import.row", { row: f.row })}
                           </span>
                           <span className="text-expense">{f.error}</span>
                         </div>
@@ -770,7 +797,7 @@ export default function SettingsPage() {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setImportResult(null)}>Done</Button>
+            <Button onClick={() => setImportResult(null)}>{t("actions.done")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -779,11 +806,13 @@ export default function SettingsPage() {
       <Dialog open={pinDialogOpen} onOpenChange={setPinDialogOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>{pinMode === "change" ? "Change PIN" : "Set a PIN"}</DialogTitle>
+            <DialogTitle>
+              {pinMode === "change" ? ts("pin.dialogChangeTitle") : ts("pin.dialogSetTitle")}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="set-pin">New PIN (4–8 digits)</Label>
+              <Label htmlFor="set-pin">{ts("pin.newPinLabel")}</Label>
               <Input
                 id="set-pin"
                 type="password"
@@ -796,7 +825,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm-pin">Confirm PIN</Label>
+              <Label htmlFor="confirm-pin">{ts("pin.confirmLabel")}</Label>
               <Input
                 id="confirm-pin"
                 type="password"
@@ -811,10 +840,10 @@ export default function SettingsPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPinDialogOpen(false)}>
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button onClick={confirmPin} disabled={setPinMut.isPending}>
-              <Check /> {pinMode === "change" ? "Update PIN" : "Enable"}
+              <Check /> {pinMode === "change" ? ts("pin.updatePin") : ts("buttons.enable")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -825,12 +854,12 @@ export default function SettingsPage() {
         <DialogContent className="max-w-xs">
           <DialogHeader>
             <DialogTitle>
-              {wealthMode === "change" ? "Change wealth passcode" : "Set a wealth passcode"}
+              {wealthMode === "change" ? ts("wealth.dialogChangeTitle") : ts("wealth.dialogSetTitle")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="set-wealth">Passcode (4–32 characters)</Label>
+              <Label htmlFor="set-wealth">{ts("wealth.passcodeLabel")}</Label>
               <Input
                 id="set-wealth"
                 type="password"
@@ -843,7 +872,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm-wealth">Confirm passcode</Label>
+              <Label htmlFor="confirm-wealth">{ts("wealth.confirmLabel")}</Label>
               <Input
                 id="confirm-wealth"
                 type="password"
@@ -856,16 +885,15 @@ export default function SettingsPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Keep this separate from your login password. Anyone with just the login sees everyday
-              spending — never your Net Worth.
+              {ts("wealth.dialogHelp")}
             </p>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setWealthDialogOpen(false)}>
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button onClick={confirmWealthPasscode} disabled={setWealthPass.isPending}>
-              <Check /> {wealthMode === "change" ? "Update" : "Enable"}
+              <Check /> {wealthMode === "change" ? t("actions.update") : ts("buttons.enable")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -877,12 +905,14 @@ export default function SettingsPage() {
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>{me?.hasPassword ? "Change password" : "Set a password"}</DialogTitle>
+            <DialogTitle>
+              {me?.hasPassword ? ts("password.dialogChangeTitle") : ts("password.dialogSetTitle")}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             {me?.hasPassword && (
               <div className="space-y-1.5">
-                <Label htmlFor="current-password">Current password</Label>
+                <Label htmlFor="current-password">{ts("password.currentLabel")}</Label>
                 <PasswordInput
                   id="current-password"
                   autoComplete="current-password"
@@ -894,7 +924,7 @@ export default function SettingsPage() {
               </div>
             )}
             <div className="space-y-1.5">
-              <Label htmlFor="new-password">New password (min 8 characters)</Label>
+              <Label htmlFor="new-password">{ts("password.newLabel")}</Label>
               <PasswordInput
                 id="new-password"
                 autoComplete="new-password"
@@ -906,7 +936,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm-new-password">Confirm new password</Label>
+              <Label htmlFor="confirm-new-password">{ts("password.confirmLabel")}</Label>
               <PasswordInput
                 id="confirm-new-password"
                 autoComplete="new-password"
@@ -920,10 +950,10 @@ export default function SettingsPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPasswordDialogOpen(false)}>
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button onClick={confirmChangePassword} disabled={changePassword.isPending}>
-              <Check /> {me?.hasPassword ? "Update password" : "Set password"}
+              <Check /> {me?.hasPassword ? ts("password.updatePassword") : ts("password.setPassword")}
             </Button>
           </DialogFooter>
         </DialogContent>

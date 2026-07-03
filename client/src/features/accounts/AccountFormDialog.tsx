@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -23,16 +24,10 @@ import { IconPicker } from "@/components/common/IconPicker";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { useSettings } from "@/hooks/useSettings";
+import { enumLabel } from "@/lib/i18nLabels";
 import type { Account, AccountType } from "@/lib/types";
 
-const TYPES: { value: AccountType; label: string }[] = [
-  { value: "cash", label: "Cash" },
-  { value: "bank", label: "Bank" },
-  { value: "card", label: "Card" },
-  { value: "wallet", label: "Wallet" },
-  { value: "upi", label: "UPI" },
-  { value: "savings", label: "Savings" },
-];
+const TYPES: AccountType[] = ["cash", "bank", "card", "wallet", "upi", "savings"];
 
 /** A sensible starter icon per account type (used for new accounts until the
  *  user picks their own). e.g. UPI → a phone, since GPay/PhonePe live there. */
@@ -52,6 +47,7 @@ interface Props {
 }
 
 export function AccountFormDialog({ open, onOpenChange, account }: Props) {
+  const { t } = useTranslation("accounts");
   const { data: settings } = useSettings();
   const create = useCreateAccount();
   const update = useUpdateAccount();
@@ -91,7 +87,7 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
   }
 
   async function submit() {
-    if (!name.trim()) return toast.error("Enter an account name");
+    if (!name.trim()) return toast.error(t("toast.enterName"));
     const payload = {
       name: name.trim(),
       type,
@@ -104,14 +100,14 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
     try {
       if (isEdit && account) {
         await update.mutateAsync({ id: account._id, ...payload });
-        toast.success("Account updated");
+        toast.success(t("toast.updated"));
       } else {
         await create.mutateAsync(payload);
-        toast.success("Account created");
+        toast.success(t("toast.created"));
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(e instanceof Error ? e.message : t("toast.failedSave"));
     }
   }
 
@@ -119,31 +115,36 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit account" : "New account"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("editAccount") : t("newAccount")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="acc-name">Name</Label>
-            <Input id="acc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. HDFC Savings" />
+            <Label htmlFor="acc-name">{t("labels.name", { ns: "common" })}</Label>
+            <Input
+              id="acc-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("form.namePlaceholder")}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label>{t("labels.type", { ns: "common" })}</Label>
               <Select value={type} onValueChange={(v) => onTypeChange(v as AccountType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                  {TYPES.map((ty) => (
+                    <SelectItem key={ty} value={ty}>
+                      {enumLabel("account", ty)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Currency</Label>
+              <Label>{t("labels.currency", { ns: "common" })}</Label>
               <Select value={currency} onValueChange={setCurrency}>
                 <SelectTrigger>
                   <SelectValue />
@@ -159,7 +160,7 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="acc-bal">{isEdit ? "Initial balance" : "Starting balance"}</Label>
+            <Label htmlFor="acc-bal">{isEdit ? t("form.initialBalance") : t("form.startingBalance")}</Label>
             <Input
               id="acc-bal"
               type="number"
@@ -169,17 +170,17 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Color</Label>
+            <Label>{t("labels.color", { ns: "common" })}</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
           <div className="space-y-1.5">
-            <Label>Icon</Label>
+            <Label>{t("labels.icon", { ns: "common" })}</Label>
             <IconPicker value={icon} color={color} onChange={onIconChange} />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <p className="text-sm font-medium">Include in total</p>
-              <p className="text-xs text-muted-foreground">Count this account in net worth</p>
+              <p className="text-sm font-medium">{t("form.includeInTotal")}</p>
+              <p className="text-xs text-muted-foreground">{t("form.includeInTotalHelp")}</p>
             </div>
             <Switch checked={includeInTotal} onCheckedChange={setIncludeInTotal} />
           </div>
@@ -187,10 +188,10 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={create.isPending || update.isPending}>
-            {isEdit ? "Save" : "Create"}
+            {isEdit ? t("actions.save", { ns: "common" }) : t("actions.create", { ns: "common" })}
           </Button>
         </DialogFooter>
       </DialogContent>

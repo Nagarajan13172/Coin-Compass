@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { motion } from "motion/react";
 import { addMonths, format } from "date-fns";
 import { BadgeCheck, Calculator, Coins, Info, Landmark, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
@@ -32,27 +34,31 @@ import { LoanFormDialog } from "@/features/networth/LoanFormDialog";
 import { LoanCalculatorDialog } from "@/features/networth/LoanCalculatorDialog";
 import { useLoans, useDeleteLoan, usePayLoan, usePrecloseLoan } from "@/hooks/useLoans";
 import { formatMoney } from "@/lib/format";
+import { dateFnsLocale } from "@/lib/dates";
+import { enumLabel } from "@/lib/i18nLabels";
 import { CHART_PALETTE, LOAN_TYPE_META, computePayoff, formatMonths, prepaymentCharge } from "@/lib/networth";
 import type { Loan } from "@/lib/types";
 import { toast } from "sonner";
 
 /** "3 yr 2 mo · Sep 2029" — tenure + projected close date. */
 function tenureWithDate(months: number): string {
-  const date = isFinite(months) && months > 0 ? ` · ${format(addMonths(new Date(), months), "MMM yyyy")}` : "";
+  const date =
+    isFinite(months) && months > 0
+      ? ` · ${format(addMonths(new Date(), months), "MMM yyyy", { locale: dateFnsLocale() })}`
+      : "";
   return formatMonths(months) + date;
 }
 
 /** "15 yr 5 mo left · ETA Dec 2041" — clarifies the term is remaining, not original. */
-function remainingWithEta(payoff: { feasible: boolean; months: number }): string {
-  if (!payoff.feasible) return "EMI too low";
-  if (payoff.months <= 0) return "Paid off";
-  return `${formatMonths(payoff.months)} left · ETA ${format(addMonths(new Date(), payoff.months), "MMM yyyy")}`;
+function remainingWithEta(payoff: { feasible: boolean; months: number }, t: TFunction): string {
+  if (!payoff.feasible) return t("units.emiTooLow");
+  if (payoff.months <= 0) return t("units.paidOff");
+  const date = format(addMonths(new Date(), payoff.months), "MMM yyyy", { locale: dateFnsLocale() });
+  return `${formatMonths(payoff.months)} ${t("loanOverview.leftEta", { date })}`;
 }
 
-const INTEREST_REMAINING_HELP =
-  "Interest you'll still pay if you keep paying the current EMI at the current rate until each loan closes. Assumes no prepayments or rate changes.";
-
 export default function LoansPage() {
+  const { t } = useTranslation("wealth");
   const { data: loans, isLoading } = useLoans();
   const del = useDeleteLoan();
   const [open, setOpen] = useState(false);
@@ -96,19 +102,19 @@ export default function LoansPage() {
     setOpen(true);
   }
   async function handleDelete(l: Loan) {
-    if (!confirm(`Delete loan "${l.name}"?`)) return;
+    if (!confirm(t("loansPage.deleteConfirm", { name: l.name }))) return;
     await del.mutateAsync(l._id);
-    toast.success("Loan deleted");
+    toast.success(t("loansPage.deleted"));
   }
 
   return (
     <div>
       <PageHeader
-        title="Loans"
-        description="Track balances and plan an early payoff"
+        title={t("loansPage.title")}
+        description={t("loansPage.description")}
         actions={
           <Button onClick={openNew}>
-            <Plus /> Add loan
+            <Plus /> {t("loansPage.addLoan")}
           </Button>
         }
       />
@@ -118,8 +124,8 @@ export default function LoansPage() {
       ) : loans && loans.length > 0 ? (
         <Tabs defaultValue="overview">
           <TabsList className="mb-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="loans">All loans</TabsTrigger>
+            <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
+            <TabsTrigger value="loans">{t("tabs.allLoans")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -152,11 +158,11 @@ export default function LoansPage() {
       ) : (
         <EmptyState
           icon={Landmark}
-          title="No loans yet"
-          description="Add your loans to track outstanding balances and plan an early payoff."
+          title={t("loansPage.emptyTitle")}
+          description={t("loansPage.emptyDesc")}
           action={
             <Button onClick={openNew}>
-              <Plus /> Add loan
+              <Plus /> {t("loansPage.addLoan")}
             </Button>
           }
         />
@@ -171,6 +177,7 @@ export default function LoansPage() {
 }
 
 function PartPaymentDialog({ loan, onClose }: { loan: Loan | null; onClose: () => void }) {
+  const { t } = useTranslation("wealth");
   const pay = usePayLoan();
   const [amount, setAmount] = useState("");
   const [pct, setPct] = useState("");
@@ -185,17 +192,19 @@ function PartPaymentDialog({ loan, onClose }: { loan: Loan | null; onClose: () =
   const remaining = Math.max(0, outstanding - amt);
 
   async function submit() {
-    if (!amt || amt <= 0) return toast.error("Enter an amount greater than 0");
+    if (!amt || amt <= 0) return toast.error(t("partPayment.enterAmount"));
     try {
       const updated = await pay.mutateAsync({ id: loan!._id, amount: amt, chargePct });
       toast.success(
-        updated.outstanding === 0 ? `${loan!.name} fully paid off 🎉` : `Paid ${formatMoney(amt)} towards ${loan!.name}`
+        updated.outstanding === 0
+          ? t("partPayment.paidOffToast", { name: loan!.name })
+          : t("partPayment.paidToast", { amount: formatMoney(amt), name: loan!.name })
       );
       setAmount("");
       setPct("");
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(e instanceof Error ? e.message : t("toast.failed"));
     }
   }
 
@@ -203,15 +212,15 @@ function PartPaymentDialog({ loan, onClose }: { loan: Loan | null; onClose: () =
     <Dialog open={Boolean(loan)} onOpenChange={(o) => !o && (setAmount(""), setPct(""), onClose())}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Part payment · {loan?.name}</DialogTitle>
+          <DialogTitle>{t("partPayment.title", { name: loan?.name })}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <p className="tnum text-sm text-muted-foreground">
-            Outstanding: <span className="font-semibold text-foreground">{formatMoney(outstanding)}</span>
+            {t("fields.outstanding")}: <span className="font-semibold text-foreground">{formatMoney(outstanding)}</span>
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="pay-amount">Amount to pay</Label>
+              <Label htmlFor="pay-amount">{t("partPayment.amountToPay")}</Label>
               <Input
                 id="pay-amount"
                 type="number"
@@ -223,37 +232,37 @@ function PartPaymentDialog({ loan, onClose }: { loan: Loan | null; onClose: () =
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pay-charge">Prepay charge (%)</Label>
+              <Label htmlFor="pay-charge">{t("partPayment.prepayCharge")}</Label>
               <Input
                 id="pay-charge"
                 type="number"
                 inputMode="decimal"
                 value={pct === "" ? String(loan?.foreclosureChargePct ?? "") : pct}
                 onChange={(e) => setPct(e.target.value)}
-                placeholder="e.g. 2"
+                placeholder={t("placeholders.eg2")}
               />
             </div>
           </div>
           {amt > 0 && (
             <div className="space-y-1 rounded-lg border p-3 text-sm">
-              <Row label="Reduces balance by" value={formatMoney(principal)} />
-              <Row label={`Prepayment charge (${chargePct || 0}%)`} value={formatMoney(charge)} />
+              <Row label={t("partPayment.reducesBalance")} value={formatMoney(principal)} />
+              <Row label={t("partPayment.prepaymentChargePct", { pct: chargePct || 0 })} value={formatMoney(charge)} />
               <div className="mt-1 flex items-center justify-between border-t pt-1.5">
-                <span className="font-medium">Total you pay</span>
+                <span className="font-medium">{t("partPayment.totalYouPay")}</span>
                 <span className="tnum font-bold">{formatMoney(total)}</span>
               </div>
               <p className="tnum pt-1 text-xs text-muted-foreground">
-                Outstanding after: {formatMoney(remaining)}
+                {t("partPayment.outstandingAfter", { amount: formatMoney(remaining) })}
               </p>
             </div>
           )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={pay.isPending}>
-            Pay
+            {t("partPayment.pay")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -262,6 +271,7 @@ function PartPaymentDialog({ loan, onClose }: { loan: Loan | null; onClose: () =
 }
 
 function PrecloseDialog({ loan, onClose }: { loan: Loan | null; onClose: () => void }) {
+  const { t } = useTranslation("wealth");
   const preclose = usePrecloseLoan();
   const [pct, setPct] = useState("");
 
@@ -274,11 +284,11 @@ function PrecloseDialog({ loan, onClose }: { loan: Loan | null; onClose: () => v
   async function submit() {
     try {
       await preclose.mutateAsync({ id: loan!._id, chargePct });
-      toast.success(`${loan!.name} preclosed`);
+      toast.success(t("preclose.toast", { name: loan!.name }));
       setPct("");
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(e instanceof Error ? e.message : t("toast.failed"));
     }
   }
 
@@ -286,38 +296,38 @@ function PrecloseDialog({ loan, onClose }: { loan: Loan | null; onClose: () => v
     <Dialog open={Boolean(loan)} onOpenChange={(o) => !o && (setPct(""), onClose())}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Preclose · {loan?.name}</DialogTitle>
+          <DialogTitle>{t("preclose.title", { name: loan?.name })}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Pay off the full balance now and close the loan. Banks usually charge a foreclosure fee.
+            {t("preclose.desc")}
           </p>
           <div className="space-y-1.5">
-            <Label htmlFor="preclose-pct">Preclosure charge (%)</Label>
+            <Label htmlFor="preclose-pct">{t("preclose.charge")}</Label>
             <Input
               id="preclose-pct"
               type="number"
               inputMode="decimal"
               value={pct === "" ? String(loan?.foreclosureChargePct ?? "") : pct}
               onChange={(e) => setPct(e.target.value)}
-              placeholder="e.g. 2"
+              placeholder={t("placeholders.eg2")}
             />
           </div>
           <div className="space-y-1 rounded-lg border p-3 text-sm">
-            <Row label="Outstanding" value={formatMoney(outstanding)} />
-            <Row label={`Charge (${chargePct || 0}%)`} value={formatMoney(charge)} />
+            <Row label={t("fields.outstanding")} value={formatMoney(outstanding)} />
+            <Row label={t("preclose.chargePct", { pct: chargePct || 0 })} value={formatMoney(charge)} />
             <div className="mt-1 flex items-center justify-between border-t pt-1.5">
-              <span className="font-medium">Total payable</span>
+              <span className="font-medium">{t("preclose.totalPayable")}</span>
               <span className="tnum font-bold">{formatMoney(total)}</span>
             </div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t("actions.cancel", { ns: "common" })}
           </Button>
           <Button onClick={submit} disabled={preclose.isPending}>
-            Preclose &amp; mark closed
+            {t("preclose.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -352,41 +362,45 @@ function LoansOverview({
   };
   loanColor: Record<string, string>;
 }) {
+  const { t } = useTranslation("wealth");
   if (!active.length) {
     return (
       <EmptyState
         icon={Landmark}
-        title="No active loans"
-        description="All your loans are marked closed — nothing outstanding. 🎉"
+        title={t("loanOverview.emptyTitle")}
+        description={t("loanOverview.emptyDesc")}
       />
     );
   }
-  const count = `${active.length} active loan${active.length === 1 ? "" : "s"}`;
+  const count = t("loanOverview.activeLoans", { count: active.length });
   const outstandingSub =
     stats.repaidPct != null
-      ? `${stats.repaidPct}% repaid of ${formatMoney(stats.totalPrincipal, { compact: stats.totalPrincipal > 99999 })} borrowed`
+      ? t("loanOverview.repaidOf", {
+          pct: stats.repaidPct,
+          amount: formatMoney(stats.totalPrincipal, { compact: stats.totalPrincipal > 99999 }),
+        })
       : count;
   // Largest first so the biggest balance stands out at the top of the bar chart.
   const byOutstanding = [...active].sort((a, b) => b.outstanding - a.outstanding);
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Total outstanding" tone="expense" value={formatMoney(stats.totalOutstanding)} sub={outstandingSub} />
-        <Stat label="Monthly EMI" value={formatMoney(stats.totalEmi)} sub={`Total across ${count}`} />
+        <Stat label={t("loanOverview.totalOutstanding")} tone="expense" value={formatMoney(stats.totalOutstanding)} sub={outstandingSub} />
+        <Stat label={t("loanOverview.monthlyEmi")} value={formatMoney(stats.totalEmi)} sub={t("loanOverview.totalAcross", { loans: count })} />
         <Stat
-          label="Interest remaining"
+          label={t("loanOverview.interestRemaining")}
           tone="expense"
           value={`~${formatMoney(stats.interestRemaining)}`}
-          sub="At current EMIs & rates"
-          info={INTEREST_REMAINING_HELP}
+          sub={t("loanOverview.atCurrentRates")}
+          info={t("loanOverview.interestRemainingHelp")}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle as="h2">Outstanding by loan</CardTitle>
-            <CardDescription>Each loan's share of the {formatMoney(stats.totalOutstanding)} total outstanding.</CardDescription>
+            <CardTitle as="h2">{t("loanOverview.outstandingByLoan")}</CardTitle>
+            <CardDescription>{t("loanOverview.outstandingShareDesc", { total: formatMoney(stats.totalOutstanding) })}</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3.5">
@@ -407,7 +421,7 @@ function LoansOverview({
                       aria-valuenow={Math.round(share)}
                       aria-valuemin={0}
                       aria-valuemax={100}
-                      aria-label={`${l.name} — ${Math.round(share)}% of total outstanding`}
+                      aria-label={t("loanOverview.shareAria", { name: l.name, pct: Math.round(share) })}
                     >
                       <div className="h-full rounded-full" style={{ width: `${share}%`, backgroundColor: color }} />
                     </div>
@@ -420,8 +434,8 @@ function LoansOverview({
 
         <Card>
           <CardHeader>
-            <CardTitle as="h2">Payoff progress</CardTitle>
-            <CardDescription>% paid of each loan's original principal.</CardDescription>
+            <CardTitle as="h2">{t("loanOverview.payoffProgress")}</CardTitle>
+            <CardDescription>{t("loanOverview.payoffProgressDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {active.map((l) => {
@@ -437,17 +451,17 @@ function LoansOverview({
                     />
                     <span className="min-w-0 flex-1 truncate font-medium">{l.name}</span>
                     <span className="tnum shrink-0 text-xs text-muted-foreground">
-                      {l.roi}% · {l.emi ? `${formatMoney(l.emi)}/mo` : "no EMI"}
+                      {l.roi}% · {l.emi ? t("units.perMonth", { amount: formatMoney(l.emi) }) : t("loanOverview.noEmi")}
                     </span>
                   </div>
                   {pct != null && <Progress value={pct} indicatorClassName="bg-income" />}
                   <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-xs text-muted-foreground tnum">
                     <span>
                       {pct != null
-                        ? `${pct}% paid · ${formatMoney(l.outstanding)} left of ${formatMoney(l.principal)}`
-                        : `${formatMoney(l.outstanding)} left · add the original amount to see % paid`}
+                        ? t("loanOverview.paidLeftOf", { pct, left: formatMoney(l.outstanding), principal: formatMoney(l.principal) })
+                        : t("loanOverview.leftAddOriginal", { left: formatMoney(l.outstanding) })}
                     </span>
-                    <span>{remainingWithEta(payoff)}</span>
+                    <span>{remainingWithEta(payoff, t)}</span>
                   </div>
                 </div>
               );
@@ -472,6 +486,7 @@ function Stat({
   tone?: "expense";
   info?: string;
 }) {
+  const { t } = useTranslation("wealth");
   return (
     <Card>
       <CardContent className="p-5">
@@ -482,7 +497,7 @@ function Stat({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label={`How ${label.toLowerCase()} is calculated`}
+                  aria-label={t("loanOverview.howCalculated", { label: label.toLowerCase() })}
                   className="inline-flex text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
                 >
                   <Info className="h-3.5 w-3.5" />
@@ -518,6 +533,7 @@ function LoanCard({
   onPay: () => void;
   onPreclose: () => void;
 }) {
+  const { t } = useTranslation("wealth");
   const payoff = computePayoff(l.outstanding, l.roi, l.emi);
   const closed = l.status === "closed";
   // Active loans reuse their overview color; closed loans fall back to a neutral slate.
@@ -530,67 +546,67 @@ function LoanCard({
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{l.name}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {LOAN_TYPE_META[l.type].label}
+              {enumLabel("loan", l.type)}
               {l.lender ? ` · ${l.lender}` : ""}
             </p>
           </div>
-          {closed ? <Badge variant="income">Closed</Badge> : <Badge variant="expense">Active</Badge>}
+          {closed ? <Badge variant="income">{t("status.closed")}</Badge> : <Badge variant="expense">{t("status.active")}</Badge>}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Loan actions">
+              <Button variant="ghost" size="icon-sm" aria-label={t("loanCard.actionsAria")}>
                 <MoreVertical />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onCalc}>
-                <Calculator /> Payoff planner
+                <Calculator /> {t("loanCard.payoffPlanner")}
               </DropdownMenuItem>
               {!closed && (
                 <DropdownMenuItem onClick={onPay}>
-                  <Coins /> Part payment
+                  <Coins /> {t("loanCard.partPayment")}
                 </DropdownMenuItem>
               )}
               {!closed && (
                 <DropdownMenuItem onClick={onPreclose}>
-                  <BadgeCheck /> Preclose
+                  <BadgeCheck /> {t("loanCard.preclose")}
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onEdit}>
-                <Pencil /> Edit
+                <Pencil /> {t("actions.edit", { ns: "common" })}
               </DropdownMenuItem>
               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
-                <Trash2 /> Delete
+                <Trash2 /> {t("actions.delete", { ns: "common" })}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <Field label="Outstanding" value={formatMoney(l.outstanding)} strong />
-          <Field label="EMI" value={l.emi ? formatMoney(l.emi) : "—"} />
-          <Field label="Interest" value={`${l.roi}% p.a.`} />
+          <Field label={t("fields.outstanding")} value={formatMoney(l.outstanding)} strong />
+          <Field label={t("fields.emi")} value={l.emi ? formatMoney(l.emi) : "—"} />
+          <Field label={t("fields.interest")} value={t("units.perAnnum", { rate: l.roi })} />
           <Field
-            label="Tenure left"
-            value={closed ? "—" : payoff.feasible ? tenureWithDate(payoff.months) : "EMI too low"}
+            label={t("fields.tenureLeft")}
+            value={closed ? "—" : payoff.feasible ? tenureWithDate(payoff.months) : t("units.emiTooLow")}
           />
         </div>
 
         {l.tenureMonths ? (
           <p className="text-xs text-muted-foreground">
-            Original tenure {formatMonths(l.tenureMonths)}
-            {l.startDate ? ` · from ${format(new Date(l.startDate), "MMM yyyy")}` : ""}
-            {l.endDate ? ` to ${format(new Date(l.endDate), "MMM yyyy")}` : ""}
+            {t("loanCard.originalTenure", { tenure: formatMonths(l.tenureMonths) })}
+            {l.startDate ? ` ${t("loanCard.fromMonth", { date: format(new Date(l.startDate), "MMM yyyy", { locale: dateFnsLocale() }) })}` : ""}
+            {l.endDate ? ` ${t("loanCard.toMonth", { date: format(new Date(l.endDate), "MMM yyyy", { locale: dateFnsLocale() }) })}` : ""}
           </p>
         ) : null}
 
         {((l.interestPaid ?? 0) > 0 || (l.chargesPaid ?? 0) > 0) && (
           <p className="text-xs text-muted-foreground">
-            Interest paid so far:{" "}
+            {t("loanCard.interestPaidSoFar")}:{" "}
             <span className="tnum font-medium text-expense">{formatMoney(l.interestPaid ?? 0)}</span>
             {(l.chargesPaid ?? 0) > 0 && (
               <>
-                {" "}· charges <span className="tnum font-medium">{formatMoney(l.chargesPaid)}</span>
+                {" "}· {t("loanCard.charges")} <span className="tnum font-medium">{formatMoney(l.chargesPaid)}</span>
               </>
             )}
           </p>
@@ -598,7 +614,7 @@ function LoanCard({
 
         {!closed && (
           <Button variant="outline" size="sm" className="w-full" onClick={onCalc}>
-            <Calculator /> Payoff planner
+            <Calculator /> {t("loanCard.payoffPlanner")}
           </Button>
         )}
       </CardContent>

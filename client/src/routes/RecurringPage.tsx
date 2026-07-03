@@ -39,18 +39,29 @@ import {
 import { RecurringFormDialog } from "@/features/recurring/RecurringFormDialog";
 import { RecurringOccurrencesDialog } from "@/features/recurring/RecurringOccurrencesDialog";
 import { RunDueDialog } from "@/features/recurring/RunDueDialog";
-import { isDue, isEnded, monthlyAmount, ruleTitle } from "@/lib/recurring";
+import { isDue, isEnded, monthlyAmount } from "@/lib/recurring";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/i18nLabels";
+import { dateFnsLocale } from "@/lib/dates";
 import type { Recurring } from "@/lib/types";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { toast } from "sonner";
 
-function freqLabel(r: Recurring) {
+function freqLabel(r: Recurring, t: TFunction) {
   const unit = { daily: "day", weekly: "week", monthly: "month", yearly: "year" }[r.frequency];
-  return r.interval === 1 ? `Every ${unit}` : `Every ${r.interval} ${unit}s`;
+  return t(`every.${unit}`, { count: r.interval });
+}
+
+/** Human label for a rule — its category (translated), or the note/transfer fallback. */
+function ruleName(r: Recurring, t: TFunction) {
+  if (r.type === "transfer") return t("txnType.transfer", { ns: "common" });
+  return r.category?.name ? categoryLabel(r.category.name) : r.note || t("title.fallback");
 }
 
 /** Normalized per-month cash-flow across all active rules, for the overview strip. */
 function MonthlySummary({ items }: { items: Recurring[] }) {
+  const { t } = useTranslation("recurring");
   const { income, expense } = useMemo(() => {
     let income = 0;
     let expense = 0;
@@ -69,15 +80,15 @@ function MonthlySummary({ items }: { items: Recurring[] }) {
     <Card className="mb-4">
       <CardContent className="grid grid-cols-3 divide-x p-0 text-center">
         <div className="p-3">
-          <p className="text-xs text-muted-foreground">Monthly income</p>
+          <p className="text-xs text-muted-foreground">{t("summary.income")}</p>
           <p className="mt-0.5 font-semibold tnum text-income">+{formatMoney(income)}</p>
         </div>
         <div className="p-3">
-          <p className="text-xs text-muted-foreground">Monthly expenses</p>
+          <p className="text-xs text-muted-foreground">{t("summary.expenses")}</p>
           <p className="mt-0.5 font-semibold tnum text-expense">−{formatMoney(expense)}</p>
         </div>
         <div className="p-3">
-          <p className="text-xs text-muted-foreground">Net / month</p>
+          <p className="text-xs text-muted-foreground">{t("summary.net")}</p>
           <p
             className={`mt-0.5 font-semibold tnum ${
               net > 0 ? "text-income" : net < 0 ? "text-expense" : "text-muted-foreground"
@@ -92,6 +103,7 @@ function MonthlySummary({ items }: { items: Recurring[] }) {
 }
 
 export default function RecurringPage() {
+  const { t } = useTranslation("recurring");
   const { data: items, isLoading } = useRecurring();
   const del = useDeleteRecurring();
   const update = useUpdateRecurring();
@@ -115,23 +127,25 @@ export default function RecurringPage() {
 
   async function runOneNow(r: Recurring) {
     const res = await runOne.mutateAsync(r._id);
-    toast.success(res.created ? `Posted ${res.created} transaction(s)` : "Nothing due for this rule");
+    toast.success(
+      res.created ? t("toast.posted", { count: res.created }) : t("toast.nothingDueRule")
+    );
   }
 
   async function skipNext(r: Recurring) {
     await skip.mutateAsync(r._id);
-    toast.success("Skipped the next occurrence");
+    toast.success(t("toast.skipped"));
   }
 
   return (
     <div>
       <PageHeader
-        title="Recurring"
-        description="Automatically post rent, salary, subscriptions and other regular transactions."
+        title={t("page.title")}
+        description={t("page.description")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setRunDueOpen(true)} disabled={!items?.length}>
-              <RefreshCw /> Run due
+              <RefreshCw /> {t("page.runDue")}
               {dueCount > 0 && (
                 <Badge variant="warning" className="ml-1 px-1.5">
                   {dueCount}
@@ -139,7 +153,7 @@ export default function RecurringPage() {
               )}
             </Button>
             <Button onClick={openNew}>
-              <Plus /> New rule
+              <Plus /> {t("page.newRule")}
             </Button>
           </div>
         }
@@ -174,64 +188,64 @@ export default function RecurringPage() {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="truncate font-medium">{ruleTitle(r)}</p>
-                        {overdue && <Badge variant="warning">Overdue</Badge>}
-                        {ended && <Badge variant="secondary">Ended</Badge>}
-                        {!r.active && !ended && <Badge variant="secondary">Paused</Badge>}
+                        <p className="truncate font-medium">{ruleName(r, t)}</p>
+                        {overdue && <Badge variant="warning">{t("badges.overdue")}</Badge>}
+                        {ended && <Badge variant="secondary">{t("badges.ended")}</Badge>}
+                        {!r.active && !ended && <Badge variant="secondary">{t("badges.paused")}</Badge>}
                       </div>
                       <p className="truncate text-xs text-muted-foreground">
-                        {freqLabel(r)} · {r.account?.name}
+                        {freqLabel(r, t)} · {r.account?.name}
                       </p>
                       <p className={`mt-0.5 truncate text-xs ${overdue ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}`}>
                         {ended
-                          ? `Ended ${format(new Date(r.endDate as string), "dd MMM yyyy")}`
+                          ? t("status.ended", { date: format(new Date(r.endDate as string), "dd MMM yyyy", { locale: dateFnsLocale() }) })
                           : !r.active
-                            ? "Paused"
+                            ? t("status.paused")
                             : overdue
-                              ? `Overdue since ${format(new Date(r.nextRun), "dd MMM yyyy")}`
-                              : `Next ${format(new Date(r.nextRun), "dd MMM yyyy")}`}
+                              ? t("status.overdueSince", { date: format(new Date(r.nextRun), "dd MMM yyyy", { locale: dateFnsLocale() }) })
+                              : t("status.next", { date: format(new Date(r.nextRun), "dd MMM yyyy", { locale: dateFnsLocale() }) })}
                         {r.active && !overdue && r.endDate
-                          ? ` · Ends ${format(new Date(r.endDate), "dd MMM yyyy")}`
+                          ? t("status.endsSuffix", { date: format(new Date(r.endDate), "dd MMM yyyy", { locale: dateFnsLocale() }) })
                           : ""}
-                        {r.lastRun ? ` · Last posted ${format(new Date(r.lastRun), "dd MMM")}` : ""}
+                        {r.lastRun ? t("status.lastPostedSuffix", { date: format(new Date(r.lastRun), "dd MMM", { locale: dateFnsLocale() }) }) : ""}
                       </p>
                     </div>
                     <Money amount={r.amount} type={r.type} signed className="text-sm" />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label="Recurring actions">
+                        <Button variant="ghost" size="icon-sm" aria-label={t("page.actionsAria")}>
                           <MoreVertical />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEdit(r)}>
-                          <Pencil /> Edit
+                          <Pencil /> {t("actions.edit", { ns: "common" })}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => runOneNow(r)} disabled={runOne.isPending}>
-                          <Zap /> Run now
+                          <Zap /> {t("menu.runNow")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => skipNext(r)} disabled={skip.isPending}>
-                          <SkipForward /> Skip next
+                          <SkipForward /> {t("menu.skipNext")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => update.mutate({ id: r._id, active: !r.active })}
                         >
-                          {r.active ? <Pause /> : <Play />} {r.active ? "Pause" : "Resume"}
+                          {r.active ? <Pause /> : <Play />} {r.active ? t("menu.pause") : t("menu.resume")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setHistoryFor(r)}>
-                          <History /> View posted
+                          <History /> {t("menu.viewPosted")}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={async () => {
-                            if (confirm("Delete this recurring rule?")) {
+                            if (confirm(t("confirm.delete"))) {
                               await del.mutateAsync(r._id);
-                              toast.success("Deleted");
+                              toast.success(t("toast.deleted"));
                             }
                           }}
                         >
-                          <Trash2 /> Delete
+                          <Trash2 /> {t("actions.delete", { ns: "common" })}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -245,11 +259,11 @@ export default function RecurringPage() {
       ) : (
         <EmptyState
           icon={Repeat}
-          title="No recurring transactions"
-          description="Automate rent, salary, subscriptions and more."
+          title={t("empty.title")}
+          description={t("empty.description")}
           action={
             <Button onClick={openNew}>
-              <Plus /> New recurring
+              <Plus /> {t("empty.action")}
             </Button>
           }
         />

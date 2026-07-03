@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { addDays, addMonths, addYears, format, startOfDay, startOfMonth, startOfYear, subDays } from "date-fns";
 import { ChevronDown, Plus, Receipt, Search, X } from "lucide-react";
@@ -28,16 +29,18 @@ import { useTransactions, type TxnFilters } from "@/hooks/useTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useUIStore } from "@/stores/ui";
+import { categoryLabel } from "@/lib/i18nLabels";
+import { dateFnsLocale } from "@/lib/dates";
 import type { TxnType } from "@/lib/types";
 
 const ALL = "__all__";
 
 type PeriodKey = "all" | "month" | "30d" | "year" | "custom";
-const PERIODS: { value: PeriodKey; label: string }[] = [
-  { value: "all", label: "All time" },
-  { value: "month", label: "This month" },
-  { value: "30d", label: "Last 30 days" },
-  { value: "year", label: "This year" },
+const PERIODS: { value: PeriodKey; labelKey: string }[] = [
+  { value: "all", labelKey: "period.all" },
+  { value: "month", labelKey: "period.thisMonth" },
+  { value: "30d", labelKey: "period.last30" },
+  { value: "year", labelKey: "period.thisYear" },
 ];
 const PERIOD_KEYS = PERIODS.map((p) => p.value);
 
@@ -50,10 +53,10 @@ function rangeLabel(fromIso: string, toIso: string): string {
   const from = new Date(fromIso);
   const to = new Date(toIso);
   const oneDay = to.getTime() - from.getTime() <= 25 * 3600 * 1000; // ~a single day (DST-safe)
-  if (oneDay) return format(from, "dd MMM yyyy");
-  return `${format(from, "dd MMM")} – ${format(new Date(to.getTime() - 1), "dd MMM yyyy")}`;
+  const locale = dateFnsLocale();
+  if (oneDay) return format(from, "dd MMM yyyy", { locale });
+  return `${format(from, "dd MMM", { locale })} – ${format(new Date(to.getTime() - 1), "dd MMM yyyy", { locale })}`;
 }
-const TYPE_LABELS: Record<string, string> = { expense: "Expense", income: "Income", transfer: "Transfer" };
 
 /** Resolve a period key to an inclusive-from / exclusive-to date range (server uses $gte / $lt). */
 function periodRange(p: PeriodKey): { from?: string; to?: string } {
@@ -66,6 +69,7 @@ function periodRange(p: PeriodKey): { from?: string; to?: string } {
 }
 
 export default function TransactionsPage() {
+  const { t } = useTranslation("transactions");
   const [params, setParams] = useSearchParams();
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
 
@@ -143,9 +147,15 @@ export default function TransactionsPage() {
     return () => obs.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const accountName = (id: string) => accounts?.find((a) => a._id === id)?.name ?? "Account";
+  const accountName = (id: string) =>
+    accounts?.find((a) => a._id === id)?.name ?? t("account", { ns: "common" });
   const categoryName =
-    category !== ALL ? categories?.find((c) => c._id === category)?.name ?? "Category" : "";
+    category !== ALL
+      ? (() => {
+          const c = categories?.find((c) => c._id === category);
+          return c ? categoryLabel(c.name) : t("labels.category", { ns: "common" });
+        })()
+      : "";
 
   const hasFilters =
     type !== ALL || accountIds.length > 0 || category !== ALL || !!debounced || period !== "all";
@@ -176,7 +186,8 @@ export default function TransactionsPage() {
 
   // Removable pills for the active fine-grained filters (period lives in its own select + summary).
   const pills: { key: string; label: string; onRemove: () => void }[] = [];
-  if (type !== ALL) pills.push({ key: "type", label: TYPE_LABELS[type] ?? type, onRemove: () => setType(ALL) });
+  if (type !== ALL)
+    pills.push({ key: "type", label: t(`txnType.${type}`, { ns: "common" }), onRemove: () => setType(ALL) });
   accountIds.forEach((id) =>
     pills.push({ key: `acc-${id}`, label: accountName(id), onRemove: () => toggleAccount(id) })
   );
@@ -186,28 +197,28 @@ export default function TransactionsPage() {
   const periodLabel =
     period === "custom" && customRange
       ? rangeLabel(customRange.from, customRange.to)
-      : PERIODS.find((p) => p.value === period)?.label ?? "All time";
+      : t(PERIODS.find((p) => p.value === period)?.labelKey ?? "period.all");
   const summary = total
-    ? `${total} transaction${total === 1 ? "" : "s"}${period !== "all" ? ` · ${periodLabel}` : ""}`
+    ? `${t("summary.count", { count: total })}${period !== "all" ? ` · ${periodLabel}` : ""}`
     : hasFilters
-      ? "No transactions match these filters"
-      : "All your transactions";
+      ? t("summary.noMatch")
+      : t("summary.all");
 
   const accountTriggerLabel =
     accountIds.length === 0
-      ? "All accounts"
+      ? t("filters.allAccounts")
       : accountIds.length === 1
         ? accountName(accountIds[0])
-        : `${accountIds.length} accounts`;
+        : t("filters.accountsCount", { count: accountIds.length });
 
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Transactions"
+        title={t("title")}
         description={summary}
         actions={
           <Button onClick={addTransaction}>
-            <Plus /> Add
+            <Plus /> {t("actions.add", { ns: "common" })}
           </Button>
         }
       />
@@ -219,8 +230,8 @@ export default function TransactionsPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="Filter this list by note, payee, or tag"
-            placeholder="Filter this list by note, payee, or tag…"
+            aria-label={t("filters.searchAria")}
+            placeholder={t("filters.searchPlaceholder")}
             className="pl-9"
           />
         </div>
@@ -230,10 +241,10 @@ export default function TransactionsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>All types</SelectItem>
-              <SelectItem value="expense">Expense</SelectItem>
-              <SelectItem value="income">Income</SelectItem>
-              <SelectItem value="transfer">Transfer</SelectItem>
+              <SelectItem value={ALL}>{t("filters.allTypes")}</SelectItem>
+              <SelectItem value="expense">{t("txnType.expense", { ns: "common" })}</SelectItem>
+              <SelectItem value="income">{t("txnType.income", { ns: "common" })}</SelectItem>
+              <SelectItem value="transfer">{t("txnType.transfer", { ns: "common" })}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -246,7 +257,7 @@ export default function TransactionsPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuLabel>Filter by account</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("filters.filterByAccount")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {accounts?.map((a) => (
                 <DropdownMenuCheckboxItem
@@ -261,7 +272,7 @@ export default function TransactionsPage() {
               {accountIds.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setAccountIds([])}>Clear accounts</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setAccountIds([])}>{t("filters.clearAccounts")}</DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
@@ -269,13 +280,13 @@ export default function TransactionsPage() {
 
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Category" />
+              <SelectValue placeholder={t("labels.category", { ns: "common" })} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>All categories</SelectItem>
+              <SelectItem value={ALL}>{t("filters.allCategories")}</SelectItem>
               {categories?.map((c) => (
                 <SelectItem key={c._id} value={c._id}>
-                  {c.name}
+                  {categoryLabel(c.name)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -288,7 +299,7 @@ export default function TransactionsPage() {
             <SelectContent>
               {PERIODS.map((p) => (
                 <SelectItem key={p.value} value={p.value}>
-                  {p.label}
+                  {t(p.labelKey)}
                 </SelectItem>
               ))}
               {period === "custom" && customRange && (
@@ -302,13 +313,13 @@ export default function TransactionsPage() {
       {/* active filter pills */}
       {pills.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-1.5">
-          <span className="mr-0.5 text-xs text-muted-foreground">Filters:</span>
+          <span className="mr-0.5 text-xs text-muted-foreground">{t("filters.label")}</span>
           {pills.map((p) => (
             <button
               key={p.key}
               type="button"
               onClick={p.onRemove}
-              aria-label={`Remove filter ${p.label}`}
+              aria-label={t("filters.remove", { label: p.label })}
               className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/70"
             >
               {p.label}
@@ -316,7 +327,7 @@ export default function TransactionsPage() {
             </button>
           ))}
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
-            Reset all
+            {t("filters.resetAll")}
           </Button>
         </div>
       )}
@@ -332,26 +343,22 @@ export default function TransactionsPage() {
           <TransactionList transactions={items} />
           <div ref={sentinel} className="h-10" />
           {isFetchingNextPage && (
-            <p className="py-4 text-center text-sm text-muted-foreground">Loading more…</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">{t("loadingMore")}</p>
           )}
         </>
       ) : (
         <EmptyState
           icon={Receipt}
-          title={hasFilters ? "No matching transactions" : "No transactions yet"}
-          description={
-            hasFilters
-              ? "Try adjusting or clearing your filters."
-              : "Add your first transaction to get started."
-          }
+          title={hasFilters ? t("empty.matchTitle") : t("empty.title")}
+          description={hasFilters ? t("empty.matchDescription") : t("empty.description")}
           action={
             hasFilters ? (
               <Button variant="outline" onClick={clearFilters}>
-                Clear filters
+                {t("filters.clear")}
               </Button>
             ) : (
               <Button onClick={addTransaction}>
-                <Plus /> Add transaction
+                <Plus /> {t("actions.addTransaction", { ns: "common" })}
               </Button>
             )
           }

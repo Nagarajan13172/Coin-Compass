@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { getIcon, ICON_NAMES } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ export function IconPicker({
   color?: string;
   onChange: (icon: string) => void;
 }) {
+  const { t } = useTranslation("misc");
   const [query, setQuery] = useState("");
 
   const names = useMemo(() => {
@@ -29,13 +31,13 @@ export function IconPicker({
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search icons…"
+          placeholder={t("iconPicker.search")}
           className="pl-9"
         />
       </div>
       <ScrollArea className="h-48 rounded-lg border p-2">
         {names.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">No icons found</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">{t("iconPicker.noResults")}</p>
         ) : (
           <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
             {names.map((name) => {

@@ -1,0 +1,106 @@
+{
+  "subtitle": "Your money at a glance",
+  "manage": "Manage",
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "morningNamed": "Good morning, {{name}}",
+    "afternoonNamed": "Good afternoon, {{name}}",
+    "eveningNamed": "Good evening, {{name}}"
+  },
+  "period": {
+    "week": "This week",
+    "month": "This month",
+    "year": "This year"
+  },
+  "tabs": {
+    "week": "Week",
+    "month": "Month",
+    "year": "Year"
+  },
+  "netWorth": {
+    "title": "Net worth",
+    "breakdown": "Breakdown",
+    "sumOf_one": "Sum of {{count}} account",
+    "sumOf_other": "Sum of {{count}} accounts",
+    "includedTitle": "Included in net worth",
+    "noneIncluded": "No accounts included"
+  },
+  "stats": {
+    "net": "Net"
+  },
+  "savingsRate": {
+    "none": "No income this period",
+    "saved": "{{percent}}% of income saved",
+    "over": "Spending exceeds income"
+  },
+  "insights": {
+    "avgPerDay": "Avg spend / day",
+    "biggestCategory": "Biggest category",
+    "transactions": "Transactions"
+  },
+  "cashFlow": {
+    "title": "Cash flow",
+    "netThisPeriod": "Net this period:",
+    "incomeMinusExpense": "(income − expense)",
+    "noData": "No data for this period"
+  },
+  "accounts": {
+    "title": "Accounts",
+    "empty": "No accounts yet"
+  },
+  "credits": {
+    "title": "Credits",
+    "owedToYou": "Owed to you",
+    "youOwe": "You owe"
+  },
+  "spending": {
+    "title": "Spending by category",
+    "viewInReports": "View in Reports",
+    "emptyTitle": "No spending yet",
+    "emptyDescription": "Add an expense to see your category breakdown."
+  },
+  "recent": {
+    "title": "Recent",
+    "emptyTitle": "No transactions",
+    "emptyDescription": "Start by adding your first transaction."
+  },
+  "dueSoon": {
+    "title": "Due soon",
+    "overdue": "Overdue",
+    "dueToday": "Due today",
+    "dueTomorrow": "Due tomorrow",
+    "dueIn_one": "Due in {{count}} day",
+    "dueIn_other": "Due in {{count}} days",
+    "recurring": "Recurring",
+    "post": "Post"
+  },
+  "freq": {
+    "every": {
+      "day_one": "Every {{count}} day",
+      "day_other": "Every {{count}} days",
+      "week_one": "Every {{count}} week",
+      "week_other": "Every {{count}} weeks",
+      "month_one": "Every {{count}} month",
+      "month_other": "Every {{count}} months",
+      "year_one": "Every {{count}} year",
+      "year_other": "Every {{count}} years"
+    }
+  },
+  "budgets": {
+    "title": "Budgets",
+    "overall": "Overall",
+    "statusOver": "Over",
+    "statusClose": "Close",
+    "statusOnTrack": "On track",
+    "amountOfTotal": "{{amount}} of {{total}}",
+    "overBy": "{{amount}} over",
+    "leftBy": "{{amount}} left"
+  },
+  "goals": {
+    "title": "Goals",
+    "done": "Done",
+    "toGo": "{{amount}} to go"
+  }
+}

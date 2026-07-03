@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PeriodKey, Transaction, TxnType } from "@/lib/types";
+import { applyLanguage, DEFAULT_LANGUAGE, type LanguageCode } from "@/i18n";
 
 type Theme = "light" | "dark" | "system";
 
@@ -16,6 +17,10 @@ interface UIState {
   currencySymbol: string;
   locale: string;
   setCurrencyConfig: (cfg: { baseCurrency: string; symbol: string; locale: string }) => void;
+
+  // UI language (hydrated from settings query; persisted so there's no flash on reload)
+  language: LanguageCode;
+  setLanguage: (lang: LanguageCode) => void;
 
   // global period (dashboard / reports)
   period: PeriodKey;
@@ -70,6 +75,12 @@ export const useUIStore = create<UIState>()(
       setCurrencyConfig: (cfg) =>
         set({ baseCurrency: cfg.baseCurrency, currencySymbol: cfg.symbol, locale: cfg.locale }),
 
+      language: DEFAULT_LANGUAGE,
+      setLanguage: (lang) => {
+        set({ language: lang });
+        applyLanguage(lang);
+      },
+
       period: "month",
       setPeriod: (p) => set({ period: p }),
 
@@ -98,6 +109,7 @@ export const useUIStore = create<UIState>()(
         theme: s.theme,
         period: s.period,
         sidebarCollapsed: s.sidebarCollapsed,
+        language: s.language,
       }),
     }
   )

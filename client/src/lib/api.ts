@@ -1,4 +1,5 @@
 import axios from "axios";
+import i18n from "@/i18n";
 
 export const api = axios.create({
   // Same-origin "/api" by default (routed through the Vite dev proxy / same host in
@@ -25,15 +26,28 @@ api.interceptors.response.use(
     ) {
       window.location.assign("/login");
     }
-    const message =
+    // The server sends a stable `code` (+ optional params) plus an English `error`.
+    // Prefer a translated message for the code; fall back to the server's English
+    // text for any code we haven't translated yet, so nothing shows blank.
+    const serverMessage =
       error?.response?.data?.error ??
       error?.response?.data?.message ??
       error?.message ??
-      "Something went wrong";
-    // Preserve the HTTP status and any rate-limit retry hint so callers (e.g. the
-    // login form's countdown) can react to them, not just show the text.
-    const wrapped = new Error(message) as Error & { status?: number; retryAfterSeconds?: number };
+      i18n.t("errors:UNKNOWN", { defaultValue: "Something went wrong" });
+    const code: string | undefined = error?.response?.data?.code;
+    const params = error?.response?.data?.params ?? {};
+    const message = code
+      ? i18n.t(`errors:${code}`, { defaultValue: serverMessage, ...params })
+      : serverMessage;
+    // Preserve the HTTP status, the error code, and any rate-limit retry hint so
+    // callers (e.g. the login form's countdown) can react to them, not just show text.
+    const wrapped = new Error(message) as Error & {
+      status?: number;
+      code?: string;
+      retryAfterSeconds?: number;
+    };
     wrapped.status = error?.response?.status;
+    wrapped.code = code;
     const retryAfter = error?.response?.data?.retryAfterSeconds;
     if (typeof retryAfter === "number") wrapped.retryAfterSeconds = retryAfter;
     return Promise.reject(wrapped);

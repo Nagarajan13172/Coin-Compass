@@ -270,6 +270,7 @@ export const settingsUpdateSchema = z.object({
   baseCurrency: z.string().optional(),
   theme: z.enum(["light", "dark", "system"]).optional(),
   locale: z.string().optional(),
+  language: z.enum(["en", "ta"]).optional(),
   firstDayOfWeek: z.number().min(0).max(6).optional(),
   monthStartDay: z.number().min(1).max(28).optional(),
   emailReports: z.boolean().optional(),

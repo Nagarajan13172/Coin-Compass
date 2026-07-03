@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import {
@@ -37,7 +38,8 @@ import { useNetWorthHistory } from "@/hooks/useNetWorth";
 import { useByCategory, useSummary } from "@/hooks/useReports";
 import { periodRange } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
-import { SUBTYPE_META, CLASS_META, CHART_PALETTE, LOAN_TYPE_META, holdingGrowth } from "@/lib/networth";
+import { enumLabel } from "@/lib/i18nLabels";
+import { SUBTYPE_META, CHART_PALETTE, LOAN_TYPE_META, holdingGrowth } from "@/lib/networth";
 import type { Account, CategoryDatum, Holding, HoldingClass, Loan } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -56,7 +58,7 @@ function holdingsToData(list: Holding[]): CategoryDatum[] {
       const meta = SUBTYPE_META[sub as keyof typeof SUBTYPE_META];
       return {
         categoryId: sub,
-        name: meta.label,
+        name: enumLabel("holding", sub),
         color: meta.color,
         icon: meta.icon,
         total: v.value,
@@ -68,6 +70,7 @@ function holdingsToData(list: Holding[]): CategoryDatum[] {
 }
 
 export default function NetWorthPage() {
+  const { t, i18n } = useTranslation("wealth");
   const { data: holdings, isLoading: holdingsLoading } = useHoldings();
   const { data: loans } = useLoans();
   const { data: accounts } = useAccounts();
@@ -102,40 +105,42 @@ export default function NetWorthPage() {
 
   const overviewData: CategoryDatum[] = useMemo(() => {
     const items = [
-      { categoryId: "expenditure", name: "Expenditure", color: "#EF4444", icon: "receipt", total: expenditure },
-      { categoryId: "saving", name: "Saving", color: "#10B981", icon: "piggy-bank", total: totals.saving },
-      { categoryId: "investment", name: "Investment", color: "#6366F1", icon: "trending-up", total: totals.investment },
+      { categoryId: "expenditure", name: t("overview.expenditure"), color: "#EF4444", icon: "receipt", total: expenditure },
+      { categoryId: "saving", name: t("overview.saving"), color: "#10B981", icon: "piggy-bank", total: totals.saving },
+      { categoryId: "investment", name: t("overview.investment"), color: "#6366F1", icon: "trending-up", total: totals.investment },
     ].filter((d) => d.total > 0);
     const sum = items.reduce((s, d) => s + d.total, 0);
     return items.map((d) => ({ ...d, count: 0, percent: sum > 0 ? Math.round((d.total / sum) * 100) : 0 }));
-  }, [expenditure, totals.saving, totals.investment]);
+  }, [expenditure, totals.saving, totals.investment, t]);
 
-  const savingData = useMemo(() => holdingsToData((holdings ?? []).filter((h) => h.class === "saving")), [holdings]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-derive translated slice labels on language switch
+  const savingData = useMemo(() => holdingsToData((holdings ?? []).filter((h) => h.class === "saving")), [holdings, i18n.language]);
   const investmentData = useMemo(
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-derive translated slice labels on language switch
     () => holdingsToData((holdings ?? []).filter((h) => h.class === "investment")),
-    [holdings]
+    [holdings, i18n.language]
   );
 
   const negative = totals.netWorth < 0;
   // A one-line read of what the number means, so a negative figure isn't left unexplained.
   const netWorthNote = negative
-    ? "You owe more than you own — paying down loans lifts this."
+    ? t("summary.noteNegative")
     : totals.assets === 0 && totals.liabilities === 0
-      ? "Add accounts, holdings or loans to see your net worth."
+      ? t("summary.noteEmpty")
       : totals.liabilities === 0
-        ? "Debt-free — every rupee is yours."
-        : "Your assets comfortably cover what you owe.";
+        ? t("summary.noteDebtFree")
+        : t("summary.notePositive");
 
   return (
     <div>
-      <PageHeader title="Net Worth" description="Your assets, investments and loans in one place" />
+      <PageHeader title={t("netWorth.title")} description={t("netWorth.description")} />
 
       {/* summary */}
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <Card className="surface-gradient">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Net worth</p>
+              <p className="text-sm text-muted-foreground">{t("summary.netWorth")}</p>
               <span
                 className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
                   negative ? "bg-expense/10 text-expense" : "bg-income/10 text-income"
@@ -154,20 +159,20 @@ export default function NetWorthPage() {
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Total assets</p>
+              <p className="text-sm text-muted-foreground">{t("summary.totalAssets")}</p>
               <Link
                 to="/accounts"
                 className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
               >
-                Accounts <ArrowRight className="h-3 w-3" />
+                {t("summary.accounts")} <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
             <p className="tnum text-2xl font-bold text-income">{formatMoney(totals.assets)}</p>
             <div className="mt-2 space-y-1 text-xs">
-              <MiniRow label="Accounts" value={formatMoney(totals.accountsTotal)} />
+              <MiniRow label={t("summary.accounts")} value={formatMoney(totals.accountsTotal)} />
               <MiniRow
-                label="Holdings"
-                value={totals.holdingsTotal > 0 ? formatMoney(totals.holdingsTotal) : "none yet"}
+                label={t("summary.holdings")}
+                value={totals.holdingsTotal > 0 ? formatMoney(totals.holdingsTotal) : t("summary.noneYet")}
                 muted={totals.holdingsTotal === 0}
               />
             </div>
@@ -177,21 +182,21 @@ export default function NetWorthPage() {
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Total liabilities</p>
+              <p className="text-sm text-muted-foreground">{t("summary.totalLiabilities")}</p>
               {activeLoans.length > 0 && (
                 <Link
                   to="/loans"
                   className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
                 >
-                  Loans <ArrowRight className="h-3 w-3" />
+                  {t("summary.loans")} <ArrowRight className="h-3 w-3" />
                 </Link>
               )}
             </div>
             <p className="tnum text-2xl font-bold text-expense">{formatMoney(totals.liabilities)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {activeLoans.length > 0
-                ? `Outstanding across ${activeLoans.length} active loan${activeLoans.length === 1 ? "" : "s"}`
-                : "No active loans"}
+                ? t("summary.outstandingAcross", { count: activeLoans.length })
+                : t("summary.noActiveLoans")}
             </p>
           </CardContent>
         </Card>
@@ -199,9 +204,9 @@ export default function NetWorthPage() {
 
       <Tabs defaultValue="overview">
         <TabsList className="mb-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
-          <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
+          <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
+          <TabsTrigger value="assets">{t("tabs.assets")}</TabsTrigger>
+          <TabsTrigger value="liabilities">{t("tabs.liabilities")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -243,6 +248,7 @@ function MiniRow({ label, value, muted }: { label: string; value: string; muted?
 
 /** Gain + time-to-maturity line for deposit-style holdings; renders nothing for bare ones. */
 function HoldingGrowthLine({ holding }: { holding: Holding }) {
+  const { t } = useTranslation("wealth");
   const g = useMemo(
     () =>
       holdingGrowth(
@@ -265,7 +271,7 @@ function HoldingGrowthLine({ holding }: { holding: Holding }) {
     <div className="mt-1 space-y-1">
       {g.gain != null && invested != null && (
         <p className="truncate text-xs">
-          <span className="text-muted-foreground">Invested {formatMoney(invested)} · </span>
+          <span className="text-muted-foreground">{t("growth.invested", { amount: formatMoney(invested) })}</span>
           <span className={g.gain >= 0 ? "text-income" : "text-expense"}>
             {g.gain >= 0 ? "+" : "−"}
             {formatMoney(Math.abs(g.gain))}
@@ -279,7 +285,7 @@ function HoldingGrowthLine({ holding }: { holding: Holding }) {
             <div className="h-full rounded-full bg-income" style={{ width: `${g.progressPct}%` }} />
           </div>
           <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-            {g.progressPct >= 100 ? "Matured" : `${Math.round(g.progressPct)}%`}
+            {g.progressPct >= 100 ? t("growth.matured") : `${Math.round(g.progressPct)}%`}
           </span>
         </div>
       )}
@@ -308,13 +314,14 @@ function OverviewTab({
   investmentTotal: number;
   loading: boolean;
 }) {
+  const { t } = useTranslation("wealth");
   if (loading) return <Skeleton className="h-64 w-full rounded-xl" />;
   if (!overviewData.length) {
     return (
       <EmptyState
         icon={PiggyBank}
-        title="Nothing to show yet"
-        description="Add savings, investments or spend a little this month to see your money map."
+        title={t("overview.emptyTitle")}
+        description={t("overview.emptyDesc")}
       />
     );
   }
@@ -322,28 +329,28 @@ function OverviewTab({
     <div className="grid gap-4 lg:grid-cols-2">
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle>Money map — this month</CardTitle>
+          <CardTitle>{t("overview.moneyMap")}</CardTitle>
         </CardHeader>
         <CardContent>
           <CategoryDonut
             data={overviewData}
             total={expenditure + savingTotal + investmentTotal}
-            centerLabel="Total"
+            centerLabel={t("labels.total", { ns: "common" })}
             wideLegend
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            Expenditure is this month's spending; Saving &amp; Investment are current balances.
+            {t("overview.moneyMapNote")}
           </p>
         </CardContent>
       </Card>
 
-      <DonutCard title="Expenditure breakdown" data={expenseCats} centerLabel="Spent" empty="No spending this month." />
-      <DonutCard title="Saving breakdown" data={savingData} centerLabel="Saved" empty="No savings added yet." />
+      <DonutCard title={t("overview.expenditureBreakdown")} data={expenseCats} centerLabel={t("overview.spent")} empty={t("overview.noSpending")} />
+      <DonutCard title={t("overview.savingBreakdown")} data={savingData} centerLabel={t("overview.saved")} empty={t("overview.noSavings")} />
       <DonutCard
-        title="Investment breakdown"
+        title={t("overview.investmentBreakdown")}
         data={investmentData}
-        centerLabel="Invested"
-        empty="No investments added yet."
+        centerLabel={t("overview.invested")}
+        empty={t("overview.noInvestments")}
       />
     </div>
   );
@@ -388,6 +395,7 @@ function AssetsTab({
   accounts: Account[];
   loading: boolean;
 }) {
+  const { t } = useTranslation("wealth");
   const del = useDeleteHolding();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Holding | null>(null);
@@ -397,9 +405,9 @@ function AssetsTab({
     setOpen(true);
   }
   async function handleDelete(h: Holding) {
-    if (!confirm(`Delete "${h.name}"?`)) return;
+    if (!confirm(t("assets.deleteConfirm", { name: h.name }))) return;
     await del.mutateAsync(h._id);
-    toast.success("Asset deleted");
+    toast.success(t("assets.deleted"));
   }
 
   const groups: { cls: HoldingClass; items: Holding[] }[] = [
@@ -413,7 +421,7 @@ function AssetsTab({
     <div>
       <div className="mb-4 flex justify-end">
         <Button onClick={openNew}>
-          <Plus /> Add asset
+          <Plus /> {t("assets.add")}
         </Button>
       </div>
 
@@ -425,9 +433,9 @@ function AssetsTab({
           <div>
             <div className="mb-2 flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold">Cash &amp; accounts</h3>
+                <h3 className="text-sm font-semibold">{t("assets.cashAccounts")}</h3>
                 <Link to="/accounts" className="text-xs font-medium text-primary hover:underline">
-                  Manage
+                  {t("assets.manage")}
                 </Link>
               </div>
               <span className="tnum text-sm text-muted-foreground">{formatMoney(accountsTotal)}</span>
@@ -441,7 +449,7 @@ function AssetsTab({
                         <CategoryIcon icon={a.icon} color={a.color} size="md" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{a.name}</p>
-                          <p className="truncate text-xs capitalize text-muted-foreground">{a.type}</p>
+                          <p className="truncate text-xs capitalize text-muted-foreground">{enumLabel("account", a.type)}</p>
                         </div>
                         <span className="tnum text-sm font-semibold">{formatMoney(a.balance ?? 0)}</span>
                       </CardContent>
@@ -450,7 +458,7 @@ function AssetsTab({
                 ))}
               </div>
             ) : (
-              <p className="px-1 text-sm text-muted-foreground">No accounts counted in your total.</p>
+              <p className="px-1 text-sm text-muted-foreground">{t("assets.noAccounts")}</p>
             )}
           </div>
 
@@ -461,7 +469,7 @@ function AssetsTab({
                 items.length > 0 && (
                   <div key={cls}>
                     <div className="mb-2 flex items-center justify-between px-1">
-                      <h3 className="text-sm font-semibold">{CLASS_META[cls].label}</h3>
+                      <h3 className="text-sm font-semibold">{enumLabel("holdingClass", cls)}</h3>
                       <span className="tnum text-sm text-muted-foreground">
                         {formatMoney(items.reduce((s, h) => s + h.value, 0))}
                       </span>
@@ -484,7 +492,7 @@ function AssetsTab({
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium">{h.name}</p>
                                 <p className="truncate text-xs text-muted-foreground">
-                                  {SUBTYPE_META[h.subtype].label}
+                                  {enumLabel("holding", h.subtype)}
                                   {h.provider ? ` · ${h.provider}` : ""}
                                 </p>
                                 <HoldingGrowthLine holding={h} />
@@ -492,7 +500,7 @@ function AssetsTab({
                               <span className="tnum text-sm font-semibold">{formatMoney(h.value)}</span>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon-sm" aria-label="Asset actions">
+                                  <Button variant="ghost" size="icon-sm" aria-label={t("assets.actionsAria")}>
                                     <MoreVertical />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -503,13 +511,13 @@ function AssetsTab({
                                       setOpen(true);
                                     }}
                                   >
-                                    <Pencil /> Edit
+                                    <Pencil /> {t("actions.edit", { ns: "common" })}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
                                     onClick={() => handleDelete(h)}
                                   >
-                                    <Trash2 /> Delete
+                                    <Trash2 /> {t("actions.delete", { ns: "common" })}
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -524,11 +532,11 @@ function AssetsTab({
           ) : (
             <EmptyState
               icon={Landmark}
-              title="No investments or savings linked yet"
-              description="Add deposits, funds, stocks, gold or property so your net worth reflects everything you own."
+              title={t("assets.emptyTitle")}
+              description={t("assets.emptyDesc")}
               action={
                 <Button onClick={openNew}>
-                  <Plus /> Add holding
+                  <Plus /> {t("assets.addHolding")}
                 </Button>
               }
             />
@@ -544,16 +552,17 @@ function AssetsTab({
 // ---- Liabilities tab ----
 
 function LiabilitiesTab({ loans }: { loans: Loan[] }) {
+  const { t } = useTranslation("wealth");
   if (!loans.length) {
     return (
       <EmptyState
         icon={HandCoins}
-        title="No liabilities"
-        description="You have no active loans. Track a loan to see it reduce your net worth here."
+        title={t("liabilities.emptyTitle")}
+        description={t("liabilities.emptyDesc")}
         action={
           <Button asChild>
             <Link to="/loans">
-              <Plus /> Add a loan
+              <Plus /> {t("liabilities.addLoan")}
             </Link>
           </Button>
         }
@@ -569,15 +578,15 @@ function LiabilitiesTab({ loans }: { loans: Loan[] }) {
       <div className="flex justify-end">
         <Button variant="outline" asChild>
           <Link to="/loans">
-            <HandCoins /> Manage loans
+            <HandCoins /> {t("liabilities.manageLoans")}
           </Link>
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle as="h2">Outstanding by loan</CardTitle>
-          <CardDescription>Each loan's share of the {formatMoney(total)} you owe.</CardDescription>
+          <CardTitle as="h2">{t("liabilities.outstandingByLoan")}</CardTitle>
+          <CardDescription>{t("liabilities.shareDesc", { total: formatMoney(total) })}</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="space-y-3.5">
@@ -591,7 +600,7 @@ function LiabilitiesTab({ loans }: { loans: Loan[] }) {
                     <div className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{l.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {LOAN_TYPE_META[l.type].label}
+                        {enumLabel("loan", l.type)}
                         {l.lender ? ` · ${l.lender}` : ""}
                       </span>
                     </div>
@@ -606,7 +615,7 @@ function LiabilitiesTab({ loans }: { loans: Loan[] }) {
                         aria-valuenow={Math.round(share)}
                         aria-valuemin={0}
                         aria-valuemax={100}
-                        aria-label={`${l.name} — ${Math.round(share)}% of total outstanding`}
+                        aria-label={t("liabilities.shareAria", { name: l.name, pct: Math.round(share) })}
                       >
                         <div className="h-full rounded-full" style={{ width: `${share}%`, backgroundColor: color }} />
                       </div>
@@ -614,7 +623,7 @@ function LiabilitiesTab({ loans }: { loans: Loan[] }) {
                     <TooltipContent className="text-xs">
                       <p className="font-medium">{l.name}</p>
                       <p className="tnum text-background/80">
-                        {formatMoney(l.outstanding)} · {share.toFixed(1)}% of {formatMoney(total)}
+                        {t("liabilities.tooltipShare", { amount: formatMoney(l.outstanding), pct: share.toFixed(1), total: formatMoney(total) })}
                       </p>
                     </TooltipContent>
                   </Tooltip>

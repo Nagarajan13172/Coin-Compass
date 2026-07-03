@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ function formatCountdown(secs: number): string {
 }
 
 export default function LoginPage() {
+  const { t } = useTranslation("auth");
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const login = useLogin();
@@ -24,7 +26,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(
-    params.get("error") ? "Sign-in with that provider failed. Please try again." : null
+    params.get("error") ? t("login.oauthError") : null
   );
   // When the server rate-limits sign-in (429), it returns retryAfterSeconds. We
   // hold the target time and tick a clock so the user sees a live countdown and
@@ -57,7 +59,7 @@ export default function LoginPage() {
       navigate("/", { replace: true });
     } catch (err) {
       const e = err as Error & { retryAfterSeconds?: number };
-      setError(err instanceof Error ? err.message : "Sign in failed");
+      setError(err instanceof Error ? err.message : t("login.genericError"));
       if (typeof e.retryAfterSeconds === "number" && e.retryAfterSeconds > 0) {
         setNowTs(Date.now());
         setRetryAt(Date.now() + e.retryAfterSeconds * 1000);
@@ -68,40 +70,40 @@ export default function LoginPage() {
   const rateLimited = secondsLeft > 0;
   // While rate-limited, show a ticking countdown instead of the static server text.
   const displayError = rateLimited
-    ? `Too many sign-in attempts. You can try again in ${formatCountdown(secondsLeft)}.`
+    ? t("login.rateLimited", { time: formatCountdown(secondsLeft) })
     : error;
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your CoinCompass">
+    <AuthShell title={t("login.title")} subtitle={t("login.subtitle")}>
       <form onSubmit={submit} className="space-y-4">
         {displayError && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{displayError}</p>
         )}
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t("shared.email")}</Label>
           <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("shared.password")}</Label>
             <Link to="/forgot-password" className="text-xs font-medium text-primary hover:underline">
-              Forgot password?
+              {t("login.forgotPassword")}
             </Link>
           </div>
           <PasswordInput id="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
         <div className="flex items-center justify-between">
           <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground">
-            Stay signed in
+            {t("login.staySignedIn")}
           </Label>
           <Switch id="remember" checked={remember} onCheckedChange={setRemember} />
         </div>
         <Button type="submit" className="w-full" disabled={login.isPending || rateLimited}>
           {rateLimited
-            ? `Try again in ${formatCountdown(secondsLeft)}`
+            ? t("login.retryIn", { time: formatCountdown(secondsLeft) })
             : login.isPending
-              ? "Signing in…"
-              : "Sign in"}
+              ? t("login.submitting")
+              : t("login.submit")}
         </Button>
       </form>
 
@@ -110,9 +112,9 @@ export default function LoginPage() {
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Don't have an account?{" "}
+        {t("login.noAccount")}{" "}
         <Link to="/signup" className="font-medium text-primary hover:underline">
-          Sign up
+          {t("login.signUpLink")}
         </Link>
       </p>
     </AuthShell>

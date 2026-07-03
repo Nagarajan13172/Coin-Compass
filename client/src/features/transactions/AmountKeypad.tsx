@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Delete, Divide, Minus, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ function apply(a: number, b: number, op: Op): number {
 
 /** A money-entry calculator keypad (like the CoinCompass app's input pad). */
 export function AmountKeypad({ onChange, className }: AmountKeypadProps) {
+  const { t } = useTranslation("transactions");
   const [display, setDisplay] = useState("0");
   const [acc, setAcc] = useState<number | null>(null);
   const [op, setOp] = useState<Op | null>(null);
@@ -142,22 +144,22 @@ export function AmountKeypad({ onChange, className }: AmountKeypadProps) {
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("7")}>7</button>
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("8")}>8</button>
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("9")}>9</button>
-        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("/")} aria-label="Divide"><Divide className="h-5 w-5" /></button>
+        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("/")} aria-label={t("keypad.divide")}><Divide className="h-5 w-5" /></button>
 
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("4")}>4</button>
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("5")}>5</button>
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("6")}>6</button>
-        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("*")} aria-label="Multiply"><X className="h-5 w-5" /></button>
+        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("*")} aria-label={t("keypad.multiply")}><X className="h-5 w-5" /></button>
 
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("1")}>1</button>
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("2")}>2</button>
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("3")}>3</button>
-        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("-")} aria-label="Subtract"><Minus className="h-5 w-5" /></button>
+        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("-")} aria-label={t("keypad.subtract")}><Minus className="h-5 w-5" /></button>
 
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDot()}>.</button>
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("0")}>0</button>
-        <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={backspace} aria-label="Delete"><Delete className="h-5 w-5" /></button>
-        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("+")} aria-label="Add"><Plus className="h-5 w-5" /></button>
+        <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={backspace} aria-label={t("keypad.delete")}><Delete className="h-5 w-5" /></button>
+        <button type="button" className={cn(keyCls, "bg-primary/10 text-primary hover:bg-primary/20")} onClick={() => inputOp("+")} aria-label={t("keypad.add")}><Plus className="h-5 w-5" /></button>
       </div>
       <button
         type="button"

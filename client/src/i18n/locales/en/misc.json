@@ -1,0 +1,31 @@
+{
+  "notFound": {
+    "title": "Page not found",
+    "message": "The page you’re looking for doesn’t exist.",
+    "backHome": "Back to dashboard"
+  },
+  "period": {
+    "week": "Week",
+    "month": "Month",
+    "year": "Year",
+    "previous": "Previous period",
+    "next": "Next period"
+  },
+  "record": {
+    "added": "Added {{date}}",
+    "updated": "Updated {{date}}"
+  },
+  "theme": {
+    "appearance": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "iconPicker": {
+    "search": "Search icons…",
+    "noResults": "No icons found"
+  },
+  "colorPicker": {
+    "swatch": "Color {{color}}"
+  }
+}

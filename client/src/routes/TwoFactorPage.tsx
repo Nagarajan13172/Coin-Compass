@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ function FullScreenSplash() {
 }
 
 export default function TwoFactorPage() {
+  const { t } = useTranslation("auth");
   const navigate = useNavigate();
   const location = useLocation();
   const { data: pending, isLoading } = useTwoFactorPending();
@@ -56,7 +58,7 @@ export default function TwoFactorPage() {
       // Redirect is handled declaratively via `verify.isSuccess` above, so it
       // can't lose a race with the pending-challenge query being cleared.
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Verification failed");
+      setError(err instanceof Error ? err.message : t("twoFactor.verificationFailed"));
       setCode("");
     }
   }
@@ -70,9 +72,9 @@ export default function TwoFactorPage() {
     try {
       await sendEmail.mutateAsync();
       setEmailSent(true);
-      toast.success(`Code sent to ${pending!.email}`);
+      toast.success(t("twoFactor.codeSent", { email: pending!.email }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't send a code");
+      toast.error(err instanceof Error ? err.message : t("twoFactor.sendFailed"));
     }
   }
 
@@ -82,12 +84,12 @@ export default function TwoFactorPage() {
     setError(null);
   }
 
-  const title = isBackup ? "Enter a backup code" : isEmail ? "Check your email" : "Two-step verification";
+  const title = isBackup ? t("twoFactor.titleBackup") : isEmail ? t("twoFactor.titleEmail") : t("twoFactor.titleTotp");
   const subtitle = isBackup
-    ? "Use one of the one-time recovery codes you saved."
+    ? t("twoFactor.subtitleBackup")
     : isEmail
-      ? `We can email a one-time code to ${pending.email}.`
-      : "Enter the 6-digit code from your authenticator app.";
+      ? t("twoFactor.subtitleEmail", { email: pending.email })
+      : t("twoFactor.subtitleTotp");
 
   return (
     <AuthShell title={title} subtitle={subtitle}>
@@ -103,13 +105,13 @@ export default function TwoFactorPage() {
             onClick={requestEmailCode}
             disabled={sendEmail.isPending}
           >
-            {sendEmail.isPending ? "Sending…" : "Email me a code"}
+            {sendEmail.isPending ? t("shared.sending") : t("twoFactor.emailMeCode")}
           </Button>
         ) : (
           <>
             <div className="space-y-2">
               <Label htmlFor="code" className="sr-only">
-                {isBackup ? "Backup code" : "Verification code"}
+                {isBackup ? t("twoFactor.backupCodeLabel") : t("twoFactor.verificationCodeLabel")}
               </Label>
               {isBackup ? (
                 <Input
@@ -131,12 +133,12 @@ export default function TwoFactorPage() {
                   disabled={verify.isPending}
                   invalid={!!error}
                   onComplete={verifyNow}
-                  aria-label="Verification code"
+                  aria-label={t("twoFactor.verificationCodeLabel")}
                 />
               )}
             </div>
             <Button type="submit" className="w-full" disabled={verify.isPending || code.trim().length < 6}>
-              {verify.isPending ? "Verifying…" : "Verify"}
+              {verify.isPending ? t("twoFactor.verifying") : t("twoFactor.verify")}
             </Button>
             {isEmail && (
               <button
@@ -145,7 +147,7 @@ export default function TwoFactorPage() {
                 disabled={sendEmail.isPending}
                 className="w-full text-center text-xs font-medium text-primary hover:underline"
               >
-                Resend code
+                {t("twoFactor.resendCode")}
               </button>
             )}
           </>
@@ -159,7 +161,7 @@ export default function TwoFactorPage() {
             onClick={() => switchMethod("totp")}
             className="font-medium text-primary hover:underline"
           >
-            Use your authenticator app
+            {t("twoFactor.useAuthenticator")}
           </button>
         )}
         {hasEmail && !isEmail && (
@@ -168,7 +170,7 @@ export default function TwoFactorPage() {
             onClick={() => switchMethod("email")}
             className="block w-full font-medium text-primary hover:underline"
           >
-            Email me a code instead
+            {t("twoFactor.emailInstead")}
           </button>
         )}
         {!isBackup && (
@@ -177,7 +179,7 @@ export default function TwoFactorPage() {
             onClick={() => switchMethod("backup")}
             className="block w-full text-muted-foreground hover:underline"
           >
-            Use a backup code
+            {t("twoFactor.useBackup")}
           </button>
         )}
       </div>
@@ -188,7 +190,7 @@ export default function TwoFactorPage() {
           onClick={() => navigate("/login", { replace: true })}
           className="font-medium text-primary hover:underline"
         >
-          Back to sign in
+          {t("shared.backToSignIn")}
         </button>
       </p>
     </AuthShell>

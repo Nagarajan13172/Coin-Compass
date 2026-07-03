@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { format, differenceInCalendarDays } from "date-fns";
@@ -28,17 +30,12 @@ import { PostRecurringDialog } from "@/features/recurring/PostRecurringDialog";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
-import { bucketRange, formatPeriodRange } from "@/lib/dates";
-import { accountTypeLabel } from "@/lib/accounts";
+import { bucketRange, formatPeriodRange, dateFnsLocale } from "@/lib/dates";
+import { categoryLabel, enumLabel } from "@/lib/i18nLabels";
 import type { PeriodKey, Recurring } from "@/lib/types";
 
-const PERIOD_NOUN: Record<PeriodKey, string> = {
-  week: "This week",
-  month: "This month",
-  year: "This year",
-};
-
 export default function DashboardPage() {
+  const { t } = useTranslation("dashboard");
   const navigate = useNavigate();
   const period = useUIStore((s) => s.period);
   const setPeriod = useUIStore((s) => s.setPeriod);
@@ -51,26 +48,26 @@ export default function DashboardPage() {
 
   // Make the active period explicit, e.g. "This month · 1–31 Jul 2026".
   const description = data
-    ? `${PERIOD_NOUN[period]} · ${formatPeriodRange(data.range.start, data.range.end)}`
-    : "Your money at a glance";
+    ? `${t(`period.${period}`)} · ${formatPeriodRange(data.range.start, data.range.end)}`
+    : t("subtitle");
 
   // Warmer, personal page title based on the time of day.
   const greeting = useMemo(() => {
     const h = new Date().getHours();
-    const part = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    const part = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
     const first = me?.name?.trim().split(" ")[0];
-    return first ? `${part}, ${first}` : part;
-  }, [me]);
+    return first ? t(`greeting.${part}Named`, { name: first }) : t(`greeting.${part}`);
+  }, [me, t]);
 
   // Share of income kept this period (income − expense ÷ income), for the Net tile.
   const summary = data?.summary;
   const savingsRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : null;
   const savingsRateLabel =
     savingsRate == null
-      ? "No income this period"
+      ? t("savingsRate.none")
       : savingsRate >= 0
-        ? `${savingsRate}% of income saved`
-        : "Spending exceeds income";
+        ? t("savingsRate.saved", { percent: savingsRate })
+        : t("savingsRate.over");
 
   // Quick insights strip. Avg/day divides by days *elapsed* so an in-progress
   // month isn't understated by counting days that haven't happened yet.
@@ -118,9 +115,9 @@ export default function DashboardPage() {
         actions={
           <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
             <TabsList className="h-9">
-              <TabsTrigger value="week">Week</TabsTrigger>
-              <TabsTrigger value="month">Month</TabsTrigger>
-              <TabsTrigger value="year">Year</TabsTrigger>
+              <TabsTrigger value="week">{t("tabs.week")}</TabsTrigger>
+              <TabsTrigger value="month">{t("tabs.month")}</TabsTrigger>
+              <TabsTrigger value="year">{t("tabs.year")}</TabsTrigger>
             </TabsList>
           </Tabs>
         }
@@ -136,10 +133,10 @@ export default function DashboardPage() {
             <Card className="surface-gradient lg:col-span-1">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Net worth
+                  {t("netWorth.title")}
                 </CardTitle>
                 <Button asChild variant="ghost" size="sm" className="-mr-2 h-7 text-xs">
-                  <Link to="/net-worth">Breakdown</Link>
+                  <Link to="/net-worth">{t("netWorth.breakdown")}</Link>
                 </Button>
               </CardHeader>
               <CardContent>
@@ -156,12 +153,12 @@ export default function DashboardPage() {
                           type="button"
                           className="mt-1 flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground transition-colors hover:text-foreground"
                         >
-                          Sum of {included.length} {included.length === 1 ? "account" : "accounts"}
+                          {t("netWorth.sumOf", { count: included.length })}
                           <Info className="h-3 w-3 shrink-0" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent align="start" className="max-w-[240px]">
-                        <p className="mb-1 font-medium">Included in net worth</p>
+                        <p className="mb-1 font-medium">{t("netWorth.includedTitle")}</p>
                         <ul className="space-y-1">
                           {included.map((a) => (
                             <li key={a._id} className="flex items-center justify-between gap-4">
@@ -171,7 +168,7 @@ export default function DashboardPage() {
                               </span>
                             </li>
                           ))}
-                          {included.length === 0 && <li className="text-muted-foreground">No accounts included</li>}
+                          {included.length === 0 && <li className="text-muted-foreground">{t("netWorth.noneIncluded")}</li>}
                         </ul>
                       </TooltipContent>
                     </Tooltip>
@@ -183,21 +180,21 @@ export default function DashboardPage() {
 
             <StatCard
               icon={<ArrowDownLeft className="h-5 w-5" />}
-              label="Income"
+              label={t("txnType.income", { ns: "common" })}
               value={data.summary.income}
               tone="income"
               to="/transactions?type=income"
             />
             <StatCard
               icon={<ArrowUpRight className="h-5 w-5" />}
-              label="Expense"
+              label={t("txnType.expense", { ns: "common" })}
               value={data.summary.expense}
               tone="expense"
               to="/transactions?type=expense"
             />
             <StatCard
               icon={<PiggyBank className="h-5 w-5" />}
-              label="Net"
+              label={t("stats.net")}
               value={data.summary.net}
               tone={data.summary.net >= 0 ? "income" : "expense"}
               signed
@@ -210,14 +207,14 @@ export default function DashboardPage() {
           {insights && insights.txnCount > 0 && (
             <Card>
               <CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3">
-                <Insight label="Avg spend / day" value={formatMoney(Math.round(insights.avgDaily))} />
+                <Insight label={t("insights.avgPerDay")} value={formatMoney(Math.round(insights.avgDaily))} />
                 <Insight
-                  label="Biggest category"
-                  value={insights.biggest?.name ?? "—"}
+                  label={t("insights.biggestCategory")}
+                  value={insights.biggest ? categoryLabel(insights.biggest.name) : "—"}
                   sub={insights.biggest ? formatMoney(insights.biggest.total) : undefined}
                 />
                 <Insight
-                  label="Transactions"
+                  label={t("insights.transactions")}
                   value={String(insights.txnCount)}
                   className="col-span-2 sm:col-span-1"
                 />
@@ -229,10 +226,10 @@ export default function DashboardPage() {
             {/* trend */}
             <Card className="lg:col-span-2">
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Cash flow</CardTitle>
+                <CardTitle>{t("cashFlow.title")}</CardTitle>
                 <div className="flex items-center gap-4 text-xs">
-                  <Legend color="hsl(var(--income))" label="Income" />
-                  <Legend color="hsl(var(--expense))" label="Expense" />
+                  <Legend color="hsl(var(--income))" label={t("txnType.income", { ns: "common" })} />
+                  <Legend color="hsl(var(--expense))" label={t("txnType.expense", { ns: "common" })} />
                 </div>
               </CardHeader>
               <CardContent>
@@ -240,14 +237,14 @@ export default function DashboardPage() {
                   <>
                     <TrendArea data={data.trend} onSelect={openBucket} />
                     <p className="mt-2 text-center text-xs text-muted-foreground">
-                      Net this period:{" "}
+                      {t("cashFlow.netThisPeriod")}{" "}
                       <span
                         className={`tnum font-semibold ${data.summary.net >= 0 ? "text-income" : "text-expense"}`}
                       >
                         {data.summary.net >= 0 ? "+" : "−"}
                         {formatMoney(Math.abs(data.summary.net))}
                       </span>{" "}
-                      (income − expense)
+                      {t("cashFlow.incomeMinusExpense")}
                     </p>
                   </>
                 ) : (
@@ -260,9 +257,9 @@ export default function DashboardPage() {
             <div className="space-y-4">
             <Card>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Accounts</CardTitle>
+                <CardTitle>{t("accounts.title")}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/accounts">View all</Link>
+                  <Link to="/accounts">{t("actions.viewAll", { ns: "common" })}</Link>
                 </Button>
               </CardHeader>
               <CardContent className="space-y-1">
@@ -282,7 +279,7 @@ export default function DashboardPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{a.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">{accountTypeLabel(a.type)}</p>
+                        <p className="truncate text-xs text-muted-foreground">{enumLabel("account", a.type)}</p>
                       </div>
                       <span className="tnum shrink-0 text-sm font-semibold">
                         {formatMoney(a.balance ?? 0, { currency: a.currency })}
@@ -291,7 +288,7 @@ export default function DashboardPage() {
                   );
                 })}
                 {!data.accounts.length && (
-                  <p className="py-4 text-center text-sm text-muted-foreground">No accounts yet</p>
+                  <p className="py-4 text-center text-sm text-muted-foreground">{t("accounts.empty")}</p>
                 )}
               </CardContent>
             </Card>
@@ -304,9 +301,9 @@ export default function DashboardPage() {
             {/* spending donut */}
             <Card className="lg:col-span-2">
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Spending by category</CardTitle>
+                <CardTitle>{t("spending.title")}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/reports">View in Reports</Link>
+                  <Link to="/reports">{t("spending.viewInReports")}</Link>
                 </Button>
               </CardHeader>
               <CardContent>
@@ -320,8 +317,8 @@ export default function DashboardPage() {
                 ) : (
                   <EmptyState
                     icon={Receipt}
-                    title="No spending yet"
-                    description="Add an expense to see your category breakdown."
+                    title={t("spending.emptyTitle")}
+                    description={t("spending.emptyDescription")}
                   />
                 )}
               </CardContent>
@@ -330,9 +327,9 @@ export default function DashboardPage() {
             {/* recent */}
             <Card>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Recent</CardTitle>
+                <CardTitle>{t("recent.title")}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/transactions">View all</Link>
+                  <Link to="/transactions">{t("actions.viewAll", { ns: "common" })}</Link>
                 </Button>
               </CardHeader>
               <CardContent>
@@ -345,11 +342,11 @@ export default function DashboardPage() {
                 ) : (
                   <EmptyState
                     icon={Wallet}
-                    title="No transactions"
-                    description="Start by adding your first transaction."
+                    title={t("recent.emptyTitle")}
+                    description={t("recent.emptyDescription")}
                     action={
                       <Button onClick={() => openTxnSheet({ type: "expense" })}>
-                        <Plus /> Add transaction
+                        <Plus /> {t("actions.addTransaction", { ns: "common" })}
                       </Button>
                     }
                   />
@@ -365,9 +362,9 @@ export default function DashboardPage() {
           {data.budgets.length > 0 && (
             <Card>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Budgets</CardTitle>
+                <CardTitle>{t("budgets.title")}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/budgets">Manage</Link>
+                  <Link to="/budgets">{t("manage")}</Link>
                 </Button>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -384,14 +381,14 @@ export default function DashboardPage() {
                         size="sm"
                       />
                       <span className="flex-1 truncate text-sm font-medium">
-                        {b.category?.name ?? "Overall"}
+                        {b.category ? categoryLabel(b.category.name) : t("budgets.overall")}
                       </span>
                       {b.over ? (
-                        <span className="shrink-0 text-xs font-medium text-expense">Over</span>
+                        <span className="shrink-0 text-xs font-medium text-expense">{t("budgets.statusOver")}</span>
                       ) : b.percent >= 80 ? (
-                        <span className="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-500">Close</span>
+                        <span className="shrink-0 text-xs font-medium text-amber-600 dark:text-amber-500">{t("budgets.statusClose")}</span>
                       ) : (
-                        <span className="shrink-0 text-xs font-medium text-income">On track</span>
+                        <span className="shrink-0 text-xs font-medium text-income">{t("budgets.statusOnTrack")}</span>
                       )}
                     </div>
                     <Progress
@@ -401,21 +398,21 @@ export default function DashboardPage() {
                       }
                       tooltip={
                         <span className="tnum">
-                          {formatMoney(b.spent)} of {formatMoney(b.amount)} · {b.percent}% ·{" "}
+                          {t("budgets.amountOfTotal", { amount: formatMoney(b.spent), total: formatMoney(b.amount) })} · {b.percent}% ·{" "}
                           {b.over
-                            ? `${formatMoney(b.spent - b.amount)} over`
-                            : `${formatMoney(b.amount - b.spent)} left`}
+                            ? t("budgets.overBy", { amount: formatMoney(b.spent - b.amount) })
+                            : t("budgets.leftBy", { amount: formatMoney(b.amount - b.spent) })}
                         </span>
                       }
                     />
                     <div className="flex items-center justify-between text-xs tnum">
                       <span className="text-muted-foreground">
-                        {formatMoney(b.spent)} of {formatMoney(b.amount)}
+                        {t("budgets.amountOfTotal", { amount: formatMoney(b.spent), total: formatMoney(b.amount) })}
                       </span>
                       <span className={`font-medium ${b.over ? "text-expense" : "text-income"}`}>
                         {b.over
-                          ? `${formatMoney(b.spent - b.amount)} over`
-                          : `${formatMoney(b.amount - b.spent)} left`}
+                          ? t("budgets.overBy", { amount: formatMoney(b.spent - b.amount) })
+                          : t("budgets.leftBy", { amount: formatMoney(b.amount - b.spent) })}
                       </span>
                     </div>
                   </Link>
@@ -429,10 +426,10 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-muted-foreground" /> Goals
+                  <Trophy className="h-4 w-4 text-muted-foreground" /> {t("goals.title")}
                 </CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/goals">Manage</Link>
+                  <Link to="/goals">{t("manage")}</Link>
                 </Button>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -443,7 +440,7 @@ export default function DashboardPage() {
                       <span className="flex-1 truncate text-sm font-medium">{g.name}</span>
                       {g.complete ? (
                         <Badge variant="income" className="shrink-0 text-[10px] font-medium">
-                          Done
+                          {t("goals.done")}
                         </Badge>
                       ) : (
                         <span className="tnum shrink-0 text-xs text-muted-foreground">{g.percent}%</span>
@@ -454,8 +451,8 @@ export default function DashboardPage() {
                       indicatorClassName={g.complete ? "bg-income" : undefined}
                       tooltip={
                         <span className="tnum">
-                          {formatMoney(g.savedAmount)} of {formatMoney(g.targetAmount)} · {g.percent}%
-                          {g.complete ? " · Done" : ` · ${formatMoney(g.remaining)} to go`}
+                          {t("budgets.amountOfTotal", { amount: formatMoney(g.savedAmount), total: formatMoney(g.targetAmount) })} · {g.percent}%
+                          {g.complete ? ` · ${t("goals.done")}` : ` · ${t("goals.toGo", { amount: formatMoney(g.remaining) })}`}
                         </span>
                       }
                     />
@@ -475,16 +472,17 @@ export default function DashboardPage() {
 }
 
 function UpcomingRecurring({ items }: { items: Recurring[] }) {
+  const { t } = useTranslation("dashboard");
   const [posting, setPosting] = useState<Recurring | null>(null);
 
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-muted-foreground" /> Due soon
+          <CalendarClock className="h-4 w-4 text-muted-foreground" /> {t("dueSoon.title")}
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link to="/recurring">Manage</Link>
+          <Link to="/recurring">{t("manage")}</Link>
         </Button>
       </CardHeader>
       <CardContent className="grid gap-2 sm:grid-cols-2">
@@ -493,14 +491,25 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
           const days = differenceInCalendarDays(next, new Date());
           const due = days <= 0; // today or overdue → postable
           const countdown =
-            days < 0 ? "Overdue" : days === 0 ? "Due today" : days === 1 ? "Due tomorrow" : `Due in ${days} days`;
+            days < 0
+              ? t("dueSoon.overdue")
+              : days === 0
+                ? t("dueSoon.dueToday")
+                : days === 1
+                  ? t("dueSoon.dueTomorrow")
+                  : t("dueSoon.dueIn", { count: days });
           const countdownTone =
             days < 0
               ? "text-expense"
               : days <= 3
                 ? "text-amber-600 dark:text-amber-500"
                 : "text-muted-foreground";
-          const title = r.type === "transfer" ? "Transfer" : r.category?.name ?? (r.note || "Recurring");
+          const title =
+            r.type === "transfer"
+              ? t("txnType.transfer", { ns: "common" })
+              : r.category
+                ? categoryLabel(r.category.name)
+                : r.note || t("dueSoon.recurring");
           return (
             <div
               key={r._id}
@@ -517,7 +526,7 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
                 <p className="flex items-center gap-2 truncate text-sm font-medium">
                   <span className="truncate">{title}</span>
                   <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
-                    {freqLabel(r)}
+                    {freqLabel(r, t)}
                   </Badge>
                   {r.loan && (
                     <Badge variant="secondary" className="shrink-0 gap-0.5 text-[10px] font-normal">
@@ -526,12 +535,12 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
                   )}
                 </p>
                 <p className={`truncate text-xs font-medium ${countdownTone}`}>
-                  {countdown} · {format(next, "dd MMM")}
+                  {countdown} · {format(next, "dd MMM", { locale: dateFnsLocale() })}
                 </p>
               </div>
               <Money amount={r.amount} type={r.type} signed className="text-sm" />
               <Button size="sm" variant={due ? "default" : "outline"} onClick={() => setPosting(r)}>
-                Post
+                {t("dueSoon.post")}
               </Button>
             </div>
           );
@@ -550,9 +559,9 @@ const FREQ_UNIT: Record<Recurring["frequency"], string> = {
 };
 
 /** "Monthly" / "Every 2 weeks" from a recurring rule's frequency + interval. */
-function freqLabel(r: Recurring): string {
-  if (r.interval > 1) return `Every ${r.interval} ${FREQ_UNIT[r.frequency]}s`;
-  return r.frequency.charAt(0).toUpperCase() + r.frequency.slice(1);
+function freqLabel(r: Recurring, t: TFunction): string {
+  if (r.interval > 1) return t(`freq.every.${FREQ_UNIT[r.frequency]}`, { count: r.interval });
+  return enumLabel("frequency", r.frequency);
 }
 
 function StatCard({
@@ -631,23 +640,24 @@ function Insight({
 }
 
 function CreditsSummaryCard({ owedToYou, youOwe }: { owedToYou: number; youOwe: number }) {
+  const { t } = useTranslation("dashboard");
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          <HandCoins className="h-4 w-4 text-muted-foreground" /> Credits
+          <HandCoins className="h-4 w-4 text-muted-foreground" /> {t("credits.title")}
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link to="/credits">View all</Link>
+          <Link to="/credits">{t("actions.viewAll", { ns: "common" })}</Link>
         </Button>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-3">
         <Link to="/credits" className="rounded-lg border p-3 transition-colors hover:bg-accent">
-          <p className="text-xs text-muted-foreground">Owed to you</p>
+          <p className="text-xs text-muted-foreground">{t("credits.owedToYou")}</p>
           <p className="tnum text-lg font-bold text-income">{formatMoney(owedToYou)}</p>
         </Link>
         <Link to="/credits" className="rounded-lg border p-3 transition-colors hover:bg-accent">
-          <p className="text-xs text-muted-foreground">You owe</p>
+          <p className="text-xs text-muted-foreground">{t("credits.youOwe")}</p>
           <p className="tnum text-lg font-bold text-expense">{formatMoney(youOwe)}</p>
         </Link>
       </CardContent>
@@ -665,9 +675,10 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 function EmptyChart() {
+  const { t } = useTranslation("dashboard");
   return (
     <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-      No data for this period
+      {t("cashFlow.noData")}
     </div>
   );
 }

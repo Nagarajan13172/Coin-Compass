@@ -1,0 +1,90 @@
+{
+  "title": "Transactions",
+  "summary": {
+    "count_one": "{{count}} transaction",
+    "count_other": "{{count}} transactions",
+    "noMatch": "No transactions match these filters",
+    "all": "All your transactions"
+  },
+  "period": {
+    "all": "All time",
+    "thisMonth": "This month",
+    "last30": "Last 30 days",
+    "thisYear": "This year"
+  },
+  "filters": {
+    "searchAria": "Filter this list by note, payee, or tag",
+    "searchPlaceholder": "Filter this list by note, payee, or tag…",
+    "allTypes": "All types",
+    "allAccounts": "All accounts",
+    "accountsCount_one": "{{count}} account",
+    "accountsCount_other": "{{count}} accounts",
+    "filterByAccount": "Filter by account",
+    "clearAccounts": "Clear accounts",
+    "allCategories": "All categories",
+    "label": "Filters:",
+    "remove": "Remove filter {{label}}",
+    "resetAll": "Reset all",
+    "clear": "Clear filters"
+  },
+  "loadingMore": "Loading more…",
+  "empty": {
+    "matchTitle": "No matching transactions",
+    "title": "No transactions yet",
+    "matchDescription": "Try adjusting or clearing your filters.",
+    "description": "Add your first transaction to get started."
+  },
+  "sheet": {
+    "editTitle": "Edit transaction",
+    "newTitle": "New transaction",
+    "selectAccount": "Select account",
+    "personTitle": "Money to/from a person",
+    "personSubtitle": "Also track this on the Credits page",
+    "personNamePlaceholder": "e.g. Rahul",
+    "paymentMethod": "Payment method",
+    "methodHelp": "How it moved (GPay, PhonePe, …). The account above is the balance that changes.",
+    "tags": "Tags",
+    "tagsPlaceholder": "Add a tag, press Enter (e.g. Hari, Bed)",
+    "removeTag": "Remove tag {{tag}}",
+    "linkedPrefix": "Linked to credit ·",
+    "linkedGave": "You gave",
+    "linkedReceived": "You received",
+    "linkedSuffix": ". Edit the person/note from the Credits page.",
+    "applyToLoan": "Apply to loan (repayment)",
+    "loanLeft": "{{amount}} left",
+    "loanBreakdown": "to principal · {{interest}} interest — reduces the balance & tenure.",
+    "loanPrincipalOnly": "Only the principal portion (payment minus interest) reduces the balance."
+  },
+  "toast": {
+    "amountRequired": "Enter an amount greater than zero",
+    "accountRequired": "Select an account",
+    "accountsDiffer": "Source and destination must differ",
+    "personRequired": "Enter who this is with",
+    "categoryRequired": "Pick a category",
+    "added": "Transaction added",
+    "updated": "Transaction updated",
+    "deleted": "Transaction deleted",
+    "saveFailed": "Failed to save",
+    "deleteFailed": "Failed to delete"
+  },
+  "row": {
+    "recurringAria": "Auto-posted by a recurring rule"
+  },
+  "group": {
+    "in": "+{{amount}} in",
+    "out": "−{{amount}} out",
+    "transfers_one": "{{count}} transfer",
+    "transfers_other": "{{count}} transfers",
+    "net": "Net"
+  },
+  "picker": {
+    "new": "New"
+  },
+  "keypad": {
+    "divide": "Divide",
+    "multiply": "Multiply",
+    "subtract": "Subtract",
+    "add": "Add",
+    "delete": "Delete"
+  }
+}

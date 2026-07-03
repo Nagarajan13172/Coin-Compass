@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { differenceInCalendarDays } from "date-fns";
 import { ChevronRight, Info, Lightbulb, PieChart as PieIcon, TrendingDown, TrendingUp, Wallet } from "lucide-react";
@@ -18,12 +19,12 @@ import { ExportMenu } from "@/features/reports/ExportMenu";
 import { useByAccount, useByCategory, useSummary, useTrend } from "@/hooks/useReports";
 import { bucketRange, periodRange, shiftPeriod, periodLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
+import { categoryLabel } from "@/lib/i18nLabels";
 import { cn } from "@/lib/utils";
 import type { PeriodKey } from "@/lib/types";
 
-const PERIOD_NOUN: Record<PeriodKey, string> = { week: "week", month: "month", year: "year" };
-
 export default function ReportsPage() {
+  const { t } = useTranslation("reports");
   const navigate = useNavigate();
   const [period, setPeriod] = useState<PeriodKey>("month");
   const [refDate, setRefDate] = useState(new Date());
@@ -77,8 +78,10 @@ export default function ReportsPage() {
     };
   }, [summary.data, prevSummary.data, expenseCats.data, range]);
 
-  const periodNoun = PERIOD_NOUN[period];
-  const viewLabel = `${periodLabel(period, refDate)} · ${periodNoun[0].toUpperCase()}${periodNoun.slice(1)} view`;
+  const viewLabel = t("viewLabel", {
+    period: periodLabel(period, refDate),
+    view: t(`viewName.${period}`),
+  });
 
   /** Deep-link into a filtered Transactions list for the current period. */
   function openTxns(params: Record<string, string | undefined>) {
@@ -96,8 +99,8 @@ export default function ReportsPage() {
   return (
     <div>
       <PageHeader
-        title="Reports"
-        description="Analyse your income and spending"
+        title={t("title")}
+        description={t("description")}
         actions={<ExportMenu key={range.from} range={range} periodLabel={periodLabel(period, refDate)} />}
       />
 
@@ -111,18 +114,18 @@ export default function ReportsPage() {
 
       {/* Explicit statement of what the metrics below refer to. */}
       <p className="mb-5 text-sm text-muted-foreground">
-        Showing <span className="font-medium text-foreground">{viewLabel}</span>
+        {t("showing")} <span className="font-medium text-foreground">{viewLabel}</span>
       </p>
 
       {/* summary */}
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <SummaryStat label="Income" loading={summary.isLoading}>
+        <SummaryStat label={t("txnType.income", { ns: "common" })} loading={summary.isLoading}>
           <Money amount={summary.data?.income ?? 0} className="text-2xl text-income" />
         </SummaryStat>
-        <SummaryStat label="Expense" loading={summary.isLoading}>
+        <SummaryStat label={t("txnType.expense", { ns: "common" })} loading={summary.isLoading}>
           <Money amount={summary.data?.expense ?? 0} className="text-2xl text-expense" />
         </SummaryStat>
-        <SummaryStat label="Net" loading={summary.isLoading}>
+        <SummaryStat label={t("net")} loading={summary.isLoading}>
           <span
             className={`tnum text-2xl font-semibold ${
               (summary.data?.net ?? 0) >= 0 ? "text-income" : "text-expense"
@@ -136,18 +139,18 @@ export default function ReportsPage() {
       {/* insights */}
       <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryStat
-          label="Avg daily spend"
+          label={t("avgDailySpend")}
           loading={summary.isLoading}
-          hint="Total spent ÷ days elapsed in this period, so a partial month isn't divided by a full 30 days."
-          sub={`over ${insights.days} day${insights.days === 1 ? "" : "s"}`}
+          hint={t("avgDailyHint")}
+          sub={t("overDays", { count: insights.days })}
         >
           <span className="tnum text-2xl font-semibold">{formatMoney(insights.avgDaily)}</span>
         </SummaryStat>
 
         <SummaryStat
-          label="Savings rate"
+          label={t("savingsRate")}
           loading={summary.isLoading}
-          hint="Share of income kept after spending: (income − expense) ÷ income × 100."
+          hint={t("savingsRateHint")}
         >
           {insights.savingsRate == null ? (
             <span className="text-2xl font-semibold text-muted-foreground">—</span>
@@ -163,7 +166,7 @@ export default function ReportsPage() {
         </SummaryStat>
 
         <SummaryStat
-          label="Biggest expense"
+          label={t("biggestExpense")}
           loading={summary.isLoading || expenseCats.isLoading}
           onClick={
             insights.top
@@ -173,7 +176,7 @@ export default function ReportsPage() {
         >
           {insights.top ? (
             <div>
-              <p className="truncate text-lg font-semibold">{insights.top.name}</p>
+              <p className="truncate text-lg font-semibold">{categoryLabel(insights.top.name)}</p>
               <p className="tnum text-xs text-muted-foreground">
                 {formatMoney(insights.top.total)} · {insights.top.percent}%
               </p>
@@ -184,10 +187,12 @@ export default function ReportsPage() {
         </SummaryStat>
 
         <SummaryStat
-          label={`Spending vs last ${periodNoun}`}
+          label={t(`spendingVsLast.${period}`)}
           loading={summary.isLoading || prevSummary.isLoading}
           sub={
-            insights.prevExpense > 0 ? `Last ${periodNoun}: ${formatMoney(insights.prevExpense)}` : undefined
+            insights.prevExpense > 0
+              ? t(`lastPeriodAmount.${period}`, { amount: formatMoney(insights.prevExpense) })
+              : undefined
           }
         >
           {insights.momPct == null ? (
@@ -197,7 +202,12 @@ export default function ReportsPage() {
               className={`flex items-center gap-1 text-2xl font-semibold ${insights.momPct > 0 ? "text-expense" : "text-income"}`}
             >
               {insights.momPct > 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-              {Math.abs(insights.momPct)}% {insights.momPct > 0 ? "higher" : insights.momPct < 0 ? "lower" : "same"}
+              {Math.abs(insights.momPct)}%{" "}
+              {insights.momPct > 0
+                ? t("changeDir.higher")
+                : insights.momPct < 0
+                  ? t("changeDir.lower")
+                  : t("changeDir.same")}
             </span>
           )}
         </SummaryStat>
@@ -207,17 +217,24 @@ export default function ReportsPage() {
         <div className="mb-5 flex items-start gap-2 rounded-xl border bg-muted/30 p-4 text-sm">
           <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <p>
-            This {periodNoun} your biggest expense is{" "}
-            <span className="font-semibold">{insights.top.name}</span> ({formatMoney(insights.top.total)},{" "}
-            {insights.top.percent}% of spending)
+            {t("insight.biggestPrefix", { period: t(`noun.${period}`) })}{" "}
+            <span className="font-semibold">{categoryLabel(insights.top.name)}</span>
+            {t("insight.ofSpending", {
+              amount: formatMoney(insights.top.total),
+              percent: insights.top.percent,
+            })}
             {insights.momPct != null && (
               <>
-                . Overall spending is{" "}
+                {t("insight.overallPrefix")}{" "}
                 <span className={insights.momPct > 0 ? "font-semibold text-expense" : "font-semibold text-income"}>
                   {Math.abs(insights.momPct)}%{" "}
-                  {insights.momPct > 0 ? "higher" : insights.momPct < 0 ? "lower" : "the same"}
+                  {insights.momPct > 0
+                    ? t("insight.higher")
+                    : insights.momPct < 0
+                      ? t("insight.lower")
+                      : t("insight.same")}
                 </span>{" "}
-                than last {periodNoun}
+                {t(`insight.thanLast.${period}`)}
               </>
             )}
             .
@@ -228,11 +245,11 @@ export default function ReportsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>By category</CardTitle>
+            <CardTitle>{t("byCategory")}</CardTitle>
             <Tabs value={donutType} onValueChange={(v) => setDonutType(v as "expense" | "income")}>
               <TabsList className="h-8">
-                <TabsTrigger value="expense" className="text-xs">Expense</TabsTrigger>
-                <TabsTrigger value="income" className="text-xs">Income</TabsTrigger>
+                <TabsTrigger value="expense" className="text-xs">{t("txnType.expense", { ns: "common" })}</TabsTrigger>
+                <TabsTrigger value="income" className="text-xs">{t("txnType.income", { ns: "common" })}</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
@@ -245,18 +262,18 @@ export default function ReportsPage() {
                 total={total}
                 showBars
                 wideLegend
-                centerLabel={donutType === "expense" ? "Total spent" : "Total earned"}
+                centerLabel={donutType === "expense" ? t("centerLabel.spent") : t("centerLabel.earned")}
                 onSelect={(categoryId) => openTxns({ type: donutType, category: categoryId ?? undefined })}
               />
             ) : (
-              <EmptyState icon={PieIcon} title="No data" description="No transactions in this period." />
+              <EmptyState icon={PieIcon} title={t("noData")} description={t("noTxnsInPeriod")} />
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Income vs Expense</CardTitle>
+            <CardTitle>{t("incomeVsExpense")}</CardTitle>
           </CardHeader>
           <CardContent>
             {trend.isLoading ? (
@@ -265,7 +282,7 @@ export default function ReportsPage() {
               <IncomeExpenseBar data={trend.data} onSelect={openBucket} />
             ) : (
               <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-                No data for this period
+                {t("noDataForPeriod")}
               </div>
             )}
           </CardContent>
@@ -274,8 +291,8 @@ export default function ReportsPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>By account</CardTitle>
-              <p className="mt-1 text-xs text-muted-foreground">Money in vs out per account</p>
+              <CardTitle>{t("byAccount")}</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">{t("moneyInVsOut")}</p>
             </div>
           </CardHeader>
           <CardContent>
@@ -284,7 +301,7 @@ export default function ReportsPage() {
             ) : byAccount.data?.length ? (
               <ByAccountList data={byAccount.data} onSelect={(accountId) => openTxns({ account: accountId })} />
             ) : (
-              <EmptyState icon={Wallet} title="No data" description="No transactions in this period." />
+              <EmptyState icon={Wallet} title={t("noData")} description={t("noTxnsInPeriod")} />
             )}
           </CardContent>
         </Card>
@@ -292,8 +309,8 @@ export default function ReportsPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div>
-              <CardTitle>Net cash flow</CardTitle>
-              <p className="mt-1 text-xs text-muted-foreground">Income minus expense over time</p>
+              <CardTitle>{t("netCashFlow")}</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">{t("incomeMinusExpense")}</p>
             </div>
           </CardHeader>
           <CardContent>
@@ -303,7 +320,7 @@ export default function ReportsPage() {
               <NetTrendArea data={trend.data} onSelect={openBucket} />
             ) : (
               <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-                No data for this period
+                {t("noDataForPeriod")}
               </div>
             )}
           </CardContent>
@@ -328,13 +345,14 @@ function SummaryStat({
   onClick?: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation("reports");
   const header = (
     <div className="flex items-center gap-1.5">
       <p className="text-sm text-muted-foreground">{label}</p>
       {hint && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" aria-label={`About ${label}`} className="text-muted-foreground/70 hover:text-foreground">
+            <button type="button" aria-label={t("aboutLabel", { label })} className="text-muted-foreground/70 hover:text-foreground">
               <Info className="h-3.5 w-3.5" />
             </button>
           </TooltipTrigger>

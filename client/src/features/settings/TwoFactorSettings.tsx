@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Check, Copy, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +31,7 @@ import {
 import type { TwoFactorSetup } from "@/lib/types";
 
 export function TwoFactorSettings() {
+  const { t } = useTranslation("settings");
   const { data: me } = useMe();
   const { data: status } = useTwoFactorStatus();
   const setup = useSetup2fa();
@@ -62,26 +64,26 @@ export function TwoFactorSettings() {
       setEnrollCode("");
       setEnrollOpen(true);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't start setup");
+      toast.error(e instanceof Error ? e.message : t("twoFactor.startFailed"));
     }
   }
 
   async function confirmEnroll(value: string = enrollCode) {
-    if (!/^\d{6}$/.test(value)) return toast.error("Enter the 6-digit code");
+    if (!/^\d{6}$/.test(value)) return toast.error(t("twoFactor.enter6Digit"));
     try {
       const codes = await enable.mutateAsync(value);
       setEnrollOpen(false);
       setEnrollData(null);
       setBackupCodes(codes);
-      toast.success("Two-factor authentication enabled");
+      toast.success(t("twoFactor.enabled"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "That code didn't work");
+      toast.error(e instanceof Error ? e.message : t("twoFactor.codeFailed"));
     }
   }
 
   async function confirmDisable() {
-    if (usesPassword && !disablePassword) return toast.error("Enter your password");
-    if (!usesPassword && !disableCode) return toast.error("Enter a current code");
+    if (usesPassword && !disablePassword) return toast.error(t("twoFactor.enterPassword"));
+    if (!usesPassword && !disableCode) return toast.error(t("twoFactor.enterCurrentCode"));
     try {
       await disable.mutateAsync({
         currentPassword: usesPassword ? disablePassword : undefined,
@@ -90,35 +92,35 @@ export function TwoFactorSettings() {
       setDisableOpen(false);
       setDisablePassword("");
       setDisableCode("");
-      toast.success("Two-factor authentication disabled");
+      toast.success(t("twoFactor.disabled"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't disable 2FA");
+      toast.error(e instanceof Error ? e.message : t("twoFactor.disableFailed"));
     }
   }
 
   async function confirmRegenerate() {
-    if (regenCode.trim().length < 6) return toast.error("Enter a current code");
+    if (regenCode.trim().length < 6) return toast.error(t("twoFactor.enterCurrentCode"));
     try {
       const codes = await regenerate.mutateAsync(regenCode.trim());
       setRegenOpen(false);
       setRegenCode("");
       setBackupCodes(codes);
-      toast.success("New backup codes generated");
+      toast.success(t("twoFactor.codesGenerated"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't regenerate codes");
+      toast.error(e instanceof Error ? e.message : t("twoFactor.regenerateFailed"));
     }
   }
 
   function copyCodes() {
     if (!backupCodes) return;
     void navigator.clipboard?.writeText(backupCodes.join("\n"));
-    toast.success("Backup codes copied");
+    toast.success(t("twoFactor.codesCopied"));
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Two-factor authentication</CardTitle>
+        <CardTitle>{t("twoFactor.title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-4">
@@ -132,11 +134,9 @@ export function TwoFactorSettings() {
               {enabled ? <ShieldCheck className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
             </span>
             <div>
-              <p className="text-sm font-medium">Authenticator app</p>
+              <p className="text-sm font-medium">{t("twoFactor.authenticatorApp")}</p>
               <p className="text-xs text-muted-foreground">
-                {enabled
-                  ? "A code from your authenticator app is required at sign-in."
-                  : "Require a one-time code from an authenticator app when you sign in."}
+                {enabled ? t("twoFactor.descEnabled") : t("twoFactor.descDisabled")}
               </p>
             </div>
           </div>
@@ -148,14 +148,14 @@ export function TwoFactorSettings() {
               onClick={() => setDisableOpen(true)}
               disabled={disable.isPending}
             >
-              <ShieldOff /> Disable
+              <ShieldOff /> {t("buttons.disable")}
             </Button>
           ) : (
             <Switch
               checked={false}
               onCheckedChange={(v) => v && startEnroll()}
               disabled={setup.isPending}
-              aria-label="Enable two-factor authentication"
+              aria-label={t("twoFactor.enableAria")}
             />
           )}
         </div>
@@ -165,29 +165,28 @@ export function TwoFactorSettings() {
             <Separator />
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">Email fallback</p>
+                <p className="text-sm font-medium">{t("twoFactor.emailFallback")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Also allow a code emailed to you if you lose your authenticator.
+                  {t("twoFactor.emailFallbackDesc")}
                 </p>
               </div>
               <Switch
                 checked={status?.emailFallback ?? false}
                 onCheckedChange={(v) => setEmailFallback.mutate(v)}
-                aria-label="Email fallback"
+                aria-label={t("twoFactor.emailFallbackAria")}
               />
             </div>
 
             <Separator />
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">Backup codes</p>
+                <p className="text-sm font-medium">{t("twoFactor.backupCodes")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {status?.backupCodesRemaining ?? 0} unused code
-                  {(status?.backupCodesRemaining ?? 0) === 1 ? "" : "s"} remaining.
+                  {t("twoFactor.codesRemaining", { count: status?.backupCodesRemaining ?? 0 })}
                 </p>
               </div>
               <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRegenOpen(true)}>
-                Regenerate
+                {t("twoFactor.regenerate")}
               </Button>
             </div>
           </>
@@ -198,10 +197,9 @@ export function TwoFactorSettings() {
       <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Set up authenticator</DialogTitle>
+            <DialogTitle>{t("twoFactor.enrollTitle")}</DialogTitle>
             <DialogDescription>
-              Scan this QR code with Google Authenticator, Authy, or a similar app, then enter the
-              6-digit code it shows.
+              {t("twoFactor.enrollDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -209,11 +207,11 @@ export function TwoFactorSettings() {
               <div className="flex flex-col items-center gap-3">
                 <img
                   src={enrollData.qrDataUrl}
-                  alt="Authenticator QR code"
+                  alt={t("twoFactor.qrAlt")}
                   className="h-44 w-44 rounded-lg border bg-white p-2"
                 />
                 <p className="text-center text-xs text-muted-foreground">
-                  Can't scan? Enter this key manually:
+                  {t("twoFactor.manualKey")}
                   <br />
                   <code className="mt-1 inline-block break-all rounded bg-muted px-1.5 py-0.5 text-[11px]">
                     {enrollData.secret}
@@ -222,22 +220,22 @@ export function TwoFactorSettings() {
               </div>
             )}
             <div className="space-y-2">
-              <Label className="text-sm">Enter the 6-digit code</Label>
+              <Label className="text-sm">{t("twoFactor.enter6DigitLabel")}</Label>
               <OtpInput
                 value={enrollCode}
                 onChange={setEnrollCode}
                 disabled={enable.isPending}
                 onComplete={confirmEnroll}
-                aria-label="Verification code"
+                aria-label={t("twoFactor.verificationCodeAria")}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEnrollOpen(false)}>
-              Cancel
+              {t("actions.cancel", { ns: "common" })}
             </Button>
             <Button onClick={() => confirmEnroll()} disabled={enable.isPending}>
-              <Check /> Enable
+              <Check /> {t("buttons.enable")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -247,10 +245,9 @@ export function TwoFactorSettings() {
       <Dialog open={!!backupCodes} onOpenChange={(o) => !o && setBackupCodes(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Save your backup codes</DialogTitle>
+            <DialogTitle>{t("twoFactor.saveCodesTitle")}</DialogTitle>
             <DialogDescription>
-              Each code works once. Store them somewhere safe — they're the only way in if you lose
-              your authenticator. They won't be shown again.
+              {t("twoFactor.saveCodesDesc")}
             </DialogDescription>
           </DialogHeader>
           {backupCodes && (
@@ -264,10 +261,10 @@ export function TwoFactorSettings() {
           )}
           <DialogFooter className="sm:justify-between">
             <Button variant="outline" onClick={copyCodes}>
-              <Copy /> Copy
+              <Copy /> {t("twoFactor.copy")}
             </Button>
             <Button onClick={() => setBackupCodes(null)}>
-              <Check /> I've saved them
+              <Check /> {t("twoFactor.savedThem")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -277,17 +274,17 @@ export function TwoFactorSettings() {
       <Dialog open={disableOpen} onOpenChange={setDisableOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>Disable two-factor authentication</DialogTitle>
+            <DialogTitle>{t("twoFactor.disableTitle")}</DialogTitle>
             <DialogDescription>
               {usesPassword
-                ? "Confirm your password to turn off 2FA."
-                : "Enter a current authenticator or backup code to turn off 2FA."}
+                ? t("twoFactor.disableDescPassword")
+                : t("twoFactor.disableDescCode")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {usesPassword ? (
               <div className="space-y-1.5">
-                <Label htmlFor="disable-password">Password</Label>
+                <Label htmlFor="disable-password">{t("twoFactor.passwordLabel")}</Label>
                 <PasswordInput
                   id="disable-password"
                   autoComplete="current-password"
@@ -298,7 +295,7 @@ export function TwoFactorSettings() {
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label htmlFor="disable-code">Authentication code</Label>
+                <Label htmlFor="disable-code">{t("twoFactor.authCodeLabel")}</Label>
                 <Input
                   id="disable-code"
                   inputMode="numeric"
@@ -315,10 +312,10 @@ export function TwoFactorSettings() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDisableOpen(false)}>
-              Cancel
+              {t("actions.cancel", { ns: "common" })}
             </Button>
             <Button variant="destructive" onClick={confirmDisable} disabled={disable.isPending}>
-              Disable
+              {t("buttons.disable")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -328,14 +325,13 @@ export function TwoFactorSettings() {
       <Dialog open={regenOpen} onOpenChange={setRegenOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>Regenerate backup codes</DialogTitle>
+            <DialogTitle>{t("twoFactor.regenTitle")}</DialogTitle>
             <DialogDescription>
-              This invalidates your old codes. Enter a current authenticator or backup code to
-              continue.
+              {t("twoFactor.regenDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
-            <Label htmlFor="regen-code">Authentication code</Label>
+            <Label htmlFor="regen-code">{t("twoFactor.authCodeLabel")}</Label>
             <Input
               id="regen-code"
               inputMode="numeric"
@@ -350,10 +346,10 @@ export function TwoFactorSettings() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRegenOpen(false)}>
-              Cancel
+              {t("actions.cancel", { ns: "common" })}
             </Button>
             <Button onClick={confirmRegenerate} disabled={regenerate.isPending}>
-              <Check /> Regenerate
+              <Check /> {t("twoFactor.regenerate")}
             </Button>
           </DialogFooter>
         </DialogContent>
