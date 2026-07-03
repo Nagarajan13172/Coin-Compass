@@ -30,6 +30,12 @@ api.interceptors.response.use(
       error?.response?.data?.message ??
       error?.message ??
       "Something went wrong";
-    return Promise.reject(new Error(message));
+    // Preserve the HTTP status and any rate-limit retry hint so callers (e.g. the
+    // login form's countdown) can react to them, not just show the text.
+    const wrapped = new Error(message) as Error & { status?: number; retryAfterSeconds?: number };
+    wrapped.status = error?.response?.status;
+    const retryAfter = error?.response?.data?.retryAfterSeconds;
+    if (typeof retryAfter === "number") wrapped.retryAfterSeconds = retryAfter;
+    return Promise.reject(wrapped);
   }
 );

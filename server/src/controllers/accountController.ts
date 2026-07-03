@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import { Account } from "../models/Account";
 import { Transaction } from "../models/Transaction";
 import { computeAllBalances } from "../services/balanceService";
+import { reverseLoanPayment } from "../services/loanService";
+import { deleteCreditForTransaction } from "../services/creditService";
 import { accountSchema, accountUpdateSchema } from "../validators/schemas";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
@@ -57,6 +59,16 @@ export async function deleteAccount(req: Request, res: Response) {
     );
   }
   if (req.query.force === "true") {
+    // Reverse each transaction's side-effects before removing it, so deleting the
+    // account doesn't strand a loan at a wrong outstanding or leave a credit
+    // pointing at a deleted transaction. (deleteMany alone skips all of this.)
+    const txns = await Transaction.find(ownership);
+    for (const txn of txns) {
+      if (txn.loan) {
+        await reverseLoanPayment(txn.loan, uid, txn.loanPrincipal ?? txn.amount, txn.loanInterest ?? 0);
+      }
+      if (txn.credit) await deleteCreditForTransaction(uid, txn.credit);
+    }
     await Transaction.deleteMany(ownership);
   }
   const account = await Account.findOneAndDelete({ _id: id, user: uid });

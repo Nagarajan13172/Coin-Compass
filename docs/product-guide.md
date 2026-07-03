@@ -98,7 +98,7 @@ an EMI — pay down a **loan** and nudge **net worth**.
 - **Server:** Node + Express + TypeScript, MongoDB (Mongoose), Zod validation. `node-cron` for
   recurring posting, gold‑rate refresh, and email reports. Nodemailer (SMTP) for verification &
   report emails.
-- **Auth:** JWT session cookie; `arctic` for OAuth; bcrypt for passwords.
+- **Auth:** JWT session cookie; `arctic` for OAuth; bcrypt (+ optional HMAC pepper) for passwords.
 - **Data model:** User → Settings, Accounts, Categories, Transactions, Budgets, Recurring,
   Goals, Holdings, Loans (all user‑scoped). See [App Journey §6](./app-journey.md).
 

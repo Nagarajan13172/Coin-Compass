@@ -4,7 +4,7 @@ import { AuthIdentity } from "../models/AuthIdentity";
 import { Settings } from "../models/Settings";
 import { Account } from "../models/Account";
 import { Category } from "../models/Category";
-import { hashPassword, verifyPassword } from "../auth/password";
+import { hashPassword, verifyPassword, needsRehash } from "../auth/password";
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from "../seed/defaults";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -43,6 +43,12 @@ export async function signinWithPassword(input: { email: string; password: strin
   if (!user || !user.passwordHash) throw new HttpError(401, "Invalid email or password");
   const ok = await verifyPassword(input.password, user.passwordHash);
   if (!ok) throw new HttpError(401, "Invalid email or password");
+  // Opportunistically upgrade a legacy (un-peppered) hash now that we hold the
+  // correct plaintext — migrates existing accounts to the pepper transparently.
+  if (needsRehash(user.passwordHash)) {
+    user.passwordHash = await hashPassword(input.password);
+    await user.save();
+  }
   return user;
 }
 

@@ -106,7 +106,9 @@ export async function updateCredit(uid: unknown, creditId: unknown, patch: Parti
     amount: patch.amount ?? credit.amount,
     date: patch.date ?? credit.date,
     method: patch.method ?? credit.method,
-    account: patch.account ?? (credit.account ? String(credit.account) : null),
+    // Distinguish "account omitted" (keep current) from "account: null" (clear it).
+    // `patch.account ?? …` would swallow an explicit null and never unset it.
+    account: "account" in patch ? (patch.account ?? null) : credit.account ? String(credit.account) : null,
     note: patch.note ?? credit.note,
     reflected: patch.reflected ?? credit.reflected,
   };

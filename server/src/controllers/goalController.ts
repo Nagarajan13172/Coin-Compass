@@ -33,8 +33,18 @@ export async function createGoal(req: Request, res: Response) {
 export async function updateGoal(req: Request, res: Response) {
   const uid = userId(req);
   const data = goalUpdateSchema.parse(req.body);
-  const goal = await Goal.findOneAndUpdate({ _id: req.params.id, user: uid }, data, { new: true });
+  const goal = await Goal.findOne({ _id: req.params.id, user: uid });
   if (!goal) throw new HttpError(404, "Goal not found");
+
+  Object.assign(goal, data);
+  // Editing savedAmount/targetAmount can cross the finish line just like a
+  // contribution does — keep achievedAt in step so the persisted date isn't stale.
+  if (goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount) {
+    if (!goal.achievedAt) goal.achievedAt = new Date();
+  } else {
+    goal.achievedAt = null;
+  }
+  await goal.save();
   res.json(withProgress(goal.toObject()));
 }
 

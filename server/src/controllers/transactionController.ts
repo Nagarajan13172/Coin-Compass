@@ -109,6 +109,17 @@ export async function updateTransaction(req: Request, res: Response) {
   const prevCredit = txn.credit;
   Object.assign(txn, data);
 
+  // Guard the transfer invariants on the *effective* transaction — the update
+  // schema can't, since a PATCH may change only one side (e.g. flip type to
+  // transfer while keeping the existing account). Without this, an edit can create
+  // a same-account or destination-less transfer that leaks money.
+  if (txn.type === "transfer") {
+    if (!txn.toAccount) throw new HttpError(400, "Transfers require a destination account");
+    if (String(txn.account) === String(txn.toAccount)) {
+      throw new HttpError(400, "Source and destination accounts must differ");
+    }
+  }
+
   // Reconcile: undo the previous payment (principal + interest), then apply the new
   // one fresh (recomputing on the restored balance). Handles amount changes,
   // re-linking to a different loan, or clearing the link.

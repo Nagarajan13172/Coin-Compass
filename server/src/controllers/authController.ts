@@ -22,7 +22,7 @@ import { requestPasswordReset, consumePasswordReset } from "../services/password
 import * as twoFactor from "../services/twoFactorService";
 import { setSessionCookie, clearSessionCookie } from "../auth/cookie";
 import { setPendingCookie, clearPendingCookie, verifyPending, type PendingSession } from "../auth/pending2fa";
-import { verifyPassword } from "../auth/password";
+import { verifyPassword, hashPassword, needsRehash } from "../auth/password";
 import type { SessionMode } from "../auth/jwt";
 import { User, type UserDoc } from "../models/User";
 import { getSettings } from "../models/Settings";
@@ -237,6 +237,11 @@ export async function unlockWealth(req: Request, res: Response) {
   if (settings.wealthPasscodeHash) {
     const ok = await verifyPassword(passcode, settings.wealthPasscodeHash);
     if (!ok) throw new HttpError(401, "Incorrect passcode");
+    // Migrate a legacy passcode hash to the peppered scheme on a correct unlock.
+    if (needsRehash(settings.wealthPasscodeHash)) {
+      settings.wealthPasscodeHash = await hashPassword(passcode);
+      await settings.save();
+    }
   }
   setSessionCookie(res, uid, "superadmin");
   const user = await User.findById(uid);

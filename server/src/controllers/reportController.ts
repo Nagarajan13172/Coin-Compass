@@ -16,7 +16,9 @@ function rangeFromQuery(query: Request["query"]) {
   if (query.from || query.to) {
     return {
       start: query.from ? new Date(String(query.from)) : new Date(0),
-      end: query.to ? new Date(String(query.to)) : new Date(),
+      // Ranges are [start, end); `to` names an inclusive day, so end is the start
+      // of the NEXT day — otherwise every transaction dated on `to` is dropped.
+      end: query.to ? new Date(new Date(String(query.to)).getTime() + 86_400_000) : new Date(),
     };
   }
   const period = (String(query.period ?? "month") as Period) || "month";

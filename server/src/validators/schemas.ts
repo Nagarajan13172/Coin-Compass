@@ -128,7 +128,7 @@ export const budgetSchema = z.object({
 });
 export const budgetUpdateSchema = budgetSchema.partial();
 
-export const recurringSchema = z.object({
+const recurringBase = z.object({
   type: z.enum(["income", "expense", "transfer"]),
   amount: z.number().positive(),
   account: objectId,
@@ -146,7 +146,18 @@ export const recurringSchema = z.object({
   endDate: z.coerce.date().nullish(),
   active: z.boolean().default(true),
 });
-export const recurringUpdateSchema = recurringSchema.partial();
+// A recurring transfer must have a distinct destination — same rules as a one-off
+// transfer, so a scheduled transfer can't silently drain an account every run.
+export const recurringSchema = recurringBase
+  .refine((d) => d.type !== "transfer" || !!d.toAccount, {
+    message: "Transfers require a destination account",
+    path: ["toAccount"],
+  })
+  .refine((d) => d.type !== "transfer" || d.account !== d.toAccount, {
+    message: "Source and destination accounts must differ",
+    path: ["toAccount"],
+  });
+export const recurringUpdateSchema = recurringBase.partial();
 export const recurringPostOneSchema = z.object({
   amount: z.number().positive().optional(),
   date: z.coerce.date().optional(),
@@ -200,7 +211,7 @@ export const holdingSchema = holdingBase.refine(subtypeMatchesClass, {
 // Partial updates skip the cross-field check (class/subtype may arrive separately).
 export const holdingUpdateSchema = holdingBase.partial();
 
-export const loanSchema = z.object({
+const loanBase = z.object({
   name: z.string().min(1).max(80),
   lender: z.string().max(120).default(""),
   type: z.enum(["home", "personal", "car", "education", "gold", "business", "other"]).default("personal"),
@@ -217,7 +228,18 @@ export const loanSchema = z.object({
   note: z.string().max(280).default(""),
   currency: z.string().default("INR"),
 });
-export const loanUpdateSchema = loanSchema.partial();
+export const loanSchema = loanBase
+  // An EMI that doesn't clear the monthly interest can never reduce the balance —
+  // the loan would amortize forever. Only checked when all three are meaningful.
+  .refine((d) => !(d.emi > 0 && d.roi > 0 && d.outstanding > 0) || d.emi > (d.outstanding * d.roi) / 1200, {
+    message: "EMI must be greater than the monthly interest, otherwise the loan never reduces",
+    path: ["emi"],
+  })
+  .refine((d) => !d.startDate || !d.endDate || d.startDate <= d.endDate, {
+    message: "Start date must be on or before the end date",
+    path: ["endDate"],
+  });
+export const loanUpdateSchema = loanBase.partial();
 
 export const CREDIT_METHODS = [
   "Cash", "GPay", "PhonePe", "Paytm", "UPI", "Net Banking",

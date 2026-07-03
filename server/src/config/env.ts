@@ -25,6 +25,13 @@ export const env = {
   oauthRedirectBaseUrl: process.env.OAUTH_REDIRECT_BASE_URL ?? "",
   auth: {
     jwtSecret: process.env.AUTH_JWT_SECRET ?? "dev-insecure-secret-change-me",
+    // Application-level "pepper": an HMAC key mixed into passwords/passcodes before
+    // bcrypt, so a stolen database alone can't be brute-forced offline (the key
+    // lives here, never in the DB). Blank = disabled (plain bcrypt, as before).
+    // IMPORTANT: once set in production, never change or lose it — every peppered
+    // hash needs this exact value to verify. Existing hashes upgrade to peppered
+    // automatically on the owner's next login.
+    passwordPepper: process.env.AUTH_PASSWORD_PEPPER ?? "",
     cookieName: process.env.AUTH_COOKIE_NAME ?? "mt_session",
     sessionTtlDays: 30,
     // "Stay signed in" sessions (the default — PWAs have no browser chrome to
@@ -97,6 +104,19 @@ if (env.isProd && /localhost|127\.0\.0\.1/.test(env.appUrl)) {
     `[config] APP_URL/CLIENT_URL resolves to "${env.appUrl}" in production. Emails sent without ` +
       `a request context (e.g. scheduled reports) will link back to this. Set CLIENT_URL and ` +
       `APP_URL to your public origin (e.g. https://coincompass.sathishkumar.cloud).`
+  );
+}
+
+// Nudge toward enabling the password pepper in production. Without it, passwords
+// are still bcrypt-hashed but a database leak alone is more exposed to offline
+// cracking. Setting it is safe on a live DB — existing accounts migrate on login.
+if (env.isProd && !env.auth.passwordPepper) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[config] AUTH_PASSWORD_PEPPER is not set. Passwords are bcrypt-hashed but not ` +
+      `peppered, so a leaked database alone is more vulnerable to offline cracking. Set ` +
+      `AUTH_PASSWORD_PEPPER to a dedicated random secret (e.g. openssl rand -base64 48); ` +
+      `existing users migrate automatically on their next login.`
   );
 }
 

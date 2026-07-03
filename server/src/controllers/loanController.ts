@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { Loan } from "../models/Loan";
+import { Transaction } from "../models/Transaction";
+import { RecurringTransaction } from "../models/RecurringTransaction";
 import { loanSchema, loanUpdateSchema, loanPaySchema, loanPrecloseSchema } from "../validators/schemas";
 import { prepaymentCharge } from "../services/loanService";
 import { addMonths } from "../utils/dateRange";
@@ -84,5 +86,13 @@ export async function deleteLoan(req: Request, res: Response) {
   const uid = userId(req);
   const loan = await Loan.findOneAndDelete({ _id: req.params.id, user: uid });
   if (!loan) throw new HttpError(404, "Loan not found");
+  // Cascade the unlink so nothing keeps pointing at (or posting to) a deleted loan:
+  // past transactions drop their dangling loan ref, and any recurring EMI rule is
+  // detached so it stops trying to reduce a loan that no longer exists.
+  await Transaction.updateMany(
+    { user: uid, loan: loan._id },
+    { $set: { loan: null, loanPrincipal: 0, loanInterest: 0 } }
+  );
+  await RecurringTransaction.updateMany({ user: uid, loan: loan._id }, { $set: { loan: null } });
   res.json({ ok: true });
 }

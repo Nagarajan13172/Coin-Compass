@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Category } from "../models/Category";
 import { Transaction } from "../models/Transaction";
+import { Budget } from "../models/Budget";
 import { categorySchema, categoryUpdateSchema } from "../validators/schemas";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
@@ -45,5 +46,8 @@ export async function deleteCategory(req: Request, res: Response) {
   if (!category) throw new HttpError(404, "Category not found");
   // also detach subcategories
   await Category.updateMany({ user: uid, parent: id }, { $set: { parent: null } });
+  // Remove budgets scoped to this category — a category-scoped budget can't survive
+  // its category, and leaving it would make it silently count *all* expenses.
+  await Budget.deleteMany({ user: uid, category: id });
   res.json({ ok: true });
 }
