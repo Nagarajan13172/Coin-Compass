@@ -38,8 +38,11 @@ export function LanguageToggle() {
           className="gap-1.5 px-2"
           aria-label={`${t("language.label")}: ${current.nativeLabel}`}
         >
-          <Languages className="h-5 w-5" />
-          <span className="text-sm font-medium">{current.nativeLabel}</span>
+          <Languages className="h-5 w-5 shrink-0" />
+          {/* Compact code on phones, full name where there's room — keeps the
+              header from overflowing on narrow screens. */}
+          <span className="text-sm font-medium sm:hidden">{current.short}</span>
+          <span className="hidden text-sm font-medium sm:inline">{current.nativeLabel}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">

@@ -102,10 +102,36 @@ export async function seedUserWithData(): Promise<SeededUser> {
   }
   await http.post("/budgets", { category: cats[0]._id, amount: 5000 });
   await http.post("/goals", { name: "Emergency Fund", targetAmount: 100000, savedAmount: 35000 });
-  await http.post("/loans", { name: "Car Loan", outstanding: 450000, roi: 9, emi: 12000 });
+  const loan = (await http.post("/loans", { name: "Home Loan", outstanding: 450000, roi: 9, emi: 12000 })).data;
   await http.post("/credits", { person: "Rahul", direction: "given", amount: 2500 });
   await http.post("/holdings", { name: "SBI Fixed Deposit", class: "saving", subtype: "fixed_deposit", value: 200000 });
   await http.post("/transactions", { type: "transfer", amount: 5000, account: acc._id, toAccount: acc2._id });
+
+  // Recurring rules due *today* so the dashboard's "Due soon" card renders — the
+  // long category name + Monthly badge + amount + Post button is a tight mobile row.
+  const monthAgo = new Date(now - 30 * 86400 * 1000).toISOString();
+  const today = new Date(now).toISOString();
+  await http.post("/recurring", {
+    type: "expense",
+    amount: 2100,
+    account: acc._id,
+    category: cats.find((c) => c.name === "Cash Withdrawal")?._id ?? cats[0]._id,
+    frequency: "monthly",
+    interval: 1,
+    startDate: monthAgo,
+    nextRun: today,
+  });
+  await http.post("/recurring", {
+    type: "expense",
+    amount: 60000,
+    account: acc._id,
+    category: cats[1]?._id,
+    loan: loan._id, // adds the loan badge — the two-badge case from the screenshots
+    frequency: "monthly",
+    interval: 1,
+    startDate: monthAgo,
+    nextRun: today,
+  });
 
   return { email, password: DEFAULT_PASSWORD };
 }

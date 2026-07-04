@@ -43,15 +43,30 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /**
+   * Allow an outside tap / overlay click to close the sheet. Off by default so
+   * data-entry forms don't vanish on an accidental touch outside — users close
+   * via the ✕, a Cancel button, or Escape. Set true to opt back in.
+   */
+  dismissOnOutsideClick?: boolean;
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, dismissOnOutsideClick = false, onInteractOutside, ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+    <SheetPrimitive.Content
+      ref={ref}
+      className={cn(sheetVariants({ side }), className)}
+      onInteractOutside={(e) => {
+        if (!dismissOnOutsideClick) e.preventDefault();
+        onInteractOutside?.(e);
+      }}
+      {...props}
+    >
       {children}
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring disabled:pointer-events-none">
         <X className="h-4 w-4" />

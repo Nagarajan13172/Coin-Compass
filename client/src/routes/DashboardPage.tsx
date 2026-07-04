@@ -513,7 +513,7 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
           return (
             <div
               key={r._id}
-              className={`flex items-center gap-3 rounded-lg border p-3 ${
+              className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 ${
                 days < 0 ? "border-expense/40 bg-expense/5" : days <= 3 ? "border-amber-500/40 bg-amber-500/5" : ""
               }`}
             >

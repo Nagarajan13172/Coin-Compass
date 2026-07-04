@@ -1,10 +1,11 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
-/** Languages offered in the picker. `nativeLabel` is shown in each language's own script. */
+/** Languages offered in the picker. `nativeLabel` is shown in each language's own
+ *  script; `short` is a compact badge for tight spots like the mobile header. */
 export const SUPPORTED_LANGUAGES = [
-  { code: "en", label: "English", nativeLabel: "English" },
-  { code: "ta", label: "Tamil", nativeLabel: "தமிழ்" },
+  { code: "en", label: "English", nativeLabel: "English", short: "EN" },
+  { code: "ta", label: "Tamil", nativeLabel: "தமிழ்", short: "த" },
 ] as const;
 
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];

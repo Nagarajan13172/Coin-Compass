@@ -1,9 +1,25 @@
+import { useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
+import { categoryLabel } from "@/lib/i18nLabels";
 import type { Category, CategoryType } from "@/lib/types";
 
 export function useCategories(type?: CategoryType) {
+  // Order by the *displayed* (localized) label so the list reads A–Z in the
+  // active language — re-sorts when the language changes (Tamil ≠ English order).
+  const { i18n } = useTranslation();
+  const sortByLabel = useCallback(
+    (data: Category[]) =>
+      [...data].sort((a, b) =>
+        categoryLabel(a.name).localeCompare(categoryLabel(b.name), i18n.language, {
+          sensitivity: "base",
+        })
+      ),
+    [i18n.language]
+  );
+
   return useQuery({
     queryKey: ["categories", { type: type ?? "all" }],
     queryFn: async () => {
@@ -12,6 +28,7 @@ export function useCategories(type?: CategoryType) {
       });
       return data;
     },
+    select: sortByLabel,
     staleTime: 5 * 60_000,
   });
 }
