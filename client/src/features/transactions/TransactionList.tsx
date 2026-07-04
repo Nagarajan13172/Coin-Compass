@@ -78,7 +78,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
             <Separator className="mb-1.5" />
             <div className="space-y-0.5">
               {group.items.map((t) => (
-                <TransactionRow key={t._id} txn={t} />
+                <TransactionRow key={t._id} txn={t} showTime />
               ))}
             </div>
           </motion.div>

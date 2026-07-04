@@ -184,6 +184,13 @@ export default function RecurringPage() {
             {items.map((r, i) => {
               const overdue = isDue(r) && new Date(r.nextRun) < new Date();
               const ended = isEnded(r);
+              // Surface the note so same-category rules stay distinguishable — but not
+              // when it's already the title (no category) or just echoes the category.
+              const note = r.note?.trim();
+              const titleIsNote = r.type !== "transfer" && !r.category?.name;
+              const noteEchoesCategory =
+                note && r.category?.name && note.toLowerCase() === r.category.name.toLowerCase();
+              const detailNote = note && !titleIsNote && !noteEchoesCategory ? note : "";
               return (
               <motion.div
                 key={r._id}
@@ -207,6 +214,7 @@ export default function RecurringPage() {
                       </div>
                       <p className="truncate text-xs text-muted-foreground">
                         {freqLabel(r, t)} · {r.account?.name}
+                        {detailNote ? ` · ${detailNote}` : ""}
                       </p>
                       <p className={`mt-0.5 truncate text-xs ${overdue ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground"}`}>
                         {ended

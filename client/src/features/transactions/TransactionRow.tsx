@@ -15,9 +15,19 @@ function ref(v: RefLite | string | null | undefined): RefLite | null {
 /**
  * A single transaction row. `showDate` adds the txn date under the amount — used
  * in ungrouped lists (e.g. the dashboard "Recent" card); the Transactions page
- * groups by day, so it leaves it off.
+ * groups by day, so it leaves it off. `showTime` adds the time the entry was
+ * logged (its `createdAt`), used on the day-grouped Transactions page — the txn
+ * `date` itself carries no time-of-day (it's stored at midnight).
  */
-export function TransactionRow({ txn, showDate = false }: { txn: Transaction; showDate?: boolean }) {
+export function TransactionRow({
+  txn,
+  showDate = false,
+  showTime = false,
+}: {
+  txn: Transaction;
+  showDate?: boolean;
+  showTime?: boolean;
+}) {
   const { t } = useTranslation("transactions");
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const account = ref(txn.account);
@@ -81,6 +91,9 @@ export function TransactionRow({ txn, showDate = false }: { txn: Transaction; sh
         />
         {showDate && (
           <span className="tnum text-[11px] text-muted-foreground">{fmtDate(txn.date, "dd MMM")}</span>
+        )}
+        {showTime && txn.createdAt && (
+          <span className="tnum text-[11px] text-muted-foreground">{fmtDate(txn.createdAt, "h:mm a")}</span>
         )}
       </div>
     </button>
