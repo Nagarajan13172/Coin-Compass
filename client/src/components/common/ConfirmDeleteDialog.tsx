@@ -10,8 +10,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 /** The entity nouns the dialog can name; resolved from the `confirmDelete` catalog. */
 export type DeleteItemKey =
@@ -41,7 +39,7 @@ export function ConfirmDeleteDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   itemKey: DeleteItemKey;
-  /** The exact text the user must re-type to confirm (e.g. the amount, or the name). */
+  /** The identifying value shown so the user can see what they're deleting (e.g. the amount, or the name). */
   confirmValue: string;
   /** Runs the delete. Return a ForceResult to escalate to the "delete anyway" step. */
   onConfirm: () => Promise<void | ForceResult>;
@@ -49,7 +47,6 @@ export function ConfirmDeleteDialog({
   onForceConfirm?: () => Promise<void>;
 }) {
   const { t } = useTranslation("confirmDelete");
-  const [typed, setTyped] = useState("");
   const [stage, setStage] = useState<"confirm" | "force">("confirm");
   const [forceMsg, setForceMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -57,7 +54,6 @@ export function ConfirmDeleteDialog({
   // Reset every time the dialog (re)opens so a previous attempt never leaks in.
   useEffect(() => {
     if (open) {
-      setTyped("");
       setStage("confirm");
       setForceMsg("");
       setBusy(false);
@@ -65,11 +61,9 @@ export function ConfirmDeleteDialog({
   }, [open]);
 
   const item = t(`nouns.${itemKey}`);
-  const target = confirmValue.trim();
-  const matches = target.length > 0 && typed.trim().toLocaleLowerCase() === target.toLocaleLowerCase();
 
   async function handleConfirm() {
-    if (!matches || busy) return;
+    if (busy) return;
     setBusy(true);
     try {
       const res = await onConfirm();
@@ -114,20 +108,6 @@ export function ConfirmDeleteDialog({
             <div className="select-all break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm font-semibold">
               {confirmValue}
             </div>
-            <Input
-              autoFocus
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder={t("placeholder")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleConfirm();
-              }}
-              aria-invalid={typed.length > 0 && !matches}
-              className={cn(typed.length > 0 && !matches && "border-destructive focus-visible:ring-destructive")}
-            />
-            {typed.length > 0 && !matches && (
-              <p className="text-xs text-destructive">{t("mismatch")}</p>
-            )}
           </div>
         ) : (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
@@ -140,7 +120,7 @@ export function ConfirmDeleteDialog({
             {t("cancel")}
           </Button>
           {stage === "confirm" ? (
-            <Button variant="destructive" onClick={handleConfirm} disabled={!matches || busy}>
+            <Button variant="destructive" onClick={handleConfirm} disabled={busy}>
               {t("confirm")}
             </Button>
           ) : (

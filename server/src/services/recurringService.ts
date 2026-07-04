@@ -1,6 +1,8 @@
 import { RecurringTransaction, type RecurringDoc } from "../models/RecurringTransaction";
 import { Transaction } from "../models/Transaction";
 import { applyLoanPayment } from "./loanService";
+import { notify } from "./notificationService";
+import { ruleTitle, postedDedupeKey, endedDedupeKey } from "./notificationLogic";
 import { addDays, addMonths, addYears } from "../utils/dateRange";
 
 type RuleDoc = RecurringDoc & { _id: unknown; save: () => Promise<unknown> };
@@ -120,11 +122,58 @@ export async function processDueRecurring(now: Date = new Date(), userId?: strin
   let created = 0;
 
   for (const rule of due) {
-    created += await postDueForRule(rule as unknown as RuleDoc, now);
+    const doc = rule as unknown as RuleDoc;
+    const wasActive = doc.active;
+    const createdForRule = await postDueForRule(doc, now);
+    created += createdForRule;
     await rule.save();
+    // Only the automatic (all-users) cron path raises notifications. A user-initiated
+    // "Run due" already shows a toast, so it stays notification-free to avoid duplicate
+    // feedback for an action they just performed.
+    if (!userId) await notifyRulePosted(doc, wasActive, createdForRule, now);
   }
 
   return created;
+}
+
+/** Emit the recurring.posted / recurring.ended notifications after a cron post. */
+async function notifyRulePosted(
+  rule: RuleDoc,
+  wasActive: boolean,
+  created: number,
+  now: Date
+): Promise<void> {
+  try {
+    if (created > 0 && rule.lastRun) {
+      await notify({
+        user: rule.user,
+        type: "recurring.posted",
+        params: {
+          count: created,
+          ruleTitle: ruleTitle(rule),
+          amount: rule.amount,
+          currency: rule.currency,
+          type: rule.type,
+        },
+        link: "/recurring",
+        recurring: rule._id,
+        dedupeKey: postedDedupeKey(String(rule._id), new Date(rule.lastRun)),
+      });
+    }
+    if (wasActive && !rule.active) {
+      await notify({
+        user: rule.user,
+        type: "recurring.ended",
+        params: { ruleTitle: ruleTitle(rule) },
+        link: "/recurring",
+        recurring: rule._id,
+        dedupeKey: endedDedupeKey(String(rule._id)),
+      });
+    }
+  } catch (e) {
+    // A notification failure must never abort the cron's posting work.
+    console.error("[notify] recurring post notification failed for rule", String(rule._id), e);
+  }
 }
 
 /**

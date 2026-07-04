@@ -1,0 +1,44 @@
+{
+  "title": "Notifications",
+  "pageDescription": "Everything that happened while you were away — recurring posts, reminders and alerts.",
+  "empty": "You're all caught up",
+  "emptyDescription": "New activity — auto-posted recurring transactions, reminders and alerts — shows up here.",
+  "markAllRead": "Mark all read",
+  "clearAll": "Clear all",
+  "clearOne": "Dismiss",
+  "viewAll": "View all",
+  "bellAria": "Notifications",
+  "types": {
+    "recurring": {
+      "posted": {
+        "title": "Recurring posted",
+        "body_one": "{{ruleTitle}} posted {{count}} transaction ({{amount}}).",
+        "body_other": "{{ruleTitle}} posted {{count}} transactions ({{amount}})."
+      },
+      "ended": {
+        "title": "Recurring ended",
+        "body": "{{ruleTitle}} reached its end date and has stopped."
+      },
+      "due_soon": {
+        "title": "Coming up",
+        "body": "{{ruleTitle}} is scheduled for {{date}} ({{amount}})."
+      },
+      "overdue": {
+        "title": "Overdue",
+        "body": "{{ruleTitle}} was due {{date}} ({{amount}}) and hasn't posted yet."
+      }
+    },
+    "budget": {
+      "exceeded": {
+        "title": "Budget exceeded",
+        "body": "{{category}} — spent {{spent}} of {{amount}}."
+      }
+    },
+    "balance": {
+      "low": {
+        "title": "Low balance",
+        "body": "{{account}} is overdrawn ({{balance}})."
+      }
+    }
+  }
+}

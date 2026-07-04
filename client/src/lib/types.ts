@@ -417,3 +417,27 @@ export interface Dashboard {
   budgets: (Budget & { spent: number; percent: number; over: boolean })[];
   upcoming: Recurring[];
 }
+
+export type NotificationType =
+  | "recurring.posted"
+  | "recurring.ended"
+  | "recurring.due_soon"
+  | "recurring.overdue"
+  | "budget.exceeded"
+  | "balance.low";
+
+export interface AppNotification {
+  _id: string;
+  type: NotificationType;
+  /** Interpolation values for the i18n title/body templates (amounts stay raw). */
+  params: Record<string, unknown>;
+  link: string | null;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationList {
+  items: AppNotification[];
+  unread: number;
+}

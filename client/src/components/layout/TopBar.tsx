@@ -24,6 +24,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
+import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { useUIStore } from "@/stores/ui";
 import { useMe, useLogout } from "@/hooks/useAuth";
 import { useState } from "react";
@@ -164,6 +165,7 @@ export function TopBar() {
             </form>
           </SheetContent>
         </Sheet>
+        <NotificationBell />
         <LanguageToggle />
         <ThemeToggle />
         <UserMenu />

@@ -12,6 +12,7 @@ import {
   CalendarDays,
   Repeat,
   Shapes,
+  Bell,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/", labelKey: "items.dashboard", icon: LayoutDashboard },
       { to: "/reports", labelKey: "items.reports", icon: PieChart },
       { to: "/calendar", labelKey: "items.calendar", icon: CalendarDays },
+      { to: "/notifications", labelKey: "items.notifications", icon: Bell },
     ],
   },
   {

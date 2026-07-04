@@ -29,6 +29,23 @@ export async function docCount(collection: string, filter: Record<string, unknow
   return db.collection(collection).countDocuments(filter);
 }
 
+/**
+ * Insert a document directly — used to seed state the API doesn't expose a
+ * create endpoint for (e.g. system-generated notifications). Any `user` field is
+ * coerced to an ObjectId so it matches server-side ownership queries. Returns the
+ * inserted id as a string.
+ */
+export async function insertDoc(
+  collection: string,
+  doc: Record<string, unknown>
+): Promise<string> {
+  const db = await getDb();
+  const toInsert = { ...doc };
+  if (typeof toInsert.user === "string") toInsert.user = new ObjectId(toInsert.user);
+  const res = await db.collection(collection).insertOne(toInsert);
+  return String(res.insertedId);
+}
+
 export async function closeDb(): Promise<void> {
   if (client) {
     await client.close();

@@ -14,6 +14,7 @@ import * as loans from "../controllers/loanController";
 import * as credits from "../controllers/creditController";
 import * as networth from "../controllers/networthController";
 import * as recurring from "../controllers/recurringController";
+import * as notifications from "../controllers/notificationController";
 import * as reports from "../controllers/reportController";
 import * as metals from "../controllers/metalController";
 import * as settings from "../controllers/settingsController";
@@ -104,6 +105,13 @@ router.post("/recurring/:id/post-one", asyncHandler(recurring.postOneRecurring))
 router.post("/recurring/:id/skip", asyncHandler(recurring.skipRecurring));
 router.patch("/recurring/:id", asyncHandler(recurring.updateRecurring));
 router.delete("/recurring/:id", asyncHandler(recurring.deleteRecurring));
+
+// Notifications (in-app center) — system-generated; the client reads, marks, clears.
+router.get("/notifications", asyncHandler(notifications.list));
+router.post("/notifications/read-all", asyncHandler(notifications.readAll));
+router.post("/notifications/:id/read", asyncHandler(notifications.readOne));
+router.delete("/notifications/:id", asyncHandler(notifications.removeOne));
+router.delete("/notifications", asyncHandler(notifications.removeAll));
 
 // Goals
 router.get("/goals", asyncHandler(goals.listGoals));

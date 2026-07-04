@@ -12,6 +12,7 @@ import apiRouter from "./routes/index";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/requestLogger";
 import { processDueRecurring } from "./services/recurringService";
+import { runNotificationSweep } from "./services/notificationService";
 import { refreshMetalPrices } from "./services/metalPriceService";
 import { sendDueReports } from "./services/reportEmailService";
 
@@ -50,11 +51,24 @@ async function bootstrap() {
   app.use(notFound);
   app.use(errorHandler);
 
-  // Process recurring transactions on boot, then hourly.
+  // Process recurring transactions on boot, then hourly. Each cron post raises an
+  // in-app notification (see recurringService) so users never miss an auto-post.
   await processDueRecurring().catch((e) => console.error("[recurring] boot run failed", e));
   cron.schedule("0 * * * *", () => {
     processDueRecurring().catch((e) => console.error("[recurring] scheduled run failed", e));
   });
+
+  // Reminder/alert sweep (recurring due-soon/overdue, budget exceeded, low balance).
+  // On boot (right after the recurring run, so due-soon reflects freshly-advanced
+  // schedules), then daily at 07:15 IST. Idempotent via dedupe keys.
+  await runNotificationSweep().catch((e) => console.error("[notify] boot sweep failed", e));
+  cron.schedule(
+    "15 7 * * *",
+    () => {
+      runNotificationSweep().catch((e) => console.error("[notify] scheduled sweep failed", e));
+    },
+    { timezone: "Asia/Kolkata" }
+  );
 
   // Refresh gold/silver rates on boot (backfills today if missing), then daily
   // at 06:30 IST. No-op when GOLD_API_KEY isn't configured.

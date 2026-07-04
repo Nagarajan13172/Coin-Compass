@@ -129,6 +129,31 @@ export default function DashboardPage() {
         <div className="space-y-5">
           {/* hero + summary — the net-worth hero is hidden in the everyday view */}
           <div className={cn("grid gap-4", canSeeWealth ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
+            <StatCard
+              icon={<ArrowDownLeft className="h-5 w-5" />}
+              label={t("txnType.income", { ns: "common" })}
+              value={data.summary.income}
+              tone="income"
+              to="/transactions?type=income"
+            />
+            <StatCard
+              icon={<ArrowUpRight className="h-5 w-5" />}
+              label={t("txnType.expense", { ns: "common" })}
+              value={data.summary.expense}
+              tone="expense"
+              to="/transactions?type=expense"
+            />
+            <StatCard
+              icon={<PiggyBank className="h-5 w-5" />}
+              label={t("stats.net")}
+              value={data.summary.net}
+              tone={data.summary.net >= 0 ? "income" : "expense"}
+              signed
+              sub={savingsRateLabel}
+              to="/reports"
+            />
+
+            {/* Net-worth hero sits on the far right of the summary row (wealth view only). */}
             {canSeeWealth && (
             <Card className="surface-gradient lg:col-span-1">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
@@ -177,30 +202,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
             )}
-
-            <StatCard
-              icon={<ArrowDownLeft className="h-5 w-5" />}
-              label={t("txnType.income", { ns: "common" })}
-              value={data.summary.income}
-              tone="income"
-              to="/transactions?type=income"
-            />
-            <StatCard
-              icon={<ArrowUpRight className="h-5 w-5" />}
-              label={t("txnType.expense", { ns: "common" })}
-              value={data.summary.expense}
-              tone="expense"
-              to="/transactions?type=expense"
-            />
-            <StatCard
-              icon={<PiggyBank className="h-5 w-5" />}
-              label={t("stats.net")}
-              value={data.summary.net}
-              tone={data.summary.net >= 0 ? "income" : "expense"}
-              signed
-              sub={savingsRateLabel}
-              to="/reports"
-            />
           </div>
 
           {/* quick insights */}

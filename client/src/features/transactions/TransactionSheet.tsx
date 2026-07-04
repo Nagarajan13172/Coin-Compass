@@ -453,24 +453,30 @@ export function TransactionSheet() {
           </div>
         </ScrollArea>
 
-        <SheetFooter className="flex-row border-t">
+        <SheetFooter className="flex-row items-center gap-2 border-t">
+          {/* Delete sits on the far left, clearly separated from the Cancel/Save pair
+              so it's never mistaken for a cancel action. */}
           {isEdit && (
             <Button
               type="button"
               variant="ghost"
-              className="text-destructive hover:text-destructive"
+              className="mr-auto text-destructive hover:text-destructive"
               onClick={() => setConfirmDeleteOpen(true)}
-              disabled={deleteTxn.isPending}
+              disabled={deleteTxn.isPending || saving}
             >
               {t("actions.delete", { ns: "common" })}
             </Button>
           )}
           <Button
             type="button"
-            className="flex-1"
-            onClick={handleSubmit}
+            variant="ghost"
+            className={cn(!isEdit && "ml-auto")}
+            onClick={close}
             disabled={saving}
           >
+            {t("actions.cancel", { ns: "common" })}
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
             {saving
               ? t("states.saving", { ns: "common" })
               : isEdit
