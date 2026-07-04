@@ -1,9 +1,11 @@
-import { Outlet, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
-import { Sidebar } from "./Sidebar";
-import { TopBar } from "./TopBar";
-import { BottomNav } from "./BottomNav";
-import { TransactionSheet } from "@/features/transactions/TransactionSheet";
+import { TransactionSheet } from '@/features/transactions/TransactionSheet';
+
+import { AnimatePresence, motion } from 'motion/react';
+import { Outlet, useLocation } from 'react-router-dom';
+
+import { BottomNav } from './BottomNav';
+import { Sidebar } from './Sidebar';
+import { TopBar } from './TopBar';
 
 export function AppShell() {
   const location = useLocation();
@@ -14,7 +16,7 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <main className="flex-1 px-4 pb-28 pt-5 md:px-6 lg:pb-8">
-          <div className="mx-auto w-full max-w-6xl">
+          <div className="mx-auto w-full max-w-8xl">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
