@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -174,13 +175,11 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="hold-value">{t("holdingForm.currentValue")}</Label>
-            <Input
+            <AmountInput
               id="hold-value"
-              type="number"
-              inputMode="decimal"
               value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="100000"
+              onChange={setValue}
+              placeholder="1,00,000"
             />
           </div>
           <div className="space-y-1.5">
@@ -209,13 +208,11 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
 
               <div className="space-y-1.5">
                 <Label htmlFor="hold-invested">{t("holdingForm.amountInvested")}</Label>
-                <Input
+                <AmountInput
                   id="hold-invested"
-                  type="number"
-                  inputMode="decimal"
                   value={invested}
-                  onChange={(e) => setInvested(e.target.value)}
-                  placeholder="60000"
+                  onChange={setInvested}
+                  placeholder="60,000"
                 />
               </div>
 
@@ -254,13 +251,11 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="hold-maturity-value">{t("holdingForm.maturityValue")}</Label>
-                  <Input
+                  <AmountInput
                     id="hold-maturity-value"
-                    type="number"
-                    inputMode="decimal"
                     value={maturityValue}
-                    onChange={(e) => setMaturityValue(e.target.value)}
-                    placeholder="92000"
+                    onChange={setMaturityValue}
+                    placeholder="92,000"
                   />
                 </div>
               </div>

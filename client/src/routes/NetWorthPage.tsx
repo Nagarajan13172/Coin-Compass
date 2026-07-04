@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -399,15 +400,20 @@ function AssetsTab({
   const del = useDeleteHolding();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Holding | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Holding | null>(null);
 
   function openNew() {
     setEditing(null);
     setOpen(true);
   }
-  async function handleDelete(h: Holding) {
-    if (!confirm(t("assets.deleteConfirm", { name: h.name }))) return;
-    await del.mutateAsync(h._id);
-    toast.success(t("assets.deleted"));
+  async function confirmDelete(h: Holding) {
+    try {
+      await del.mutateAsync(h._id);
+      toast.success(t("assets.deleted"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("toast.failed"));
+      throw e; // keep the dialog open on failure
+    }
   }
 
   const groups: { cls: HoldingClass; items: Holding[] }[] = [
@@ -515,7 +521,7 @@ function AssetsTab({
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
-                                    onClick={() => handleDelete(h)}
+                                    onClick={() => setDeleteTarget(h)}
                                   >
                                     <Trash2 /> {t("actions.delete", { ns: "common" })}
                                   </DropdownMenuItem>
@@ -545,6 +551,16 @@ function AssetsTab({
       )}
 
       <HoldingFormDialog open={open} onOpenChange={setOpen} holding={editing} />
+
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="holding"
+          confirmValue={deleteTarget.name}
+          onConfirm={() => confirmDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }

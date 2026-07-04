@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -186,11 +187,11 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="loan-out">{t("fields.outstanding")}</Label>
-              <Input id="loan-out" type="number" inputMode="decimal" value={outstanding} onChange={(e) => setOutstanding(e.target.value)} placeholder="500000" />
+              <AmountInput id="loan-out" value={outstanding} onChange={setOutstanding} placeholder="5,00,000" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="loan-principal">{t("loanForm.originalAmount")}</Label>
-              <Input id="loan-principal" type="number" inputMode="decimal" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder={t("labels.optional", { ns: "common" })} />
+              <AmountInput id="loan-principal" value={principal} onChange={setPrincipal} placeholder={t("labels.optional", { ns: "common" })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -200,7 +201,7 @@ export function LoanFormDialog({ open, onOpenChange, loan }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="loan-emi">{t("loanForm.monthlyEmi")}</Label>
-              <Input id="loan-emi" type="number" inputMode="decimal" value={emi} onChange={(e) => setEmi(e.target.value)} placeholder="12000" />
+              <AmountInput id="loan-emi" value={emi} onChange={setEmi} placeholder="12,000" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

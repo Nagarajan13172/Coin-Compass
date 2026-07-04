@@ -55,7 +55,9 @@ export async function deleteAccount(req: Request, res: Response) {
   if (txnCount > 0 && req.query.force !== "true") {
     throw new HttpError(
       409,
-      `Account has ${txnCount} transaction(s). Pass ?force=true to delete them too, or archive instead.`
+      `Account has ${txnCount} transaction(s). Pass ?force=true to delete them too, or archive instead.`,
+      "ACCOUNT_HAS_TRANSACTIONS",
+      { count: txnCount }
     );
   }
   if (req.query.force === "true") {

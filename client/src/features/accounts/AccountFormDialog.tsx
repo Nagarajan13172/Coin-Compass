@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -161,12 +162,11 @@ export function AccountFormDialog({ open, onOpenChange, account }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="acc-bal">{isEdit ? t("form.initialBalance") : t("form.startingBalance")}</Label>
-            <Input
+            <AmountInput
               id="acc-bal"
-              type="number"
-              inputMode="decimal"
+              allowNegative
               value={initialBalance}
-              onChange={(e) => setInitialBalance(e.target.value)}
+              onChange={setInitialBalance}
             />
           </div>
           <div className="space-y-1.5">

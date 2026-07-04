@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pencil, Plus, Shapes, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDeleteDialog, type ForceResult } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -76,19 +77,28 @@ function CategoryGrid({
   const { t } = useTranslation("recurring");
   const { data: categories, isLoading } = useCategories(type);
   const del = useDeleteCategory();
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
-  async function handleDelete(c: Category) {
+  async function confirmDelete(c: Category): Promise<void | ForceResult> {
     try {
       await del.mutateAsync({ id: c._id });
       toast.success(t("category.toast.deleted"));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t("category.toast.deleteFailed");
-      if (msg.includes("used") && confirm(`${msg}\n\n${t("category.deleteAnyway")}`)) {
-        await del.mutateAsync({ id: c._id, force: true });
-        toast.success(t("category.toast.deleted"));
-      } else {
-        toast.error(msg);
-      }
+      const err = e as Error & { code?: string };
+      // Category still used by transactions — escalate to the "delete anyway" step.
+      if (err.code === "CATEGORY_IN_USE") return { needsForce: true, message: err.message };
+      toast.error(err.message || t("category.toast.deleteFailed"));
+      throw e;
+    }
+  }
+
+  async function forceDelete(c: Category) {
+    try {
+      await del.mutateAsync({ id: c._id, force: true });
+      toast.success(t("category.toast.deleted"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("category.toast.deleteFailed"));
+      throw e;
     }
   }
 
@@ -128,7 +138,7 @@ function CategoryGrid({
                 variant="ghost"
                 size="icon-sm"
                 className="text-destructive"
-                onClick={() => handleDelete(c)}
+                onClick={() => setDeleteTarget(c)}
                 aria-label={t("actions.delete", { ns: "common" })}
               >
                 <Trash2 />
@@ -137,6 +147,16 @@ function CategoryGrid({
           </CardContent>
         </Card>
       ))}
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="category"
+          confirmValue={categoryLabel(deleteTarget.name)}
+          onConfirm={() => confirmDelete(deleteTarget)}
+          onForceConfirm={() => forceDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }

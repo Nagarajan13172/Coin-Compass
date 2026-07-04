@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -101,12 +102,10 @@ export function BudgetFormDialog({ open, onOpenChange, budget, defaultCategory, 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="budget-amt">{t("labels.amount", { ns: "common" })}</Label>
-              <Input
+              <AmountInput
                 id="budget-amt"
-                type="number"
-                inputMode="decimal"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={setAmount}
                 placeholder="0"
               />
             </div>

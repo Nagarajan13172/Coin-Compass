@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Delete, Divide, Minus, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatAmountForInput } from "@/lib/amountFormat";
 
 type Op = "+" | "-" | "*" | "/";
 
@@ -135,10 +136,10 @@ export function AmountKeypad({ onChange, className }: AmountKeypadProps) {
       <div className="flex items-center justify-end gap-2 rounded-lg bg-muted/60 px-3 py-2">
         {op && (
           <span className="text-sm text-muted-foreground tnum">
-            {acc} {op === "*" ? "×" : op === "/" ? "÷" : op}
+            {formatAmountForInput(String(acc))} {op === "*" ? "×" : op === "/" ? "÷" : op}
           </span>
         )}
-        <span className="text-2xl font-bold tnum">{display}</span>
+        <span className="text-2xl font-bold tnum">{formatAmountForInput(display)}</span>
       </div>
       <div className="grid grid-cols-4 gap-1.5">
         <button type="button" className={cn(keyCls, "bg-muted hover:bg-accent")} onClick={() => inputDigit("7")}>7</button>

@@ -1,0 +1,21 @@
+{
+  "title": "Delete {{item}}?",
+  "prompt": "This permanently deletes the {{item}}. This can’t be undone.",
+  "instruction": "To confirm, type this exactly:",
+  "placeholder": "Type to confirm",
+  "mismatch": "Doesn’t match yet",
+  "cancel": "Cancel",
+  "confirm": "Delete",
+  "forceConfirm": "Delete anyway",
+  "nouns": {
+    "transaction": "transaction",
+    "account": "account",
+    "category": "category",
+    "goal": "goal",
+    "loan": "loan",
+    "holding": "holding",
+    "credit": "credit entry",
+    "budget": "budget",
+    "recurring": "recurring transaction"
+  }
+}

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -144,13 +145,11 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="credit-amount">{t("labels.amount", { ns: "common" })}</Label>
-              <Input
+              <AmountInput
                 id="credit-amount"
-                type="number"
-                inputMode="decimal"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="5000"
+                onChange={setAmount}
+                placeholder="5,000"
               />
             </div>
             <div className="space-y-1.5">

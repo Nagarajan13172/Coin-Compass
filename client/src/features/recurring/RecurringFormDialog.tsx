@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -210,7 +211,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="rec-amt">{t("labels.amount", { ns: "common" })}</Label>
-              <Input id="rec-amt" type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <AmountInput id="rec-amt" value={amount} onChange={setAmount} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="rec-start">{t("form.starts")}</Label>

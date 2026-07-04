@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRightLeft, Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDeleteDialog, type ForceResult } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,23 +29,31 @@ export default function AccountDetailPage() {
   const del = useDeleteAccount();
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-  async function handleDelete() {
+  async function confirmDelete(): Promise<void | ForceResult> {
     if (!account) return;
-    if (!confirm(t("confirm.deleteDetail", { name: account.name }))) return;
     try {
       await del.mutateAsync({ id: account._id });
       toast.success(t("toast.deleted"));
       navigate("/accounts", { replace: true });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t("toast.failed");
-      if (msg.includes("transaction") && confirm(t("confirm.deleteWithTxns", { message: msg }))) {
-        await del.mutateAsync({ id: account._id, force: true });
-        toast.success(t("toast.deletedWithTxns"));
-        navigate("/accounts", { replace: true });
-      } else {
-        toast.error(msg);
-      }
+      const err = e as Error & { code?: string };
+      if (err.code === "ACCOUNT_HAS_TRANSACTIONS") return { needsForce: true, message: err.message };
+      toast.error(err.message || t("toast.failed"));
+      throw e;
+    }
+  }
+
+  async function forceDelete() {
+    if (!account) return;
+    try {
+      await del.mutateAsync({ id: account._id, force: true });
+      toast.success(t("toast.deletedWithTxns"));
+      navigate("/accounts", { replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("toast.failed"));
+      throw e;
     }
   }
 
@@ -100,7 +109,7 @@ export default function AccountDetailPage() {
               size="icon"
               aria-label={t("deleteAccount")}
               className="text-destructive hover:text-destructive"
-              onClick={handleDelete}
+              onClick={() => setDeleteOpen(true)}
             >
               <Trash2 />
             </Button>
@@ -169,6 +178,14 @@ export default function AccountDetailPage() {
       )}
 
       <AccountFormDialog open={editOpen} onOpenChange={setEditOpen} account={account} />
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        itemKey="account"
+        confirmValue={account.name}
+        onConfirm={confirmDelete}
+        onForceConfirm={forceDelete}
+      />
     </div>
   );
 }

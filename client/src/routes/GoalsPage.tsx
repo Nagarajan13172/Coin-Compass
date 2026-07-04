@@ -17,12 +17,14 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -56,6 +58,7 @@ export default function GoalsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
   const [contributing, setContributing] = useState<ContributeState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Goal | null>(null);
 
   const totalSaved = goals?.reduce((s, g) => s + g.savedAmount, 0) ?? 0;
   const totalTarget = goals?.reduce((s, g) => s + g.targetAmount, 0) ?? 0;
@@ -72,10 +75,14 @@ export default function GoalsPage() {
     setEditing(g);
     setFormOpen(true);
   }
-  async function handleDelete(g: Goal) {
-    if (!confirm(t("goals.confirmDelete", { name: g.name }))) return;
-    await del.mutateAsync(g._id);
-    toast.success(t("goals.deleted"));
+  async function confirmDelete(g: Goal) {
+    try {
+      await del.mutateAsync(g._id);
+      toast.success(t("goals.deleted"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("contribute.failed"));
+      throw e; // keep the dialog open on failure
+    }
   }
 
   function renderCard(g: Goal, i: number) {
@@ -89,7 +96,7 @@ export default function GoalsPage() {
         <GoalCard
           goal={g}
           onEdit={() => openEdit(g)}
-          onDelete={() => handleDelete(g)}
+          onDelete={() => setDeleteTarget(g)}
           onContribute={(mode) => setContributing({ goal: g, mode })}
         />
       </motion.div>
@@ -174,6 +181,15 @@ export default function GoalsPage() {
 
       <GoalFormDialog open={formOpen} onOpenChange={setFormOpen} goal={editing} />
       <ContributeDialog state={contributing} onClose={() => setContributing(null)} />
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="goal"
+          confirmValue={deleteTarget.name}
+          onConfirm={() => confirmDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }
@@ -403,15 +419,13 @@ function ContributeDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="contrib">{t("labels.amount", { ns: "common" })}</Label>
-            <Input
+            <AmountInput
               id="contrib"
-              type="number"
-              inputMode="decimal"
               autoFocus
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={setAmount}
               onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder="1000"
+              placeholder="1,000"
             />
             <div className="flex flex-wrap gap-1.5 pt-1">
               {quick.map((q) => (

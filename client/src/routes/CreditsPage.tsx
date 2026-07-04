@@ -5,6 +5,7 @@ import { format, parseISO } from "date-fns";
 import { HeartHandshake, Link2, Link2Off, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export default function CreditsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Credit | null>(null);
   const [prefillPerson, setPrefillPerson] = useState<string | undefined>();
+  const [deleteTarget, setDeleteTarget] = useState<Credit | null>(null);
 
   const totals = useMemo(() => {
     const owedToYou = (people ?? []).reduce((s, p) => s + Math.max(0, p.net), 0);
@@ -60,10 +62,14 @@ export default function CreditsPage() {
     setPrefillPerson(undefined);
     setOpen(true);
   }
-  async function handleDelete(c: Credit) {
-    if (!confirm(t("delete.confirm", { person: c.person }))) return;
-    await del.mutateAsync(c._id);
-    toast.success(t("delete.success"));
+  async function confirmDelete(c: Credit) {
+    try {
+      await del.mutateAsync(c._id);
+      toast.success(t("delete.success"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("toast.saveFailed"));
+      throw e; // keep the dialog open on failure
+    }
   }
 
   return (
@@ -102,7 +108,7 @@ export default function CreditsPage() {
                 summary={p}
                 onAdd={() => openNew(p.person)}
                 onEdit={openEdit}
-                onDelete={handleDelete}
+                onDelete={setDeleteTarget}
               />
             ))}
           </div>
@@ -121,6 +127,16 @@ export default function CreditsPage() {
       )}
 
       <CreditFormDialog open={open} onOpenChange={setOpen} credit={editing} defaultPerson={prefillPerson} />
+
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="credit"
+          confirmValue={deleteTarget.person}
+          onConfirm={() => confirmDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }

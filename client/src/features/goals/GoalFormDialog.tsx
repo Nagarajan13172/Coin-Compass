@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/common/ColorPicker";
 import { IconPicker } from "@/components/common/IconPicker";
@@ -98,35 +99,29 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="goal-target">{t("goalForm.targetAmount")}</Label>
-              <Input
+              <AmountInput
                 id="goal-target"
-                type="number"
-                inputMode="decimal"
                 value={targetAmount}
-                onChange={(e) => setTargetAmount(e.target.value)}
-                placeholder="80000"
+                onChange={setTargetAmount}
+                placeholder="80,000"
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="goal-saved">{t("goalForm.savedSoFar")}</Label>
-              <Input
+              <AmountInput
                 id="goal-saved"
-                type="number"
-                inputMode="decimal"
                 value={savedAmount}
-                onChange={(e) => setSavedAmount(e.target.value)}
+                onChange={setSavedAmount}
               />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="goal-monthly">{t("goalForm.monthlySaving")}</Label>
-              <Input
+              <AmountInput
                 id="goal-monthly"
-                type="number"
-                inputMode="decimal"
                 value={monthlyContribution}
-                onChange={(e) => setMonthlyContribution(e.target.value)}
+                onChange={setMonthlyContribution}
                 placeholder={t("labels.optional", { ns: "common" })}
               />
             </div>

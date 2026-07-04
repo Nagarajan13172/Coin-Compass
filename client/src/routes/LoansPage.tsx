@@ -7,6 +7,7 @@ import { BadgeCheck, Calculator, Coins, Info, Landmark, MoreVertical, Pencil, Pl
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -66,6 +68,7 @@ export default function LoansPage() {
   const [calc, setCalc] = useState<Loan | null>(null);
   const [paying, setPaying] = useState<Loan | null>(null);
   const [preclosing, setPreclosing] = useState<Loan | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Loan | null>(null);
 
   const active = useMemo(() => (loans ?? []).filter((l) => l.status === "active"), [loans]);
 
@@ -101,10 +104,14 @@ export default function LoansPage() {
     setEditing(l);
     setOpen(true);
   }
-  async function handleDelete(l: Loan) {
-    if (!confirm(t("loansPage.deleteConfirm", { name: l.name }))) return;
-    await del.mutateAsync(l._id);
-    toast.success(t("loansPage.deleted"));
+  async function confirmDelete(l: Loan) {
+    try {
+      await del.mutateAsync(l._id);
+      toast.success(t("loansPage.deleted"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("toast.failed"));
+      throw e; // keep the dialog open on failure
+    }
   }
 
   return (
@@ -145,7 +152,7 @@ export default function LoansPage() {
                     loan={l}
                     color={loanColor[l._id]}
                     onEdit={() => openEdit(l)}
-                    onDelete={() => handleDelete(l)}
+                    onDelete={() => setDeleteTarget(l)}
                     onCalc={() => setCalc(l)}
                     onPay={() => setPaying(l)}
                     onPreclose={() => setPreclosing(l)}
@@ -172,6 +179,15 @@ export default function LoansPage() {
       <LoanCalculatorDialog loan={calc} onClose={() => setCalc(null)} />
       <PartPaymentDialog loan={paying} onClose={() => setPaying(null)} />
       <PrecloseDialog loan={preclosing} onClose={() => setPreclosing(null)} />
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="loan"
+          confirmValue={deleteTarget.name}
+          onConfirm={() => confirmDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }
@@ -221,14 +237,12 @@ function PartPaymentDialog({ loan, onClose }: { loan: Loan | null; onClose: () =
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="pay-amount">{t("partPayment.amountToPay")}</Label>
-              <Input
+              <AmountInput
                 id="pay-amount"
-                type="number"
-                inputMode="decimal"
                 autoFocus
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="10000"
+                onChange={setAmount}
+                placeholder="10,000"
               />
             </div>
             <div className="space-y-1.5">

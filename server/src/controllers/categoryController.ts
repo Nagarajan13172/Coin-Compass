@@ -36,7 +36,9 @@ export async function deleteCategory(req: Request, res: Response) {
   if (inUse > 0 && req.query.force !== "true") {
     throw new HttpError(
       409,
-      `Category is used by ${inUse} transaction(s). Pass ?force=true to clear the category on those.`
+      `Category is used by ${inUse} transaction(s). Pass ?force=true to clear the category on those.`,
+      "CATEGORY_IN_USE",
+      { count: inUse }
     );
   }
   if (req.query.force === "true") {

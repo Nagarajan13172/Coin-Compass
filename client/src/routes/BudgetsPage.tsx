@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { ArrowRight, MoreVertical, Pencil, Plus, Target, Trash2, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -48,6 +49,7 @@ export default function BudgetsPage() {
   const del = useDeleteBudget();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Budget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
   const [createDefaults, setCreateDefaults] = useState<{ category?: string | null; period?: BudgetPeriod }>({});
   const [scope, setScope] = useState<"all" | BudgetPeriod>("all");
 
@@ -89,10 +91,14 @@ export default function BudgetsPage() {
     setCreateDefaults({});
     setDialogOpen(true);
   }
-  async function handleDelete(b: Budget) {
-    if (!confirm(t("budgets.confirmDelete"))) return;
-    await del.mutateAsync(b._id);
-    toast.success(t("budgets.deleted"));
+  async function confirmDelete(b: Budget) {
+    try {
+      await del.mutateAsync(b._id);
+      toast.success(t("budgets.deleted"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("contribute.failed"));
+      throw e; // keep the confirm dialog open on failure
+    }
   }
 
   const newBudgetPeriod = effectiveScope !== "all" ? effectiveScope : undefined;
@@ -176,7 +182,7 @@ export default function BudgetsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={() => handleDelete(b)}
+                              onClick={() => setDeleteTarget(b)}
                             >
                               <Trash2 /> {t("actions.delete", { ns: "common" })}
                             </DropdownMenuItem>
@@ -284,6 +290,15 @@ export default function BudgetsPage() {
         defaultCategory={createDefaults.category}
         defaultPeriod={createDefaults.period}
       />
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="budget"
+          confirmValue={String(deleteTarget.amount)}
+          onConfirm={() => confirmDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }

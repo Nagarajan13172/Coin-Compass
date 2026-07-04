@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +114,17 @@ export default function RecurringPage() {
   const [editing, setEditing] = useState<Recurring | null>(null);
   const [historyFor, setHistoryFor] = useState<Recurring | null>(null);
   const [runDueOpen, setRunDueOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Recurring | null>(null);
+
+  async function confirmDelete(r: Recurring) {
+    try {
+      await del.mutateAsync(r._id);
+      toast.success(t("toast.deleted"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("toast.deleteFailed"));
+      throw e; // keep the confirm dialog open on failure
+    }
+  }
 
   const dueCount = useMemo(() => (items ?? []).filter((r) => isDue(r)).length, [items]);
 
@@ -238,12 +250,7 @@ export default function RecurringPage() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={async () => {
-                            if (confirm(t("confirm.delete"))) {
-                              await del.mutateAsync(r._id);
-                              toast.success(t("toast.deleted"));
-                            }
-                          }}
+                          onClick={() => setDeleteTarget(r)}
                         >
                           <Trash2 /> {t("actions.delete", { ns: "common" })}
                         </DropdownMenuItem>
@@ -276,6 +283,15 @@ export default function RecurringPage() {
         onOpenChange={(o) => !o && setHistoryFor(null)}
         recurring={historyFor}
       />
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="recurring"
+          confirmValue={String(deleteTarget.amount)}
+          onConfirm={() => confirmDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }

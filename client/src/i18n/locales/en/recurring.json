@@ -52,7 +52,8 @@
     "posted_other": "Posted {{count}} transactions",
     "nothingDueRule": "Nothing due for this rule",
     "skipped": "Skipped the next occurrence",
-    "deleted": "Deleted"
+    "deleted": "Deleted",
+    "deleteFailed": "Failed to delete"
   },
   "empty": {
     "title": "No recurring transactions",

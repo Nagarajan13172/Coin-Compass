@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { usePostRecurringOne } from "@/hooks/useRecurring";
 import { categoryLabel, enumLabel } from "@/lib/i18nLabels";
@@ -76,13 +77,11 @@ export function PostRecurringDialog({ rule, onClose }: { rule: Recurring | null;
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="post-amount">{t("labels.amount", { ns: "common" })}</Label>
-              <Input
+              <AmountInput
                 id="post-amount"
-                type="number"
-                inputMode="decimal"
                 autoFocus
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={setAmount}
               />
             </div>
             <div className="space-y-1.5">

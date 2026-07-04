@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useUIStore } from "@/stores/ui";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useLoans } from "@/hooks/useLoans";
@@ -67,6 +68,7 @@ export function TransactionSheet() {
   const deleteTxn = useDeleteTransaction();
   const createCredit = useCreateCredit();
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [type, setType] = useState<TxnType>(defaultType);
   const [amount, setAmount] = useState(0);
   const [accountId, setAccountId] = useState<string>("");
@@ -222,6 +224,7 @@ export function TransactionSheet() {
       close();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("toast.deleteFailed"));
+      throw e; // keep the confirm dialog open so the user can retry
     }
   }
 
@@ -456,7 +459,7 @@ export function TransactionSheet() {
               type="button"
               variant="ghost"
               className="text-destructive hover:text-destructive"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               disabled={deleteTxn.isPending}
             >
               {t("actions.delete", { ns: "common" })}
@@ -475,6 +478,15 @@ export function TransactionSheet() {
                 : t("actions.addTransaction", { ns: "common" })}
           </Button>
         </SheetFooter>
+        {editing && (
+          <ConfirmDeleteDialog
+            open={confirmDeleteOpen}
+            onOpenChange={setConfirmDeleteOpen}
+            itemKey="transaction"
+            confirmValue={String(editing.amount)}
+            onConfirm={handleDelete}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );

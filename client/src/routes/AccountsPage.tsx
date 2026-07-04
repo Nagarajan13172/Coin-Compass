@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDeleteDialog, type ForceResult } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,7 @@ export default function AccountsPage() {
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
 
   const included = accounts?.filter((a) => a.includeInTotal) ?? [];
   const total = included.reduce((s, a) => s + (a.balance ?? 0), 0);
@@ -69,21 +71,27 @@ export default function AccountsPage() {
     setDialogOpen(true);
   }
 
-  async function handleDelete(a: Account) {
-    if (!confirm(t("confirm.deleteList", { name: a.name }))) return;
+  async function confirmDelete(a: Account): Promise<void | ForceResult> {
     try {
       await del.mutateAsync({ id: a._id });
       toast.success(t("toast.deleted"));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t("toast.failed");
-      if (msg.includes("transaction")) {
-        if (confirm(t("confirm.deleteWithTxns", { message: msg }))) {
-          await del.mutateAsync({ id: a._id, force: true });
-          toast.success(t("toast.deletedWithTxns"));
-        }
-      } else {
-        toast.error(msg);
-      }
+      const err = e as Error & { code?: string };
+      // The account still has transactions — escalate to the "delete anyway" step
+      // (the message is already localized by the API layer).
+      if (err.code === "ACCOUNT_HAS_TRANSACTIONS") return { needsForce: true, message: err.message };
+      toast.error(err.message || t("toast.failed"));
+      throw e;
+    }
+  }
+
+  async function forceDelete(a: Account) {
+    try {
+      await del.mutateAsync({ id: a._id, force: true });
+      toast.success(t("toast.deletedWithTxns"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("toast.failed"));
+      throw e;
     }
   }
 
@@ -159,7 +167,7 @@ export default function AccountsPage() {
                   account={a}
                   onEdit={() => openEdit(a)}
                   onTransfer={() => openTxnSheet({ type: "transfer" })}
-                  onDelete={() => handleDelete(a)}
+                  onDelete={() => setDeleteTarget(a)}
                 />
               </motion.div>
             ))}
@@ -179,6 +187,16 @@ export default function AccountsPage() {
       )}
 
       <AccountFormDialog open={dialogOpen} onOpenChange={setDialogOpen} account={editing} />
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
+          itemKey="account"
+          confirmValue={deleteTarget.name}
+          onConfirm={() => confirmDelete(deleteTarget)}
+          onForceConfirm={() => forceDelete(deleteTarget)}
+        />
+      )}
     </div>
   );
 }

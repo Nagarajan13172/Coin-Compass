@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/format";
 import { dateFnsLocale } from "@/lib/dates";
@@ -79,24 +80,20 @@ export function LoanCalculatorDialog({ loan, onClose }: { loan: Loan | null; onC
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="loan-extra">{t("planner.extraPerMonth")}</Label>
-                  <Input
+                  <AmountInput
                     id="loan-extra"
-                    type="number"
-                    inputMode="decimal"
                     value={extra}
-                    onChange={(e) => setExtra(e.target.value)}
+                    onChange={setExtra}
                     placeholder={t("placeholders.eg5000")}
                     autoFocus
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="loan-lump">{t("planner.lumpSum")}</Label>
-                  <Input
+                  <AmountInput
                     id="loan-lump"
-                    type="number"
-                    inputMode="decimal"
                     value={lump}
-                    onChange={(e) => setLump(e.target.value)}
+                    onChange={setLump}
                     placeholder={t("placeholders.eg100000")}
                   />
                 </div>
