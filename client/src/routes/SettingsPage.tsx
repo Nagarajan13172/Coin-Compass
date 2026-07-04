@@ -57,6 +57,7 @@ import {
 import { useMe, useChangePassword } from "@/hooks/useAuth";
 import { WealthUnlockDialog } from "@/features/settings/WealthLock";
 import { TwoFactorSettings } from "@/features/settings/TwoFactorSettings";
+import { AutoCaptureSettings } from "@/features/settings/AutoCaptureSettings";
 import { useSendReportEmail } from "@/hooks/useReports";
 import { useImportFile } from "@/hooks/useImport";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -551,6 +552,9 @@ export default function SettingsPage() {
 
         {/* Two-factor authentication */}
         <TwoFactorSettings />
+
+        {/* Auto-capture payments (MacroDroid → webhook) */}
+        <AutoCaptureSettings />
 
         {/* Wealth lock */}
         <Card>

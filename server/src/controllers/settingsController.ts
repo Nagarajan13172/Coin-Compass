@@ -17,6 +17,8 @@ function publicSettings(settings: SettingsDoc & { toObject: () => Record<string,
   const wealthLockEnabled = Boolean(obj.wealthPasscodeHash);
   delete obj.pinHash;
   delete obj.wealthPasscodeHash;
+  // Never leak the ingest token hash; the boolean + last-4 hint are enough for the UI.
+  delete obj.ingestTokenHash;
   return { ...obj, wealthLockEnabled };
 }
 

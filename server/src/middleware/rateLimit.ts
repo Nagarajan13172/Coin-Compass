@@ -24,6 +24,21 @@ function retryIn(resetTime?: Date): { text: string; seconds: number } {
  * live countdown if it wants to. These are the first rate limiters in the app —
  * the 2FA verify endpoints in particular guard a low-entropy 6-digit code.
  */
+/** Shared 429 responder: same `{ error, retryAfterSeconds }` shape as the rest of the API. */
+function limitHandler(message: string) {
+  return (req: Request, res: Response) => {
+    // express-rate-limit attaches req.rateLimit at runtime; type it locally
+    // since the package's global Express augmentation isn't picked up here.
+    const info = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit;
+    const { text, seconds } = retryIn(info?.resetTime);
+    if (seconds > 0) res.setHeader("Retry-After", String(seconds));
+    res.status(429).json({
+      error: `${message} Please try again in ${text}.`,
+      retryAfterSeconds: seconds,
+    });
+  };
+}
+
 function makeLimiter(windowMs: number, limit: number, message: string) {
   return rateLimit({
     windowMs,
@@ -33,17 +48,7 @@ function makeLimiter(windowMs: number, limit: number, message: string) {
     // Don't crash if a reverse-proxy setup can't be validated; we degrade to
     // limiting by the socket address instead.
     validate: { trustProxy: false, xForwardedForHeader: false },
-    handler: (req: Request, res: Response) => {
-      // express-rate-limit attaches req.rateLimit at runtime; type it locally
-      // since the package's global Express augmentation isn't picked up here.
-      const info = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit;
-      const { text, seconds } = retryIn(info?.resetTime);
-      if (seconds > 0) res.setHeader("Retry-After", String(seconds));
-      res.status(429).json({
-        error: `${message} Please try again in ${text}.`,
-        retryAfterSeconds: seconds,
-      });
-    },
+    handler: limitHandler(message),
   });
 }
 
@@ -59,3 +64,18 @@ export const twoFactorEmailLimiter = makeLimiter(
   5,
   "Too many code requests."
 );
+
+/**
+ * Payment-ingest webhook: generous ceiling (real payments are infrequent), but
+ * keyed by the ingest token rather than IP — a phone's IP changes constantly and
+ * one user's captures shouldn't starve another's. Falls back to IP when no token.
+ */
+export const ingestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
+  keyGenerator: (req: Request) => req.header("x-ingest-token") || req.ip || "ingest",
+  handler: limitHandler("Too many payment captures."),
+});

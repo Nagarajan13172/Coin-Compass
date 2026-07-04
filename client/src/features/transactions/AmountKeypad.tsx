@@ -9,6 +9,8 @@ type Op = "+" | "-" | "*" | "/";
 interface AmountKeypadProps {
   /** Called with the evaluated numeric value whenever input changes. */
   onChange: (value: number) => void;
+  /** Seed the pad's display on mount (e.g. when editing an existing amount). */
+  initialValue?: number;
   className?: string;
 }
 
@@ -26,12 +28,19 @@ function apply(a: number, b: number, op: Op): number {
 }
 
 /** A money-entry calculator keypad (like the CoinCompass app's input pad). */
-export function AmountKeypad({ onChange, className }: AmountKeypadProps) {
+export function AmountKeypad({ onChange, initialValue, className }: AmountKeypadProps) {
   const { t } = useTranslation("transactions");
-  const [display, setDisplay] = useState("0");
+  // Seed the display from initialValue on mount so editing an existing transaction
+  // shows its amount. The pad stays uncontrolled after mount (a plain number prop
+  // can't represent in-progress states like "0." or a pending operand), so callers
+  // force a fresh mount with a `key` to reseed for a different transaction.
+  const seeded = initialValue != null && initialValue !== 0;
+  const [display, setDisplay] = useState(() => (seeded ? String(initialValue) : "0"));
   const [acc, setAcc] = useState<number | null>(null);
   const [op, setOp] = useState<Op | null>(null);
-  const [fresh, setFresh] = useState(true);
+  // A seeded value behaves like already-entered text: backspace trims a digit and
+  // further digits append, rather than the first keystroke wiping the whole amount.
+  const [fresh, setFresh] = useState(!seeded);
 
   function emit(current: string, pendingAcc: number | null, pendingOp: Op | null) {
     const cur = parseFloat(current) || 0;

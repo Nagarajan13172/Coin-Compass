@@ -5,6 +5,8 @@ import {
   AlertTriangle,
   Target,
   Wallet,
+  Zap,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 import { formatDistanceToNow, parseISO } from "date-fns";
@@ -23,6 +25,8 @@ export const NOTIFICATION_META: Record<NotificationType, { icon: LucideIcon; ton
   "recurring.overdue": { icon: AlertTriangle, tone: "warning" },
   "budget.exceeded": { icon: Target, tone: "expense" },
   "balance.low": { icon: Wallet, tone: "warning" },
+  "ingest.committed": { icon: Zap, tone: "income" },
+  "ingest.review": { icon: Inbox, tone: "primary" },
 };
 
 const TONE_CLASS: Record<Tone, string> = {

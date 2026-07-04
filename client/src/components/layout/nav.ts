@@ -13,6 +13,7 @@ import {
   Repeat,
   Shapes,
   Bell,
+  Inbox,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -45,6 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: "groups.money",
     items: [
       { to: "/transactions", labelKey: "items.transactions", icon: ArrowRightLeft },
+      { to: "/captured", labelKey: "items.captured", icon: Inbox },
       { to: "/accounts", labelKey: "items.accounts", icon: Wallet },
       { to: "/recurring", labelKey: "items.recurring", icon: Repeat },
       { to: "/categories", labelKey: "items.categories", icon: Shapes },

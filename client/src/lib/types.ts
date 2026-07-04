@@ -358,6 +358,12 @@ export interface Settings {
   pinEnabled: boolean;
   emailReports: boolean;
   wealthLockEnabled: boolean;
+  /** Auto-capture payments (MacroDroid/SMS → webhook) is on for this account. */
+  ingestEnabled?: boolean;
+  /** Last 4 chars of the ingest token, for display (the token itself is never returned). */
+  ingestTokenHint?: string | null;
+  /** Account captured payments land in (null = auto-pick/create a UPI account). */
+  ingestDefaultAccount?: string | null;
 }
 
 export interface Summary {
@@ -426,7 +432,9 @@ export type NotificationType =
   | "recurring.due_soon"
   | "recurring.overdue"
   | "budget.exceeded"
-  | "balance.low";
+  | "balance.low"
+  | "ingest.committed"
+  | "ingest.review";
 
 export interface AppNotification {
   _id: string;
@@ -442,4 +450,47 @@ export interface AppNotification {
 export interface NotificationList {
   items: AppNotification[];
   unread: number;
+}
+
+// ---- Payment auto-capture (ingest) ----
+
+export type IngestStatus = "committed" | "pending" | "duplicate" | "ignored" | "unparsed";
+
+/** A payment captured from a phone notification/SMS and parsed by the server. */
+export interface IngestedPayment {
+  _id: string;
+  source: string;
+  rawText: string;
+  parsed: {
+    amount: number | null;
+    direction: "income" | "expense" | null;
+    merchant: string;
+    accountLast4: string;
+    upiRef: string;
+    occurredAt: string | null;
+  };
+  confidence: number;
+  status: IngestStatus;
+  transaction?: string | null;
+  account?: RefLite | string | null;
+  category?: RefLite | string | null;
+  createdAt: string;
+}
+
+/** The review inbox: pending captures (+ count) and recent auto-committed ones. */
+export interface IngestInbox {
+  pending: IngestedPayment[];
+  count: number;
+  recent: IngestedPayment[];
+}
+
+/** Edits applied when confirming a pending capture. */
+export interface IngestCommitEdits {
+  type?: TxnType;
+  amount?: number;
+  account?: string;
+  category?: string | null;
+  date?: string;
+  note?: string;
+  payee?: string;
 }

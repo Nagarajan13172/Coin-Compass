@@ -27,6 +27,7 @@ import { useCreditSummary } from "@/hooks/useCredits";
 import { useCanSeeWealth, useMe } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { PostRecurringDialog } from "@/features/recurring/PostRecurringDialog";
+import { CaptureReviewBanner } from "@/features/capture/CaptureReviewBanner";
 import { useUIStore } from "@/stores/ui";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
@@ -122,6 +123,8 @@ export default function DashboardPage() {
           </Tabs>
         }
       />
+
+      <CaptureReviewBanner />
 
       {isLoading || !data ? (
         <DashboardSkeleton />

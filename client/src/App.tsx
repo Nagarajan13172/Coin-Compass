@@ -22,6 +22,7 @@ import ReportsPage from "@/routes/ReportsPage";
 import CalendarPage from "@/routes/CalendarPage";
 import RecurringPage from "@/routes/RecurringPage";
 import CategoriesPage from "@/routes/CategoriesPage";
+import CapturedPage from "@/routes/CapturedPage";
 import NotificationsPage from "@/routes/NotificationsPage";
 import SettingsPage from "@/routes/SettingsPage";
 import NotFoundPage from "@/routes/NotFoundPage";
@@ -128,6 +129,7 @@ export function App() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/recurring" element={<RecurringPage />} />
             <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/captured" element={<CapturedPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFoundPage />} />

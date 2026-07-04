@@ -13,6 +13,8 @@ export const NOTIFICATION_TYPES = [
   "recurring.overdue", // an active rule is past its run date and hasn't posted
   "budget.exceeded", // spend in a budget's period passed its limit
   "balance.low", // a (non-card) account balance went negative
+  "ingest.committed", // a captured payment was auto-added as a transaction
+  "ingest.review", // a captured payment needs review before it's added
 ] as const;
 
 const notificationSchema = new Schema(

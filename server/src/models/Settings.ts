@@ -37,9 +37,19 @@ const settingsSchema = new Schema(
     // When set, the Net Worth section is hidden ("user" view) until the passcode is
     // entered ("superadmin" view). Null = wealth lock off (Net Worth always visible).
     wealthPasscodeHash: { type: String, default: null },
+    // Auto-capture payments (MacroDroid/SMS → the /api/ingest webhook). The token is
+    // stored only as a SHA-256 hash; `ingestTokenHint` is the last 4 chars for display.
+    // Captured payments land in `ingestDefaultAccount` (a UPI account by default).
+    ingestEnabled: { type: Boolean, default: false },
+    ingestTokenHash: { type: String, default: null },
+    ingestTokenHint: { type: String, default: null },
+    ingestDefaultAccount: { type: Schema.Types.ObjectId, ref: "Account", default: null },
   },
   { timestamps: true }
 );
+
+// Reverse lookup: the ingest webhook finds the owner by hashed token.
+settingsSchema.index({ ingestTokenHash: 1 }, { sparse: true });
 
 export type SettingsDoc = InferSchemaType<typeof settingsSchema>;
 export const Settings = model("Settings", settingsSchema);

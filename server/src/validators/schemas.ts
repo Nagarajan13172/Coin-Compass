@@ -284,4 +284,29 @@ export const settingsUpdateSchema = z.object({
       })
     )
     .optional(),
+  // Account that auto-captured payments land in (null = auto-pick/create a UPI account).
+  ingestDefaultAccount: optionalObjectId,
+});
+
+// ---- Payment auto-capture (ingest) ----
+// The webhook body a forwarder (MacroDroid/Tasker) POSTs. `text` is the notification
+// body; `title` is prepended for parsing; `source`/`postedAt` are optional hints.
+export const ingestSchema = z.object({
+  text: z.string().min(1, "Missing notification text").max(2000),
+  title: z.string().max(500).optional(),
+  source: z.string().max(40).optional(),
+  postedAt: z.union([z.number(), z.string()]).optional(),
+  // Accepted for token-in-body auth; consumed by the middleware, ignored here.
+  token: z.string().max(200).optional(),
+});
+
+// Edits applied when confirming a pending capture from the review inbox.
+export const ingestCommitSchema = z.object({
+  type: z.enum(["income", "expense"]).optional(),
+  amount: z.number().positive().optional(),
+  account: objectId.optional(),
+  category: optionalObjectId,
+  date: z.coerce.date().optional(),
+  note: z.string().max(280).optional(),
+  payee: z.string().max(120).optional(),
 });

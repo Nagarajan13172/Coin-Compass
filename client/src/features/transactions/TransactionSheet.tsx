@@ -281,7 +281,11 @@ export function TransactionSheet() {
 
         <ScrollArea className="flex-1">
           <div className="space-y-4 p-4 pt-2">
-            <AmountKeypad onChange={setAmount} />
+            <AmountKeypad
+              key={editing?._id ?? "new"}
+              initialValue={editing?.amount ?? 0}
+              onChange={setAmount}
+            />
 
             {/* accounts */}
             {type === "transfer" ? (

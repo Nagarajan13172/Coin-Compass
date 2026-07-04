@@ -1,7 +1,8 @@
 import express, { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, requireVerified, requireWealthAccess } from "../middleware/auth";
-import { loginLimiter, twoFactorVerifyLimiter, twoFactorEmailLimiter } from "../middleware/rateLimit";
+import { requireIngestToken } from "../middleware/ingestAuth";
+import { loginLimiter, twoFactorVerifyLimiter, twoFactorEmailLimiter, ingestLimiter } from "../middleware/rateLimit";
 import * as auth from "../controllers/authController";
 import * as oauth from "../controllers/oauthController";
 import * as accounts from "../controllers/accountController";
@@ -18,6 +19,7 @@ import * as notifications from "../controllers/notificationController";
 import * as reports from "../controllers/reportController";
 import * as metals from "../controllers/metalController";
 import * as settings from "../controllers/settingsController";
+import * as ingest from "../controllers/ingestController";
 import { getDashboard } from "../controllers/dashboardController";
 import { exportCsv } from "../controllers/exportController";
 import { importFile } from "../controllers/importController";
@@ -46,6 +48,11 @@ router.post(
   express.urlencoded({ extended: false }),
   asyncHandler(oauth.oauthCallback)
 );
+
+// Payment auto-capture webhook — authenticated by a per-user ingest token (a phone
+// forwarder like MacroDroid can't hold a session cookie), NOT the session. Kept in
+// the public block so requireAuth doesn't reject it; the token middleware sets req.userId.
+router.post("/ingest", ingestLimiter, asyncHandler(requireIngestToken), asyncHandler(ingest.ingestWebhook));
 
 // ---- Requires a valid session (verified or not) ----
 router.use(requireAuth);
@@ -175,6 +182,13 @@ router.post("/settings/pin/verify", asyncHandler(settings.verifyPin));
 // (first-time set passes because no lock exists yet).
 router.post("/settings/wealth-passcode", asyncHandler(requireWealthAccess), asyncHandler(settings.setWealthPasscode));
 router.delete("/settings/wealth-passcode", asyncHandler(requireWealthAccess), asyncHandler(settings.disableWealthPasscode));
+
+// Payment auto-capture: review inbox + token management (the webhook itself is public above).
+router.get("/ingest/inbox", asyncHandler(ingest.listInbox));
+router.post("/ingest/:id/commit", asyncHandler(ingest.commitInbox));
+router.delete("/ingest/:id", asyncHandler(ingest.dismissInbox));
+router.post("/settings/ingest-token", asyncHandler(ingest.regenerateToken));
+router.delete("/settings/ingest-token", asyncHandler(ingest.disableToken));
 
 // Export / Import
 router.get("/export/csv", asyncHandler(exportCsv));

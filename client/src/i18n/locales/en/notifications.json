@@ -39,6 +39,16 @@
         "title": "Low balance",
         "body": "{{account}} is overdrawn ({{balance}})."
       }
+    },
+    "ingest": {
+      "committed": {
+        "title": "Payment auto-added",
+        "body": "{{amount}} was captured and added to your transactions."
+      },
+      "review": {
+        "title": "Review a captured payment",
+        "body": "{{amount}} needs your confirmation before it's added."
+      }
     }
   }
 }
