@@ -34,6 +34,7 @@ import { useCreateCredit } from "@/hooks/useCredits";
 import {
   useCreateTransaction,
   useDeleteTransaction,
+  useRestoreTransaction,
   useUpdateTransaction,
 } from "@/hooks/useTransactions";
 import { CREDIT_METHODS, type CreditMethod, type RefLite, type TxnType } from "@/lib/types";
@@ -66,6 +67,7 @@ export function TransactionSheet() {
   const createTxn = useCreateTransaction();
   const updateTxn = useUpdateTransaction();
   const deleteTxn = useDeleteTransaction();
+  const restoreTxn = useRestoreTransaction();
   const createCredit = useCreateCredit();
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -218,9 +220,26 @@ export function TransactionSheet() {
 
   async function handleDelete() {
     if (!editing) return;
+    const id = editing._id;
     try {
-      await deleteTxn.mutateAsync(editing._id);
-      toast.success(t("toast.deleted"));
+      const res = await deleteTxn.mutateAsync(id);
+      if (res?.recoverable) {
+        // Soft-deleted → offer a one-tap undo (also restorable later from the
+        // "Recently deleted" trash on the Transactions page).
+        toast.success(t("toast.deleted"), {
+          action: {
+            label: t("actions.undo", { ns: "common" }),
+            onClick: () =>
+              restoreTxn.mutate(id, {
+                onSuccess: () => toast.success(t("toast.restored")),
+                onError: (e) =>
+                  toast.error(e instanceof Error ? e.message : t("toast.restoreFailed")),
+              }),
+          },
+        });
+      } else {
+        toast.success(t("toast.deleted"));
+      }
       close();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("toast.deleteFailed"));

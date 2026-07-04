@@ -13,6 +13,20 @@ export interface TxnFilters {
   tag?: string;
 }
 
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+/** Distinct tags the user has used, most-used first. Keyed under "transactions" so a
+ *  transaction mutation (which calls invalidateMoney) refreshes it automatically. */
+export function useTags() {
+  return useQuery({
+    queryKey: ["transactions", "tags"],
+    queryFn: async () => (await api.get<TagCount[]>("/transactions/tags")).data,
+  });
+}
+
 export function useTransactions(filters: TxnFilters = {}, limit = 30) {
   return useInfiniteQuery({
     queryKey: ["transactions", filters, limit],
@@ -44,6 +58,22 @@ function cleanFilters(f: TxnFilters) {
   return Object.fromEntries(Object.entries(f).filter(([, v]) => v != null && v !== ""));
 }
 
+/** The user's soft-deleted transactions (the "Recently deleted" trash), newest first. */
+export function useDeletedTransactions() {
+  return useQuery({
+    queryKey: ["transactions", "deleted"],
+    queryFn: async () => (await api.get<Transaction[]>("/transactions/deleted")).data,
+  });
+}
+
+export function useRestoreTransaction() {
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<Transaction>(`/transactions/${id}/restore`)).data,
+    onSuccess: () => invalidateMoney(),
+  });
+}
+
 export function useCreateTransaction() {
   return useMutation({
     mutationFn: async (payload: Partial<Transaction>) =>
@@ -60,9 +90,17 @@ export function useUpdateTransaction() {
   });
 }
 
+/** `recoverable` is true when the delete was a soft delete (restorable from the trash);
+ *  false for loan/credit-linked transactions, which are removed permanently. */
+export interface DeleteResult {
+  ok: boolean;
+  recoverable: boolean;
+  id?: string;
+}
+
 export function useDeleteTransaction() {
   return useMutation({
-    mutationFn: async (id: string) => (await api.delete(`/transactions/${id}`)).data,
+    mutationFn: async (id: string) => (await api.delete<DeleteResult>(`/transactions/${id}`)).data,
     onSuccess: () => invalidateMoney(),
   });
 }

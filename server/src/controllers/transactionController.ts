@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
@@ -28,7 +29,8 @@ function buildFilter(query: Request["query"]): Record<string, unknown> {
   if (query.account) filter.account = oneOrMany(query.account);
   if (query.category) filter.category = query.category;
   if (query.type) filter.type = oneOrMany(query.type);
-  if (query.tag) filter.tags = query.tag;
+  // A single tag matches array membership; a comma-separated list becomes $in (any of).
+  if (query.tag) filter.tags = oneOrMany(query.tag);
 
   if (query.from || query.to) {
     const date: Record<string, Date> = {};
@@ -67,6 +69,18 @@ export async function listTransactions(req: Request, res: Response) {
     pages: Math.ceil(total / limit),
     hasMore: page * limit < total,
   });
+}
+
+/** Distinct tags the user has applied across their transactions, with usage counts
+ *  (most-used first) — powers the Transactions page tag filter. */
+export async function listTags(req: Request, res: Response) {
+  const rows = await Transaction.aggregate<{ _id: string; count: number }>([
+    { $match: { user: new Types.ObjectId(userId(req)) } },
+    { $unwind: "$tags" },
+    { $group: { _id: "$tags", count: { $sum: 1 } } },
+    { $sort: { count: -1, _id: 1 } },
+  ]);
+  res.json(rows.map((r) => ({ tag: r._id, count: r.count })));
 }
 
 export async function getTransaction(req: Request, res: Response) {
@@ -156,13 +170,44 @@ export async function updateTransaction(req: Request, res: Response) {
 
 export async function deleteTransaction(req: Request, res: Response) {
   const uid = userId(req);
-  const txn = await Transaction.findOneAndDelete({ _id: req.params.id, user: uid });
+  const txn = await Transaction.findOne({ _id: req.params.id, user: uid });
   if (!txn) throw new HttpError(404, "Transaction not found");
-  // Deleting a loan payment restores exactly the principal + interest it applied
-  // (older transactions predate these fields → fall back to the full amount).
-  if (txn.loan) await reverseLoanPayment(txn.loan, uid, txn.loanPrincipal ?? txn.amount, txn.loanInterest ?? 0);
-  // Deleting a credit-linked transaction also removes the credit entry — the two
-  // are the same event, so the credit shouldn't linger in the Credits section.
-  if (txn.credit) await deleteCreditForTransaction(uid, txn.credit);
-  res.json({ ok: true });
+
+  // Loan/credit-linked transactions carry stored side effects (a loan's outstanding,
+  // a paired Credit entry) that can't be cleanly reconstructed on restore — so they're
+  // still removed permanently, reversing those effects exactly as before.
+  if (txn.loan || txn.credit) {
+    await Transaction.deleteOne({ _id: txn._id });
+    if (txn.loan) await reverseLoanPayment(txn.loan, uid, txn.loanPrincipal ?? txn.amount, txn.loanInterest ?? 0);
+    if (txn.credit) await deleteCreditForTransaction(uid, txn.credit);
+    return res.json({ ok: true, recoverable: false });
+  }
+
+  // Everything else is side-effect-free (balances are derived from transactions), so
+  // a soft delete is enough: hidden everywhere, restorable, purged after the window.
+  txn.deletedAt = new Date();
+  await txn.save();
+  res.json({ ok: true, recoverable: true, id: String(txn._id) });
+}
+
+/** List the user's soft-deleted transactions (the "Recently deleted" trash), newest first. */
+export async function listDeletedTransactions(req: Request, res: Response) {
+  const items = await Transaction.find({ user: userId(req), deletedAt: { $ne: null } })
+    .setOptions({ withDeleted: true })
+    .sort({ deletedAt: -1 })
+    .limit(200)
+    .populate(POPULATE)
+    .lean();
+  res.json(items);
+}
+
+/** Restore a soft-deleted transaction back into the ledger. */
+export async function restoreTransaction(req: Request, res: Response) {
+  const txn = await Transaction.findOne({ _id: req.params.id, user: userId(req), deletedAt: { $ne: null } })
+    .setOptions({ withDeleted: true });
+  if (!txn) throw new HttpError(404, "Deleted transaction not found");
+  txn.deletedAt = null;
+  await txn.save();
+  const populated = await txn.populate(POPULATE);
+  res.json(populated);
 }

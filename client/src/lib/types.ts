@@ -71,6 +71,8 @@ export interface Transaction {
   loan?: RefLite | string | null;
   /** When set, this transaction is the reflected side of a Credit entry (money to/from a person). */
   credit?: { _id: string; person: string; direction: CreditDirection } | string | null;
+  /** Set when the transaction is in the "Recently deleted" trash (soft-deleted). */
+  deletedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

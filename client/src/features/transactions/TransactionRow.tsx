@@ -79,6 +79,21 @@ export function TransactionRow({
           )}
         </p>
         <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+        {txn.tags && txn.tags.length > 0 && (
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {txn.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center rounded bg-secondary px-1.5 py-px text-[10px] font-medium text-secondary-foreground"
+              >
+                #{tag}
+              </span>
+            ))}
+            {txn.tags.length > 3 && (
+              <span className="text-[10px] text-muted-foreground">+{txn.tags.length - 3}</span>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex flex-col items-end">
         {/* Transfers move money between accounts — show a neutral amount, no +/− sign. */}

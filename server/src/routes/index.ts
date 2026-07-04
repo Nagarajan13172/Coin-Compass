@@ -84,9 +84,12 @@ router.delete("/categories/:id", asyncHandler(categories.deleteCategory));
 
 // Transactions
 router.get("/transactions", asyncHandler(transactions.listTransactions));
+router.get("/transactions/tags", asyncHandler(transactions.listTags));
+router.get("/transactions/deleted", asyncHandler(transactions.listDeletedTransactions));
 router.post("/transactions", asyncHandler(transactions.createTransaction));
 router.get("/transactions/:id", asyncHandler(transactions.getTransaction));
 router.patch("/transactions/:id", asyncHandler(transactions.updateTransaction));
+router.post("/transactions/:id/restore", asyncHandler(transactions.restoreTransaction));
 router.delete("/transactions/:id", asyncHandler(transactions.deleteTransaction));
 
 // Budgets

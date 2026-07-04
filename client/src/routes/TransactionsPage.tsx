@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { addDays, addMonths, addYears, format, startOfDay, startOfMonth, startOfYear, subDays } from "date-fns";
-import { ChevronDown, Plus, Receipt, Search, X } from "lucide-react";
+import { ChevronDown, Plus, Receipt, Search, Trash2, X } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -25,10 +25,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TransactionList } from "@/features/transactions/TransactionList";
-import { useTransactions, type TxnFilters } from "@/hooks/useTransactions";
+import { RecentlyDeletedDialog } from "@/features/transactions/RecentlyDeletedDialog";
+import { useTransactions, useTags, useDeletedTransactions, type TxnFilters } from "@/hooks/useTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useUIStore } from "@/stores/ui";
+import { cn } from "@/lib/utils";
 import { categoryLabel } from "@/lib/i18nLabels";
 import { dateFnsLocale } from "@/lib/dates";
 import type { TxnType } from "@/lib/types";
@@ -78,6 +80,9 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState(params.get("search") ?? "");
   const [type, setType] = useState<string>(params.get("type") ?? ALL);
   const [accountIds, setAccountIds] = useState<string[]>(params.get("account") ? [params.get("account")!] : []);
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    params.get("tag") ? params.get("tag")!.split(",").filter(Boolean) : []
+  );
   const [category, setCategory] = useState<string>(params.get("category") ?? ALL);
   // An explicit ?from=&to= range (e.g. deep-link from the Calendar) becomes a "Custom" period.
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(() => {
@@ -107,8 +112,12 @@ export default function TransactionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
+  const [trashOpen, setTrashOpen] = useState(false);
+
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
+  const { data: tagOptions } = useTags();
+  const { data: deleted } = useDeletedTransactions();
 
   const range = useMemo(
     () => (period === "custom" && customRange ? customRange : periodRange(period)),
@@ -120,10 +129,11 @@ export default function TransactionsPage() {
       type: type === ALL ? undefined : type,
       account: accountIds.length ? accountIds.join(",") : undefined,
       category: category === ALL ? undefined : category,
+      tag: selectedTags.length ? selectedTags.join(",") : undefined,
       from: range.from,
       to: range.to,
     }),
-    [debounced, type, accountIds, category, range]
+    [debounced, type, accountIds, category, selectedTags, range]
   );
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -158,14 +168,23 @@ export default function TransactionsPage() {
       : "";
 
   const hasFilters =
-    type !== ALL || accountIds.length > 0 || category !== ALL || !!debounced || period !== "all";
+    type !== ALL ||
+    accountIds.length > 0 ||
+    selectedTags.length > 0 ||
+    category !== ALL ||
+    !!debounced ||
+    period !== "all";
 
   function toggleAccount(id: string) {
     setAccountIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]));
+  }
   function clearFilters() {
     setType(ALL);
     setAccountIds([]);
+    setSelectedTags([]);
     setCategory(ALL);
     setSearch("");
     setCustomRange(null);
@@ -191,6 +210,9 @@ export default function TransactionsPage() {
   accountIds.forEach((id) =>
     pills.push({ key: `acc-${id}`, label: accountName(id), onRemove: () => toggleAccount(id) })
   );
+  selectedTags.forEach((tag) =>
+    pills.push({ key: `tag-${tag}`, label: `#${tag}`, onRemove: () => toggleTag(tag) })
+  );
   if (category !== ALL) pills.push({ key: "cat", label: categoryName, onRemove: () => setCategory(ALL) });
   if (debounced) pills.push({ key: "search", label: `“${debounced}”`, onRemove: () => setSearch("") });
 
@@ -211,15 +233,30 @@ export default function TransactionsPage() {
         ? accountName(accountIds[0])
         : t("filters.accountsCount", { count: accountIds.length });
 
+  const showTagFilter = (tagOptions?.length ?? 0) > 0;
+  const tagTriggerLabel =
+    selectedTags.length === 0
+      ? t("filters.allTags")
+      : selectedTags.length === 1
+        ? `#${selectedTags[0]}`
+        : t("filters.tagsCount", { count: selectedTags.length });
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title={t("title")}
         description={summary}
         actions={
-          <Button onClick={addTransaction}>
-            <Plus /> {t("actions.add", { ns: "common" })}
-          </Button>
+          <div className="flex gap-2">
+            {deleted && deleted.length > 0 && (
+              <Button variant="outline" onClick={() => setTrashOpen(true)}>
+                <Trash2 /> {t("trash.recentlyDeleted", { count: deleted.length })}
+              </Button>
+            )}
+            <Button onClick={addTransaction}>
+              <Plus /> {t("actions.add", { ns: "common" })}
+            </Button>
+          </div>
         }
       />
 
@@ -235,7 +272,12 @@ export default function TransactionsPage() {
             className="pl-9"
           />
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div
+          className={cn(
+            "grid grid-cols-2 gap-2",
+            showTagFilter ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"
+          )}
+        >
           <Select value={type} onValueChange={setType}>
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -307,6 +349,41 @@ export default function TransactionsPage() {
               )}
             </SelectContent>
           </Select>
+
+          {/* multi-select tags — only shown once the user has tagged anything */}
+          {showTagFilter && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between font-normal">
+                  <span className="truncate">{tagTriggerLabel}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72 w-56 overflow-y-auto">
+                <DropdownMenuLabel>{t("filters.filterByTag")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {tagOptions?.map((tg) => (
+                  <DropdownMenuCheckboxItem
+                    key={tg.tag}
+                    checked={selectedTags.includes(tg.tag)}
+                    onCheckedChange={() => toggleTag(tg.tag)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <span className="flex-1 truncate">{tg.tag}</span>
+                    <span className="ml-2 shrink-0 tnum text-xs text-muted-foreground">{tg.count}</span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+                {selectedTags.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setSelectedTags([])}>
+                      {t("filters.clearTags")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -364,6 +441,8 @@ export default function TransactionsPage() {
           }
         />
       )}
+
+      <RecentlyDeletedDialog open={trashOpen} onOpenChange={setTrashOpen} />
     </div>
   );
 }

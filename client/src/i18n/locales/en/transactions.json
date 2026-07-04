@@ -21,6 +21,11 @@
     "accountsCount_other": "{{count}} accounts",
     "filterByAccount": "Filter by account",
     "clearAccounts": "Clear accounts",
+    "allTags": "All tags",
+    "tagsCount_one": "{{count}} tag",
+    "tagsCount_other": "{{count}} tags",
+    "filterByTag": "Filter by tag",
+    "clearTags": "Clear tags",
     "allCategories": "All categories",
     "label": "Filters:",
     "remove": "Remove filter {{label}}",
@@ -65,7 +70,17 @@
     "updated": "Transaction updated",
     "deleted": "Transaction deleted",
     "saveFailed": "Failed to save",
-    "deleteFailed": "Failed to delete"
+    "deleteFailed": "Failed to delete",
+    "restored": "Transaction restored",
+    "restoreFailed": "Couldn't restore the transaction"
+  },
+  "trash": {
+    "recentlyDeleted": "Recently deleted ({{count}})",
+    "title": "Recently deleted",
+    "description": "Deleted transactions are kept for {{days}} days, then removed for good.",
+    "deletedOn": "deleted {{date}}",
+    "restore": "Restore",
+    "empty": "Nothing here — deleted transactions show up for a while before they're purged."
   },
   "row": {
     "recurringAria": "Auto-posted by a recurring rule"

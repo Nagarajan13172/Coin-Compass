@@ -13,6 +13,7 @@ import { notFound, errorHandler } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/requestLogger";
 import { processDueRecurring } from "./services/recurringService";
 import { runNotificationSweep } from "./services/notificationService";
+import { purgeExpiredDeletions } from "./services/trashService";
 import { refreshMetalPrices } from "./services/metalPriceService";
 import { sendDueReports } from "./services/reportEmailService";
 
@@ -89,6 +90,17 @@ async function bootstrap() {
     "0 8 * * *",
     () => {
       sendDueReports().catch((e) => console.error("[report-email] scheduled run failed", e));
+    },
+    { timezone: "Asia/Kolkata" }
+  );
+
+  // Purge expired "Recently deleted" transactions on boot, then daily at 03:30 IST.
+  // Deleted rows are side-effect-free, so purging is a plain hard delete.
+  await purgeExpiredDeletions().catch((e) => console.error("[trash] boot purge failed", e));
+  cron.schedule(
+    "30 3 * * *",
+    () => {
+      purgeExpiredDeletions().catch((e) => console.error("[trash] scheduled purge failed", e));
     },
     { timezone: "Asia/Kolkata" }
   );
