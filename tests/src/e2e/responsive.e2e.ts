@@ -8,9 +8,9 @@ import { DEFAULT_PASSWORD, seedUserWithData } from "./support/api";
  * exceeds the viewport width, logging the offending elements when it does.
  */
 
-// S24 Ultra reports ~384px; 360px covers the many common Android phones. Passing
-// at the narrower width implies the wider one, so we check both.
-const WIDTHS = [360, 384];
+// S24 Ultra reports ~384px; 360px covers the many common Android phones; 320px is
+// the small-iPhone/legacy floor. Passing at the narrower width implies the wider one.
+const WIDTHS = [320, 360, 384];
 
 const ROUTES = [
   "/",
@@ -63,6 +63,7 @@ async function measure(page: Page, route: string) {
 }
 
 test("no horizontal overflow on any route at phone width", async ({ page }) => {
+  test.setTimeout(180_000); // 3 widths × every route; the default 45s isn't enough
   const { email } = await seedUserWithData();
   await page.setViewportSize({ width: WIDTHS[0], height: 832 });
   await login(page, email);

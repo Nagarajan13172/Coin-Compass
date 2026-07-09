@@ -99,12 +99,13 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
-      {/* mobile brand */}
-      <div className="flex items-center gap-2 lg:hidden">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      {/* mobile brand — min-w-0 + truncate so the wordmark yields on narrow phones
+          instead of pushing the header past the viewport */}
+      <div className="flex min-w-0 items-center gap-2 lg:hidden">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Compass className="h-4 w-4" />
         </div>
-        <span className="text-sm font-bold">CoinCompass</span>
+        <span className="truncate text-sm font-bold">CoinCompass</span>
       </div>
 
       <DropdownMenu>
@@ -134,7 +135,7 @@ export function TopBar() {
         <Input name="q" type="search" aria-label={t("search.ariaLabel")} placeholder={t("search.placeholder")} className="pl-9" />
       </form>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         {/* mobile search — the inline form is hidden below sm, so give phones a way in */}
         <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
           <SheetTrigger asChild>
@@ -167,7 +168,11 @@ export function TopBar() {
         </Sheet>
         <NotificationBell />
         <LanguageToggle />
-        <ThemeToggle />
+        {/* Phones don't have room for a fifth control — the theme picker stays
+            reachable from Settings › Preferences. */}
+        <div className="hidden sm:flex">
+          <ThemeToggle />
+        </div>
         <UserMenu />
       </div>
     </header>
