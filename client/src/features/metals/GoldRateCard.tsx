@@ -8,10 +8,15 @@ import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/format";
 import { dateFnsLocale } from "@/lib/dates";
 import { useMetalHistory, useMetalsLatest } from "@/hooks/useMetals";
-import type { MetalPrice } from "@/lib/types";
 import { METAL_META } from "./meta";
 import { MetalChange } from "./MetalChange";
-import { DEFAULT_CITY, findCity, resolveCityRate } from "./cities";
+import {
+  DEFAULT_CITY,
+  findCity,
+  metalChartSeries,
+  resolveCityRate,
+  type MetalSeriesPoint,
+} from "./cities";
 
 function asOf(date: string) {
   try {
@@ -26,19 +31,19 @@ function SparkTooltip({
   payload,
 }: {
   active?: boolean;
-  payload?: { payload: MetalPrice }[];
+  payload?: { payload: MetalSeriesPoint }[];
 }) {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (
     <div className="rounded-md border bg-popover px-2.5 py-1.5 text-xs shadow-md">
-      <p className="tnum font-semibold">{formatMoney(p.pricePerGram22k, { currency: "INR" })}</p>
+      <p className="tnum font-semibold">{formatMoney(p.value, { currency: "INR" })}</p>
       <p className="text-muted-foreground">{asOf(p.date)}</p>
     </div>
   );
 }
 
-function Sparkline({ data, color }: { data: MetalPrice[]; color: string }) {
+function Sparkline({ data, color }: { data: MetalSeriesPoint[]; color: string }) {
   return (
     <ResponsiveContainer width="100%" height={44}>
       <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
@@ -54,7 +59,7 @@ function Sparkline({ data, color }: { data: MetalPrice[]; color: string }) {
         />
         <Area
           type="monotone"
-          dataKey="pricePerGram22k"
+          dataKey="value"
           stroke={color}
           strokeWidth={1.75}
           fill="url(#goldSpark)"
@@ -117,7 +122,7 @@ export function GoldRateCard() {
         </div>
 
         {history && history.length > 1 && (
-          <Sparkline data={history} color={METAL_META.gold.color} />
+          <Sparkline data={metalChartSeries(history, "gold", city)} color={METAL_META.gold.color} />
         )}
 
         {silver && (

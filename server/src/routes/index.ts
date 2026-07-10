@@ -1,7 +1,12 @@
 import express, { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { requireAuth, requireVerified, requireWealthAccess } from "../middleware/auth";
-import { loginLimiter, twoFactorVerifyLimiter, twoFactorEmailLimiter } from "../middleware/rateLimit";
+import {
+  loginLimiter,
+  twoFactorVerifyLimiter,
+  twoFactorEmailLimiter,
+  wealthUnlockLimiter,
+} from "../middleware/rateLimit";
 import * as auth from "../controllers/authController";
 import * as oauth from "../controllers/oauthController";
 import * as accounts from "../controllers/accountController";
@@ -66,7 +71,7 @@ router.post("/auth/2fa/email-fallback", asyncHandler(auth.twoFactorEmailFallback
 router.post("/auth/2fa/backup-codes", asyncHandler(auth.regenerateBackupCodes));
 
 // Wealth (Net Worth) view: unlock to superadmin with the passcode, or re-lock.
-router.post("/auth/unlock-wealth", asyncHandler(auth.unlockWealth));
+router.post("/auth/unlock-wealth", wealthUnlockLimiter, asyncHandler(auth.unlockWealth));
 router.post("/auth/lock-wealth", asyncHandler(auth.lockWealth));
 
 // Accounts

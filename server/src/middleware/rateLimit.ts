@@ -59,3 +59,9 @@ export const twoFactorEmailLimiter = makeLimiter(
   5,
   "Too many code requests."
 );
+
+/**
+ * Net Worth (wealth) passcode: as tight as 2FA. The passcode may be as short as
+ * 4 characters, so an unmetered endpoint would be trivially brute-forceable.
+ */
+export const wealthUnlockLimiter = makeLimiter(15 * 60 * 1000, 8, "Too many unlock attempts.");

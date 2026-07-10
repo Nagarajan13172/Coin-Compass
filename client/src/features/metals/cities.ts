@@ -1,4 +1,4 @@
-import type { MetalPrice } from "@/lib/types";
+import type { Metal, MetalPrice } from "@/lib/types";
 
 export interface GoldCity {
   key: string;
@@ -72,4 +72,31 @@ export function resolveCityRate(price: MetalPrice, city: GoldCity): ResolvedCity
     source: `≈ spot +${city.premiumPct}%`,
     approx: true,
   };
+}
+
+/** One plotted point: the date plus the rate the chart should draw. */
+export interface MetalSeriesPoint {
+  date: string;
+  value: number;
+  /** true when `value` is estimated from spot + premium rather than a real counter rate. */
+  approx: boolean;
+}
+
+/**
+ * The series a metal chart should plot. Gold follows the SAME rule as the headline
+ * card — the city's 22K counter rate, i.e. GRT's actual scraped rate on the days we
+ * captured it, otherwise spot + the city premium. Silver plots its .999 per-gram
+ * rate. Plotting the raw spot rate here would contradict the headline figure.
+ */
+export function metalChartSeries(
+  data: MetalPrice[],
+  metal: Metal,
+  city?: GoldCity
+): MetalSeriesPoint[] {
+  return data.map((p) => {
+    if (metal !== "gold") return { date: p.date, value: p.pricePerGram24k, approx: false };
+    if (!city) return { date: p.date, value: p.pricePerGram22k, approx: true };
+    const rate = resolveCityRate(p, city);
+    return { date: p.date, value: rate.gram22k, approx: rate.approx };
+  });
 }

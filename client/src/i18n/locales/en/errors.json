@@ -1,6 +1,7 @@
 {
   "NOT_AUTHENTICATED": "Not authenticated",
   "NET_WORTH_LOCKED": "The Net Worth section is locked",
+  "WEALTH_LOCK_NOT_ENABLED": "The Net Worth lock isn’t enabled",
   "EMAIL_NOT_VERIFIED": "Please verify your email to continue",
   "BUDGET_NOT_FOUND": "Budget not found",
   "EMAIL_TAKEN": "An account with this email already exists",

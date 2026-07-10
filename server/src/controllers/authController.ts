@@ -234,19 +234,23 @@ export async function unlockWealth(req: Request, res: Response) {
   const uid = userId(req);
   const passcode = String(req.body?.passcode ?? "");
   const settings = await getSettings(uid);
-  if (settings.wealthPasscodeHash) {
-    const ok = await verifyPassword(passcode, settings.wealthPasscodeHash);
-    if (!ok) throw new HttpError(401, "Incorrect passcode");
-    // Migrate a legacy passcode hash to the peppered scheme on a correct unlock.
-    if (needsRehash(settings.wealthPasscodeHash)) {
-      settings.wealthPasscodeHash = await hashPassword(passcode);
-      await settings.save();
-    }
+  // Refuse when there is no lock to unlock. Elevating here would let a session
+  // pre-grant itself superadmin while the lock is off and keep wealth access
+  // after the lock is later switched on — defeating the feature entirely.
+  if (!settings.wealthPasscodeHash) {
+    throw new HttpError(400, "The Net Worth lock isn't enabled", "WEALTH_LOCK_NOT_ENABLED");
+  }
+  const ok = await verifyPassword(passcode, settings.wealthPasscodeHash);
+  if (!ok) throw new HttpError(401, "Incorrect passcode");
+  // Migrate a legacy passcode hash to the peppered scheme on a correct unlock.
+  if (needsRehash(settings.wealthPasscodeHash)) {
+    settings.wealthPasscodeHash = await hashPassword(passcode);
+    await settings.save();
   }
   setSessionCookie(res, uid, "superadmin");
   const user = await User.findById(uid);
   if (!user) throw new HttpError(401, "Not authenticated");
-  res.json({ user: publicUser(user, "superadmin", Boolean(settings.wealthPasscodeHash)) });
+  res.json({ user: publicUser(user, "superadmin", true) });
 }
 
 /** Return to the everyday `user` view (re-hides wealth). Re-issues the session. */

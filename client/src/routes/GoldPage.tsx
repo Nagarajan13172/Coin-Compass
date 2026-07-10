@@ -218,7 +218,12 @@ export default function GoldPage() {
             </CardHeader>
             <CardContent>
               {history && history.length > 1 ? (
-                <MetalHistoryChart data={history} color={METAL_META[metal].color} metal={metal} />
+                <MetalHistoryChart
+                  data={history}
+                  color={METAL_META[metal].color}
+                  metal={metal}
+                  city={city}
+                />
               ) : (
                 <div className="flex h-[280px] flex-col items-center justify-center gap-1 text-center text-sm text-muted-foreground">
                   <TrendingUp className="h-6 w-6" />

@@ -93,12 +93,29 @@ export function useCanSeeWealth(): boolean {
   return me.mode === "superadmin" || !me.wealthLockEnabled;
 }
 
+/**
+ * The server decides per session mode whether to redact the net-worth figure
+ * (dashboard + reports) and whether the wealth routes 403. So when the mode flips,
+ * every cached payload that depends on it is wrong: without this, unlocking would
+ * reveal the Net Worth card still showing a stale ₹0, and the Net Worth page would
+ * keep serving its cached 403 until the 30s staleTime elapsed.
+ */
+function invalidateWealthViews() {
+  queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["reports"] });
+  queryClient.invalidateQueries({ queryKey: ["holdings"] });
+  queryClient.invalidateQueries({ queryKey: ["networth"] });
+}
+
 /** Enter superadmin (wealth) mode with the passcode. */
 export function useUnlockWealth() {
   return useMutation({
     mutationFn: async (passcode: string) =>
       (await api.post<{ user: AuthUser }>("/auth/unlock-wealth", { passcode })).data.user,
-    onSuccess: (user) => queryClient.setQueryData(["me"], user),
+    onSuccess: (user) => {
+      queryClient.setQueryData(["me"], user);
+      invalidateWealthViews();
+    },
   });
 }
 
@@ -106,7 +123,10 @@ export function useUnlockWealth() {
 export function useLockWealth() {
   return useMutation({
     mutationFn: async () => (await api.post<{ user: AuthUser }>("/auth/lock-wealth")).data.user,
-    onSuccess: (user) => queryClient.setQueryData(["me"], user),
+    onSuccess: (user) => {
+      queryClient.setQueryData(["me"], user);
+      invalidateWealthViews();
+    },
   });
 }
 

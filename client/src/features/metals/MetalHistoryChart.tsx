@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Area,
@@ -13,6 +13,7 @@ import { format, parseISO } from "date-fns";
 import { compactNumber, formatMoney } from "@/lib/format";
 import { dateFnsLocale } from "@/lib/dates";
 import type { Metal, MetalPrice } from "@/lib/types";
+import { metalChartSeries, type GoldCity } from "./cities";
 
 function dayLabel(d: string) {
   try {
@@ -24,25 +25,28 @@ function dayLabel(d: string) {
 
 /**
  * Area chart of a metal's per-gram rate (INR) over the accumulated history.
- * Gold tracks the 22K rate (the common jewellery purity in India); silver
- * tracks its .999 (24K) per-gram rate.
+ * Gold tracks the selected city's 22K counter rate — GRT's real rate on the days we
+ * captured it, else spot + premium — so the chart agrees with the headline card.
+ * Silver tracks its .999 (24K) per-gram rate.
  */
 export function MetalHistoryChart({
   data,
   color = "#D4AF37",
   metal = "gold",
+  city,
 }: {
   data: MetalPrice[];
   color?: string;
   metal?: Metal;
+  city?: GoldCity;
 }) {
   const { t } = useTranslation("credits");
   const gradId = useId();
-  const field = metal === "gold" ? "pricePerGram22k" : "pricePerGram24k";
+  const series = useMemo(() => metalChartSeries(data, metal, city), [data, metal, city]);
   const seriesLabel = metal === "gold" ? t("gold.seriesGold") : t("gold.seriesOther");
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+      <AreaChart data={series} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={color} stopOpacity={0.35} />
@@ -79,7 +83,7 @@ export function MetalHistoryChart({
         />
         <Area
           type="monotone"
-          dataKey={field}
+          dataKey="value"
           stroke={color}
           strokeWidth={2}
           fill={`url(#${gradId})`}
