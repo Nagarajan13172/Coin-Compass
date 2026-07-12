@@ -26,6 +26,21 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Other", icon: "ellipsis", color: "#64748B" },
 ];
 
+/**
+ * Starter "quick add" templates every new workspace gets, so the one-tap chips on
+ * the Transactions page are useful from day one. Modelled on the most frequent
+ * daily spends (tea/snacks, meals, fuel, groceries). `category` is matched to a
+ * default expense category by name at provisioning time; `account` is left unset
+ * so it falls back to the user's first account when logged.
+ */
+export const DEFAULT_TEMPLATES = [
+  { name: "Tea & Snacks", amount: 150, category: "Tea & Snacks" },
+  { name: "Breakfast", amount: 200, category: "Food & Dining", note: "Breakfast" },
+  { name: "Lunch", amount: 300, category: "Food & Dining", note: "Lunch" },
+  { name: "Fuel", amount: 1000, category: "Fuel" },
+  { name: "Groceries", amount: 500, category: "Groceries" },
+];
+
 export const DEFAULT_INCOME_CATEGORIES = [
   { name: "Salary", icon: "banknote", color: "#22C55E" },
   { name: "Business", icon: "briefcase", color: "#0EA5E9" },

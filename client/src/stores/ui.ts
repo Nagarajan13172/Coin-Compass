@@ -5,6 +5,16 @@ import { applyLanguage, DEFAULT_LANGUAGE, type LanguageCode } from "@/i18n";
 
 type Theme = "light" | "dark" | "system";
 
+/** Seed values for a brand-new transaction sheet. */
+export interface TxnPrefill {
+  account?: string | null;
+  category?: string | null;
+  date?: string | null;
+  amount?: number | null;
+  note?: string | null;
+  tags?: string[] | null;
+}
+
 interface UIState {
   // theme
   theme: Theme;
@@ -34,13 +44,9 @@ interface UIState {
   txnSheetOpen: boolean;
   editingTxn: Transaction | null;
   defaultTxnType: TxnType;
-  /** Prefill for a brand-new transaction (e.g. context-aware Add from active filters or a calendar day). */
-  txnPrefill: { account?: string | null; category?: string | null; date?: string | null } | null;
-  openTxnSheet: (opts?: {
-    txn?: Transaction;
-    type?: TxnType;
-    prefill?: { account?: string | null; category?: string | null; date?: string | null };
-  }) => void;
+  /** Prefill for a brand-new transaction (context-aware Add from filters/a calendar day, or a quick-add template). */
+  txnPrefill: TxnPrefill | null;
+  openTxnSheet: (opts?: { txn?: Transaction; type?: TxnType; prefill?: TxnPrefill }) => void;
   closeTxnSheet: () => void;
 
   // pin lock

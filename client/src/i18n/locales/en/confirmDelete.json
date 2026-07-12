@@ -14,6 +14,7 @@
     "holding": "holding",
     "credit": "credit entry",
     "budget": "budget",
-    "recurring": "recurring transaction"
+    "recurring": "recurring transaction",
+    "template": "template"
   }
 }

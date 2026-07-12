@@ -118,6 +118,18 @@ export const transactionUpdateSchema = z.object({
   loan: optionalObjectId,
 });
 
+export const templateSchema = z.object({
+  name: z.string().min(1).max(60),
+  type: z.enum(["income", "expense"]).default("expense"),
+  amount: z.number().min(0).default(0),
+  account: optionalObjectId,
+  category: optionalObjectId,
+  note: z.string().max(280).default(""),
+  tags: z.array(z.string()).default([]),
+  order: z.number().default(0),
+});
+export const templateUpdateSchema = templateSchema.partial();
+
 export const budgetSchema = z.object({
   category: optionalObjectId,
   amount: z.number().positive(),

@@ -31,6 +31,32 @@ export interface Account {
   updatedAt?: string;
 }
 
+/** A saved "quick add": a partial transaction logged in one tap, price editable. */
+export interface Template {
+  _id: string;
+  name: string;
+  type: "income" | "expense";
+  amount: number;
+  account?: RefLite | string | null;
+  category?: RefLite | string | null;
+  note: string;
+  tags: string[];
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** Payload for creating/updating a template (ids as strings). */
+export interface TemplateInput {
+  name: string;
+  type: "income" | "expense";
+  amount: number;
+  account: string | null;
+  category: string | null;
+  note: string;
+  tags: string[];
+}
+
 export interface Category {
   _id: string;
   name: string;

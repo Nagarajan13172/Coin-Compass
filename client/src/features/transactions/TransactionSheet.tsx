@@ -125,16 +125,16 @@ export function TransactionSheet() {
       setPerson("");
       setMethod("Cash");
     } else {
-      // New transaction — seed from any context-aware prefill (e.g. active filters),
-      // else fall back to the first account (the accounts-load effect covers the
-      // case where accounts arrive after the sheet is already open).
+      // New transaction — seed from any context-aware prefill (active filters, a
+      // calendar day, or a quick-add template), else fall back to the first account
+      // (the accounts-load effect covers accounts arriving after the sheet opens).
       setType(defaultType);
-      setAmount(0);
+      setAmount(prefill?.amount ?? 0);
       setAccountId(prefill?.account ?? accounts?.[0]?._id ?? "");
       setCategoryId(prefill?.category ?? null);
-      setNote("");
+      setNote(prefill?.note ?? "");
       setDate(prefill?.date ?? format(new Date(), "yyyy-MM-dd"));
-      setTags([]);
+      setTags(prefill?.tags ?? []);
       setLoanId("");
       setPersonMode(false);
       setPerson("");
@@ -281,7 +281,11 @@ export function TransactionSheet() {
 
         <ScrollArea className="flex-1">
           <div className="space-y-4 p-4 pt-2">
-            <AmountKeypad onChange={setAmount} />
+            <AmountKeypad
+              key={editing?._id ?? "new"}
+              onChange={setAmount}
+              initialAmount={editing?.amount ?? prefill?.amount ?? 0}
+            />
 
             {/* accounts */}
             {type === "transfer" ? (

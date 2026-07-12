@@ -12,6 +12,7 @@ import * as oauth from "../controllers/oauthController";
 import * as accounts from "../controllers/accountController";
 import * as categories from "../controllers/categoryController";
 import * as transactions from "../controllers/transactionController";
+import * as templates from "../controllers/templateController";
 import * as budgets from "../controllers/budgetController";
 import * as goals from "../controllers/goalController";
 import * as holdings from "../controllers/holdingController";
@@ -96,6 +97,12 @@ router.get("/transactions/:id", asyncHandler(transactions.getTransaction));
 router.patch("/transactions/:id", asyncHandler(transactions.updateTransaction));
 router.post("/transactions/:id/restore", asyncHandler(transactions.restoreTransaction));
 router.delete("/transactions/:id", asyncHandler(transactions.deleteTransaction));
+
+// Quick-add templates (saved partial transactions)
+router.get("/templates", asyncHandler(templates.listTemplates));
+router.post("/templates", asyncHandler(templates.createTemplate));
+router.patch("/templates/:id", asyncHandler(templates.updateTemplate));
+router.delete("/templates/:id", asyncHandler(templates.deleteTemplate));
 
 // Budgets
 router.get("/budgets", asyncHandler(budgets.listBudgets));

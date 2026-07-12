@@ -21,7 +21,8 @@ export type DeleteItemKey =
   | "holding"
   | "credit"
   | "budget"
-  | "recurring";
+  | "recurring"
+  | "template";
 
 /** Returned by onConfirm when the server reports the item still has dependents and
  *  the caller wants a second, explicit "delete anyway" step (e.g. an account that

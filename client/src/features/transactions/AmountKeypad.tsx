@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Delete, Divide, Minus, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatAmountForInput } from "@/lib/amountFormat";
+import { formatAmountForInput, sanitizeAmount } from "@/lib/amountFormat";
 
 type Op = "+" | "-" | "*" | "/";
 
@@ -10,6 +10,12 @@ interface AmountKeypadProps {
   /** Called with the evaluated numeric value whenever input changes. */
   onChange: (value: number) => void;
   className?: string;
+  /**
+   * Seed the display with an existing amount (editing a transaction, or a
+   * quick-add template's default price). `fresh` stays true so the first
+   * keystroke replaces it — the common "just change the price" case.
+   */
+  initialAmount?: number;
 }
 
 function apply(a: number, b: number, op: Op): number {
@@ -26,9 +32,11 @@ function apply(a: number, b: number, op: Op): number {
 }
 
 /** A money-entry calculator keypad (like the CoinCompass app's input pad). */
-export function AmountKeypad({ onChange, className }: AmountKeypadProps) {
+export function AmountKeypad({ onChange, className, initialAmount }: AmountKeypadProps) {
   const { t } = useTranslation("transactions");
-  const [display, setDisplay] = useState("0");
+  const [display, setDisplay] = useState(() =>
+    initialAmount && initialAmount > 0 ? sanitizeAmount(String(initialAmount)) : "0"
+  );
   const [acc, setAcc] = useState<number | null>(null);
   const [op, setOp] = useState<Op | null>(null);
   const [fresh, setFresh] = useState(true);

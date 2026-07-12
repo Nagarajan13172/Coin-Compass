@@ -1,0 +1,30 @@
+{
+  "quickAdd": {
+    "label": "Quick add",
+    "new": "New",
+    "createFirst": "New quick-add",
+    "actions": "Template actions",
+    "hint": "Save your frequent spends (tea, snacks, groceries) and log them in one tap — just tweak the price."
+  },
+  "menu": {
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "form": {
+    "newTitle": "New quick-add template",
+    "editTitle": "Edit template",
+    "name": "Name",
+    "namePlaceholder": "e.g. Morning tea",
+    "amount": "Default price",
+    "amountHint": "A starting amount — you can change it each time you log it.",
+    "nameRequired": "Give the template a name",
+    "firstAccount": "First account"
+  },
+  "toast": {
+    "created": "Template saved",
+    "updated": "Template updated",
+    "deleted": "Template deleted",
+    "saveFailed": "Couldn’t save the template",
+    "deleteFailed": "Couldn’t delete the template"
+  }
+}
