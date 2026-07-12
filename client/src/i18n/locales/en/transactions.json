@@ -6,6 +6,10 @@
     "noMatch": "No transactions match these filters",
     "all": "All your transactions"
   },
+  "balances": {
+    "title": "Account balances",
+    "chipAria": "{{account}}: {{amount}}. Tap to filter by this account."
+  },
   "period": {
     "all": "All time",
     "thisMonth": "This month",

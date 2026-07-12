@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TransactionList } from "@/features/transactions/TransactionList";
 import { RecentlyDeletedDialog } from "@/features/transactions/RecentlyDeletedDialog";
+import { AccountBalancesStrip } from "@/features/transactions/AccountBalancesStrip";
 import { useTransactions, useTags, useDeletedTransactions, type TxnFilters } from "@/hooks/useTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
@@ -259,6 +260,10 @@ export default function TransactionsPage() {
           </div>
         }
       />
+
+      {/* live per-account balances — so the running balance is visible here
+          without hopping to Dashboard/Accounts; each chip also filters the list */}
+      <AccountBalancesStrip selectedIds={accountIds} onToggle={toggleAccount} />
 
       {/* filters — search on its own row, then an even 4-up row of dropdowns */}
       <div className="mb-3 space-y-2">
