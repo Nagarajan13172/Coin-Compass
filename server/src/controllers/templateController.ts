@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Template } from "../models/Template";
 import { templateSchema, templateUpdateSchema } from "../validators/schemas";
+import { ensureDefaultTemplatesSeeded } from "../services/templateService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -11,6 +12,9 @@ const POPULATE = [
 
 export async function listTemplates(req: Request, res: Response) {
   const uid = userId(req);
+  // Pre-existing users (created before quick-add shipped) get the default chips
+  // here on first fetch — so no manual backfill is needed in production.
+  await ensureDefaultTemplatesSeeded(uid);
   const templates = await Template.find({ user: uid })
     .sort({ order: 1, createdAt: 1 })
     .populate(POPULATE as never)

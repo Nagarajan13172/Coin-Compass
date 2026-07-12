@@ -27,10 +27,9 @@ function ref(v: RefLite | string | null | undefined): RefLite | null {
 }
 
 /**
- * A horizontally-scrollable row of one-tap "quick add" templates on the
- * Transactions page. Tapping a chip opens the entry sheet pre-filled from the
- * template (type, account, category, note, and a default price) so logging a
- * daily spend is just "tap → tweak the price → save".
+ * One-tap "quick add" chips on the Transactions page. Tapping a chip opens the
+ * entry sheet pre-filled from the template (type, account, category, note, and a
+ * default price) so logging a daily spend is just "tap → tweak the price → save".
  */
 export function QuickAddTemplates() {
   const { t } = useTranslation("templates");
@@ -42,6 +41,7 @@ export function QuickAddTemplates() {
   const [editing, setEditing] = useState<Template | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
 
+  /** Open the entry sheet pre-filled from the template (tap → tweak price → save). */
   function useTemplate(tpl: Template) {
     openTxnSheet({
       type: tpl.type,

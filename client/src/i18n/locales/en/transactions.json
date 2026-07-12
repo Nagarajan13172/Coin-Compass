@@ -76,7 +76,12 @@
     "saveFailed": "Failed to save",
     "deleteFailed": "Failed to delete",
     "restored": "Transaction restored",
-    "restoreFailed": "Couldn't restore the transaction"
+    "restoreFailed": "Couldn't restore the transaction",
+    "duplicated": "Logged again today",
+    "duplicateFailed": "Couldn't duplicate the transaction"
+  },
+  "swipe": {
+    "duplicate": "Duplicate"
   },
   "trash": {
     "recentlyDeleted": "Recently deleted ({{count}})",
