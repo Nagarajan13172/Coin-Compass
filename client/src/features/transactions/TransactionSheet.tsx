@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ArrowRight, Link2, X } from "lucide-react";
+import { ArrowRight, Link2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
+import { TagInput } from "@/components/common/TagInput";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useUIStore } from "@/stores/ui";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -79,7 +80,6 @@ export function TransactionSheet() {
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
   const [loanId, setLoanId] = useState("");
   // "Money to/from a person" — only offered when creating a new expense/income;
   // submitting goes through the Credits API instead so it also shows up there.
@@ -93,20 +93,6 @@ export function TransactionSheet() {
   // fork the link out of sync with that entry.
   const linkedCredit =
     editing?.credit && typeof editing.credit === "object" ? editing.credit : null;
-
-  function addTag(raw: string) {
-    const t = raw.trim().replace(/,+$/, "").trim();
-    if (t) setTags((prev) => (prev.includes(t) ? prev : [...prev, t]));
-    setTagInput("");
-  }
-  function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag(tagInput);
-    } else if (e.key === "Backspace" && !tagInput && tags.length) {
-      setTags((prev) => prev.slice(0, -1));
-    }
-  }
 
   // (re)initialise the form whenever the sheet opens
   useEffect(() => {
@@ -140,7 +126,6 @@ export function TransactionSheet() {
       setPerson("");
       setMethod("Cash");
     }
-    setTagInput("");
   }, [open, editing, defaultType, prefill]);
 
   // A transfer moves money between your own accounts — it can't represent a
@@ -199,7 +184,7 @@ export function TransactionSheet() {
         category: type === "transfer" ? null : categoryId,
         date: new Date(date).toISOString(),
         note,
-        tags: tagInput.trim() ? [...tags, tagInput.trim()] : tags,
+        tags,
         currency: activeAccount?.currency ?? "INR",
         // Loan repayments only make sense for money leaving an account.
         loan: type !== "income" && loanId ? loanId : null,
@@ -396,29 +381,12 @@ export function TransactionSheet() {
 
             <div className="space-y-1.5">
               <Label htmlFor="txn-tags">{t("sheet.tags")}</Label>
-              <Input
+              <TagInput
                 id="txn-tags"
+                value={tags}
+                onChange={setTags}
                 placeholder={t("sheet.tagsPlaceholder")}
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKey}
               />
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {tags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
-                      className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/70"
-                      aria-label={t("sheet.removeTag", { tag })}
-                    >
-                      {tag}
-                      <X className="h-3 w-3" />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Loan repayment — reduces the chosen loan's outstanding balance. */}

@@ -77,5 +77,10 @@
     "placeholder": "Search transactions…",
     "ariaLabel": "Search all transactions",
     "title": "Search transactions"
+  },
+  "tags": {
+    "create": "Create “{{tag}}”",
+    "removeAria": "Remove tag {{tag}}",
+    "placeholder": "Add a tag…"
   }
 }

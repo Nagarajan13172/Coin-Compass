@@ -18,7 +18,8 @@
     "amount": "Default price",
     "amountHint": "A starting amount — you can change it each time you log it.",
     "nameRequired": "Give the template a name",
-    "firstAccount": "First account"
+    "firstAccount": "First account",
+    "tags": "Tags"
   },
   "toast": {
     "created": "Template saved",

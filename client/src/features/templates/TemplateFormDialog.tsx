@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CategoryPicker } from "@/features/transactions/CategoryPicker";
+import { TagInput } from "@/components/common/TagInput";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCreateTemplate, useUpdateTemplate } from "@/hooks/useTemplates";
 import { sanitizeAmount } from "@/lib/amountFormat";
@@ -55,6 +56,7 @@ export function TemplateFormDialog({
   const [accountId, setAccountId] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
 
   // (re)seed the form each time it opens
   useEffect(() => {
@@ -65,6 +67,7 @@ export function TemplateFormDialog({
     setAccountId(refId(template?.account));
     setCategoryId(refId(template?.category) || null);
     setNote(template?.note ?? "");
+    setTags(template?.tags ?? []);
   }, [open, template]);
 
   function switchType(next: "expense" | "income") {
@@ -84,6 +87,7 @@ export function TemplateFormDialog({
       account: accountId || null,
       category: categoryId || null,
       note: note.trim(),
+      tags,
     };
     try {
       if (isEdit && template) {
@@ -189,6 +193,11 @@ export function TemplateFormDialog({
               onChange={(e) => setNote(e.target.value)}
               placeholder={t("labels.optional", { ns: "common" })}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="tpl-tags">{t("form.tags")}</Label>
+            <TagInput id="tpl-tags" value={tags} onChange={setTags} />
           </div>
         </div>
 
