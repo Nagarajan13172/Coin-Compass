@@ -71,11 +71,6 @@ export async function computeAllBalances(userId: string): Promise<Map<string, Ac
   return map;
 }
 
-export async function computeBalance(userId: string, accountId: string): Promise<AccountBalance | null> {
-  const all = await computeAllBalances(userId);
-  return all.get(String(accountId)) ?? null;
-}
-
 /** Total net worth across accounts that are flagged includeInTotal. */
 export async function computeNetWorth(userId: string): Promise<{ netWorth: number; byCurrency: Record<string, number> }> {
   const accounts = await Account.find({ user: new Types.ObjectId(userId), includeInTotal: true, archived: false }).lean();

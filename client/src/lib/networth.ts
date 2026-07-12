@@ -31,11 +31,6 @@ export const SUBTYPE_META: Record<HoldingSubtype, SubtypeMeta> = Object.fromEntr
   ALL_SUBTYPES.map((s) => [s.value, s])
 ) as Record<HoldingSubtype, SubtypeMeta>;
 
-export const CLASS_META: Record<HoldingClass, { label: string; color: string; icon: string }> = {
-  saving: { label: "Saving", color: "#10B981", icon: "piggy-bank" },
-  investment: { label: "Investment", color: "#6366F1", icon: "trending-up" },
-};
-
 /** Distinct slice colors for per-item charts (e.g. outstanding by loan). */
 export const CHART_PALETTE = [
   "#EF4444",

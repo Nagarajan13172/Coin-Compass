@@ -9,7 +9,3 @@ export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   upi: "UPI",
   savings: "Savings",
 };
-
-export function accountTypeLabel(type: string): string {
-  return ACCOUNT_TYPE_LABEL[type as AccountType] ?? "Account";
-}

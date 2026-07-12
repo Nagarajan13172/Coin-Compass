@@ -1,6 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { AccountDatum, CategoryDatum, Dashboard, Summary, TrendDatum } from "@/lib/types";
+import type {
+  AccountDatum,
+  CategoryDatum,
+  Dashboard,
+  InsightsReport,
+  Summary,
+  TrendDatum,
+} from "@/lib/types";
 
 interface RangeParams {
   from?: string;
@@ -49,5 +56,13 @@ export function useByAccount(params: RangeParams) {
   return useQuery({
     queryKey: ["reports", "by-account", params],
     queryFn: async () => (await api.get<AccountDatum[]>("/reports/by-account", { params })).data,
+  });
+}
+
+/** Period-over-period spending insights (comparison, movers, pace). */
+export function useInsights(params: { period: string; ref?: string }) {
+  return useQuery({
+    queryKey: ["reports", "insights", params],
+    queryFn: async () => (await api.get<InsightsReport>("/reports/insights", { params })).data,
   });
 }

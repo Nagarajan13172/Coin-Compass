@@ -66,12 +66,3 @@ export async function reverseLoanPayment(
   loan.status = loan.outstanding <= 0 ? "closed" : "active";
   await loan.save();
 }
-
-/** Record a prepayment/foreclosure charge against the loan's lifetime `chargesPaid`. */
-export async function addLoanCharge(loanId: unknown, userId: unknown, charge: number): Promise<void> {
-  if (!loanId || !charge || charge <= 0) return;
-  const loan = await Loan.findOne({ _id: loanId, user: userId });
-  if (!loan) return;
-  loan.chargesPaid = (loan.chargesPaid ?? 0) + charge;
-  await loan.save();
-}

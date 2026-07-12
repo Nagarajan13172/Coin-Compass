@@ -8,6 +8,7 @@
   "items": {
     "dashboard": "Dashboard",
     "reports": "Reports",
+    "insights": "Insights",
     "calendar": "Calendar",
     "notifications": "Notifications",
     "transactions": "Transactions",

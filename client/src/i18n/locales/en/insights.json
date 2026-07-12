@@ -1,0 +1,58 @@
+{
+  "title": "Insights",
+  "description": "How your spending is changing, period over period.",
+  "showing": "Showing",
+  "noun": {
+    "week": "week",
+    "month": "month",
+    "year": "year"
+  },
+  "dir": {
+    "more": "more",
+    "less": "less"
+  },
+  "empty": {
+    "title": "Not enough data yet",
+    "description": "Add a few transactions and insights about your spending will show up here."
+  },
+  "highlights": {
+    "spend": "You've spent {{amount}} this {{noun}} — {{pct}}% {{dir}} than last {{noun}}.",
+    "spendNoBase": "You've spent {{amount}} this {{noun}}.",
+    "mover": "{{category}} rose the most — up {{amount}}{{pct}} versus last period.",
+    "pace": "At this rate, you'll spend about {{amount}} by the end of the {{noun}}."
+  },
+  "compare": {
+    "spending": "Spending",
+    "income": "Income",
+    "net": "Net",
+    "vsLast": "vs last {{noun}}",
+    "lastWas": "Last {{noun}}: {{amount}}"
+  },
+  "delta": {
+    "flat": "No change"
+  },
+  "pace": {
+    "title": "Spending pace",
+    "spentSoFar": "Spent so far",
+    "avgPerDay": "Avg per day",
+    "projected": "Projected this {{noun}}",
+    "total": "Total this {{noun}}",
+    "dayOf": "Day {{elapsed}} of {{total}}",
+    "samePace": "Right on last {{noun}}'s pace",
+    "fasterThan": "{{pct}}% faster than last {{noun}} at this point",
+    "slowerThan": "{{pct}}% slower than last {{noun}} at this point"
+  },
+  "movers": {
+    "title": "What changed",
+    "subtitle": "Biggest shifts vs last {{noun}}",
+    "new": "New",
+    "none": "No category changes to show."
+  },
+  "top": {
+    "title": "Biggest expenses",
+    "subtitle": "Your largest single transactions this period",
+    "untitled": "Expense",
+    "uncategorized": "Uncategorized",
+    "none": "No expenses in this period."
+  }
+}

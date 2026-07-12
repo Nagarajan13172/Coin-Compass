@@ -19,6 +19,7 @@ import LoansPage from "@/routes/LoansPage";
 import CreditsPage from "@/routes/CreditsPage";
 import GoldPage from "@/routes/GoldPage";
 import ReportsPage from "@/routes/ReportsPage";
+import InsightsPage from "@/routes/InsightsPage";
 import CalendarPage from "@/routes/CalendarPage";
 import RecurringPage from "@/routes/RecurringPage";
 import CategoriesPage from "@/routes/CategoriesPage";
@@ -125,6 +126,7 @@ export function App() {
             <Route path="/credits" element={<CreditsPage />} />
             <Route path="/gold" element={<GoldPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/insights" element={<InsightsPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/recurring" element={<RecurringPage />} />
             <Route path="/categories" element={<CategoriesPage />} />

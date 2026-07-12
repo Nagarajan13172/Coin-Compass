@@ -13,6 +13,7 @@ import {
   Repeat,
   Shapes,
   Bell,
+  Lightbulb,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/", labelKey: "items.dashboard", icon: LayoutDashboard },
       { to: "/reports", labelKey: "items.reports", icon: PieChart },
+      { to: "/insights", labelKey: "items.insights", icon: Lightbulb },
       { to: "/calendar", labelKey: "items.calendar", icon: CalendarDays },
       { to: "/notifications", labelKey: "items.notifications", icon: Bell },
     ],

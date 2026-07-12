@@ -165,6 +165,7 @@ router.get("/reports/summary", asyncHandler(reports.summaryReport));
 router.get("/reports/by-category", asyncHandler(reports.byCategoryReport));
 router.get("/reports/trend", asyncHandler(reports.trendReport));
 router.get("/reports/by-account", asyncHandler(reports.byAccountReport));
+router.get("/reports/insights", asyncHandler(reports.insightsReport));
 router.post("/reports/email-now", asyncHandler(reports.sendReportEmailNow));
 
 // Dashboard

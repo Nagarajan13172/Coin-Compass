@@ -1,12 +1,6 @@
 import { addDays, addMonths, addYears } from "date-fns";
 import type { Recurring } from "@/lib/types";
 
-/** Human label for a rule — its category, or the note/transfer fallback. */
-export function ruleTitle(r: Recurring): string {
-  if (r.type === "transfer") return "Transfer";
-  return r.category?.name ?? (r.note || "Recurring");
-}
-
 /** Advance a date by one interval — mirror of the server's recurring schedule. */
 export function advanceDate(d: Date, frequency: string, interval: number): Date {
   const n = Math.max(1, interval);

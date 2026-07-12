@@ -47,17 +47,6 @@ export function useDeleteRecurring() {
   });
 }
 
-/** Process all due rules right now. */
-export function useRunRecurring() {
-  return useMutation({
-    mutationFn: async () => (await api.post<{ created: number }>("/recurring/run")).data,
-    onSuccess: () => {
-      invalidate();
-      invalidateMoney();
-    },
-  });
-}
-
 /** Post the due occurrences for a single rule. */
 export function useRunRecurringOne() {
   return useMutation({

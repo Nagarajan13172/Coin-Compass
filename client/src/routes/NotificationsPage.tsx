@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Bell, BellOff, CheckCheck, Trash2 } from "lucide-react";
+import { BellOff, CheckCheck, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";

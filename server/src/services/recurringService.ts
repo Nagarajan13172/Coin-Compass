@@ -130,7 +130,7 @@ export async function processDueRecurring(now: Date = new Date(), userId?: strin
     // Only the automatic (all-users) cron path raises notifications. A user-initiated
     // "Run due" already shows a toast, so it stays notification-free to avoid duplicate
     // feedback for an action they just performed.
-    if (!userId) await notifyRulePosted(doc, wasActive, createdForRule, now);
+    if (!userId) await notifyRulePosted(doc, wasActive, createdForRule);
   }
 
   return created;
@@ -140,8 +140,7 @@ export async function processDueRecurring(now: Date = new Date(), userId?: strin
 async function notifyRulePosted(
   rule: RuleDoc,
   wasActive: boolean,
-  created: number,
-  now: Date
+  created: number
 ): Promise<void> {
   try {
     if (created > 0 && rule.lastRun) {

@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, CalendarClock, HandCoins, Info, Landmark, PiggyBank, Plus, Receipt, Trophy, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -5,6 +5,7 @@ import {
   getTrend,
   getByAccount,
 } from "../services/reportService";
+import { computeInsights } from "../services/insightsService";
 import { sendReportTo, type ReportKind } from "../services/reportEmailService";
 import { User } from "../models/User";
 import { resolvePeriod, type Period } from "../utils/dateRange";
@@ -59,4 +60,17 @@ export async function trendReport(req: Request, res: Response) {
 
 export async function byAccountReport(req: Request, res: Response) {
   res.json(await getByAccount(userId(req), rangeFromQuery(req.query)));
+}
+
+const INSIGHT_PERIODS: Period[] = ["week", "month", "year"];
+
+/** Period-over-period spending insights: comparison, category movers, pace. */
+export async function insightsReport(req: Request, res: Response) {
+  const raw = String(req.query.period ?? "month") as Period;
+  const period = INSIGHT_PERIODS.includes(raw) ? raw : "month";
+  // A reference date lets the client page backwards/forwards through periods; an
+  // invalid or absent value just means "now".
+  const parsed = req.query.ref ? new Date(String(req.query.ref)) : new Date();
+  const ref = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  res.json(await computeInsights(userId(req), period, ref));
 }

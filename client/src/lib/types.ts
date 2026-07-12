@@ -408,6 +408,58 @@ export interface AccountDatum {
   expense: number;
 }
 
+export interface InsightsMetric {
+  current: number;
+  previous: number;
+  delta: number;
+  /** % change vs previous; null when there's no baseline (previous was 0). */
+  pct: number | null;
+}
+
+export interface CategoryMover {
+  categoryId: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  current: number;
+  previous: number;
+  delta: number;
+  pct: number | null;
+}
+
+export interface TopExpense {
+  _id: string;
+  amount: number;
+  note: string;
+  payee: string;
+  date: string;
+  category: { name: string; color: string; icon: string } | null;
+  account: { name: string; color: string } | null;
+}
+
+export interface InsightsPace {
+  isCurrent: boolean;
+  daysElapsed: number;
+  daysInPeriod: number;
+  avgPerDay: number;
+  projected: number;
+  previousToDate: number;
+}
+
+export interface InsightsReport {
+  period: PeriodKey;
+  current: { start: string; end: string };
+  previous: { start: string; end: string };
+  expense: InsightsMetric;
+  income: InsightsMetric;
+  net: InsightsMetric;
+  savingsRate: { current: number | null; previous: number | null };
+  pace: InsightsPace;
+  movers: CategoryMover[];
+  topExpenses: TopExpense[];
+  hasData: boolean;
+}
+
 export interface Dashboard {
   period: PeriodKey;
   range: { start: string; end: string };

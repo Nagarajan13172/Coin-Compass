@@ -4,12 +4,6 @@ import type { Budget, BudgetPeriod } from "@/lib/types";
 /** At/above this % of the limit a budget is flagged "Near limit" (drives both bar + badge). */
 export const NEAR_LIMIT_PCT = 80;
 
-export const BUDGET_PERIOD_LABEL: Record<BudgetPeriod, string> = {
-  weekly: "This week",
-  monthly: "This month",
-  yearly: "This year",
-};
-
 /** Order periods weekly → monthly → yearly for stable display. */
 export const BUDGET_PERIOD_ORDER: BudgetPeriod[] = ["weekly", "monthly", "yearly"];
 
