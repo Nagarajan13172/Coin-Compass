@@ -2,7 +2,7 @@
   "name": "money-tracker",
   "version": "1.0.0",
   "private": true,
-  "description": "Money Tracker — full-stack expense & budget tracker (React + Express + MongoDB)",
+  "description": "CoinCompass — full-stack personal finance manager (React + Express + MongoDB)",
   "scripts": {
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
