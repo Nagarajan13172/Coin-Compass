@@ -24,6 +24,7 @@ import { formatMoney } from "@/lib/format";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useLoans } from "@/hooks/useLoans";
+import { useGoals } from "@/hooks/useGoals";
 import { useCreateRecurring, useUpdateRecurring } from "@/hooks/useRecurring";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { categoryLabel } from "@/lib/i18nLabels";
@@ -32,6 +33,7 @@ import type { Frequency, Recurring, TxnType } from "@/lib/types";
 import { useTranslation } from "react-i18next";
 
 const NO_LOAN = "__none__";
+const NO_GOAL = "__none__";
 
 interface Props {
   open: boolean;
@@ -90,6 +92,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const { t } = useTranslation("recurring");
   const { data: accounts } = useAccounts();
   const { data: loans } = useLoans();
+  const { data: goals } = useGoals();
   const create = useCreateRecurring();
   const update = useUpdateRecurring();
   const isEdit = Boolean(recurring);
@@ -106,6 +109,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const [payee, setPayee] = useState("");
   const [note, setNote] = useState("");
   const [loanId, setLoanId] = useState("");
+  const [goalId, setGoalId] = useState("");
   // The date strings as first loaded, so an edit only re-sends them when the user
   // actually changed them — this keeps a metadata-only edit from re-anchoring the schedule.
   const [initialStart, setInitialStart] = useState("");
@@ -131,6 +135,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
     setPayee(recurring?.payee ?? "");
     setNote(recurring?.note ?? "");
     setLoanId(recurring?.loan?._id ?? "");
+    setGoalId(recurring?.goal?._id ?? "");
   }, [open, recurring, accounts]);
 
   const preview = useMemo(
@@ -159,6 +164,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
       payee,
       note,
       loan: type !== "income" && loanId ? loanId : null,
+      goal: type !== "income" && goalId ? goalId : null,
     };
     // Only send the calendar dates when they actually changed. On edit this keeps a
     // metadata-only save from being misread as a start-date change (which would
@@ -294,7 +300,14 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
               return (
                 <div className="space-y-1.5">
                   <Label>{t("form.applyToLoan")}</Label>
-                  <Select value={loanId || NO_LOAN} onValueChange={(v) => setLoanId(v === NO_LOAN ? "" : v)}>
+                  <Select
+                    value={loanId || NO_LOAN}
+                    onValueChange={(v) => {
+                      const next = v === NO_LOAN ? "" : v;
+                      setLoanId(next);
+                      if (next) setGoalId(""); // a rule pays a loan OR feeds a goal, not both
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -328,6 +341,46 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
                         </p>
                       );
                     })()}
+                </div>
+              );
+            })()}
+
+          {/* Savings goal — each posted occurrence adds its amount to the goal's progress
+              (a real transaction still moves the money in your accounts). */}
+          {type !== "income" &&
+            (() => {
+              const options = (goals ?? []).filter((g) => !g.complete || g._id === goalId);
+              if (options.length === 0) return null;
+              return (
+                <div className="space-y-1.5">
+                  <Label>{t("form.contributeToGoal")}</Label>
+                  <Select
+                    value={goalId || NO_GOAL}
+                    onValueChange={(v) => {
+                      const next = v === NO_GOAL ? "" : v;
+                      setGoalId(next);
+                      if (next) setLoanId(""); // a rule feeds a goal OR pays a loan, not both
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_GOAL}>{t("labels.none", { ns: "common" })}</SelectItem>
+                      {options.map((g) => (
+                        <SelectItem key={g._id} value={g._id}>
+                          {g.name} · {t("form.goalLeft", { amount: formatMoney(g.remaining) })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {goalId && (
+                    <p className="text-xs text-muted-foreground">
+                      {Number(amount) > 0
+                        ? t("form.goalHint", { amount: formatMoney(Number(amount)) })
+                        : t("form.goalHintEmpty")}
+                    </p>
+                  )}
                 </div>
               );
             })()}

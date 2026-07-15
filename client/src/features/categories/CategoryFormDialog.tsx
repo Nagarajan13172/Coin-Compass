@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { ColorPicker } from "@/components/common/ColorPicker";
 import { IconPicker } from "@/components/common/IconPicker";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
@@ -36,17 +37,19 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType, 
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("tag");
   const [color, setColor] = useState("#64748B");
+  const [oneoffDefault, setOneoffDefault] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setName(category?.name ?? "");
     setIcon(category?.icon ?? "tag");
     setColor(category?.color ?? "#64748B");
+    setOneoffDefault(category?.oneoffDefault ?? false);
   }, [open, category]);
 
   async function submit() {
     if (!name.trim()) return toast.error(t("category.errors.name"));
-    const payload = { name: name.trim(), icon, color, type: category?.type ?? defaultType };
+    const payload = { name: name.trim(), icon, color, oneoffDefault, type: category?.type ?? defaultType };
     try {
       if (isEdit && category) {
         await update.mutateAsync({ id: category._id, ...payload });
@@ -83,6 +86,18 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType, 
           <div className="space-y-1.5">
             <Label>{t("labels.icon", { ns: "common" })}</Label>
             <IconPicker value={icon} color={color} onChange={setIcon} />
+          </div>
+          {/* Auto-mark transactions in this category as one-off (e.g. a "Misc" bucket). */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="pr-4">
+              <p className="text-sm font-medium">{t("category.oneoffDefault")}</p>
+              <p className="text-xs text-muted-foreground">{t("category.oneoffDefaultHelp")}</p>
+            </div>
+            <Switch
+              checked={oneoffDefault}
+              onCheckedChange={setOneoffDefault}
+              aria-label={t("category.oneoffDefault")}
+            />
           </div>
           {isEdit && category && <RecordMeta createdAt={category.createdAt} updatedAt={category.updatedAt} />}
         </div>

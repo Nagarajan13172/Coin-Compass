@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Goal } from "../models/Goal";
 import { goalSchema, goalUpdateSchema, goalContributeSchema } from "../validators/schemas";
+import { applyContribution, nextAchievedAt } from "../services/goalService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -39,11 +40,7 @@ export async function updateGoal(req: Request, res: Response) {
   Object.assign(goal, data);
   // Editing savedAmount/targetAmount can cross the finish line just like a
   // contribution does — keep achievedAt in step so the persisted date isn't stale.
-  if (goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount) {
-    if (!goal.achievedAt) goal.achievedAt = new Date();
-  } else {
-    goal.achievedAt = null;
-  }
+  goal.achievedAt = nextAchievedAt(goal.savedAmount, goal.targetAmount, goal.achievedAt ?? null, new Date());
   await goal.save();
   res.json(withProgress(goal.toObject()));
 }
@@ -55,12 +52,13 @@ export async function contributeGoal(req: Request, res: Response) {
   const goal = await Goal.findOne({ _id: req.params.id, user: uid });
   if (!goal) throw new HttpError(404, "Goal not found");
 
-  goal.savedAmount = Math.max(0, (goal.savedAmount ?? 0) + amount);
-  if (goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount) {
-    if (!goal.achievedAt) goal.achievedAt = new Date();
-  } else {
-    goal.achievedAt = null; // dropped back below target
-  }
+  const next = applyContribution(
+    { savedAmount: goal.savedAmount ?? 0, targetAmount: goal.targetAmount, achievedAt: goal.achievedAt ?? null },
+    amount,
+    new Date()
+  );
+  goal.savedAmount = next.savedAmount;
+  goal.achievedAt = next.achievedAt;
   await goal.save();
   res.json(withProgress(goal.toObject()));
 }

@@ -18,6 +18,7 @@ const populate = [
   { path: "toAccount", select: "name color icon currency" },
   { path: "category", select: "name color icon type" },
   { path: "loan", select: "name" },
+  { path: "goal", select: "name color icon" },
 ];
 
 /** Attach the next few scheduled run dates so the client can preview upcoming occurrences. */

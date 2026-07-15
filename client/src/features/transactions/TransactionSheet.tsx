@@ -368,7 +368,16 @@ export function TransactionSheet() {
               !linkedCredit && (
                 <div className="space-y-1.5">
                   <Label>{t("labels.category", { ns: "common" })}</Label>
-                  <CategoryPicker type={type} value={categoryId} onChange={setCategoryId} />
+                  <CategoryPicker
+                    type={type}
+                    value={categoryId}
+                    onChange={(id, cat) => {
+                      setCategoryId(id);
+                      // Categories flagged "one-off by default" (e.g. Misc) auto-enable
+                      // the toggle; only on an actual pick, so editing keeps its stored value.
+                      if (cat.oneoffDefault) setOneoff(true);
+                    }}
+                  />
                 </div>
               )
             )}

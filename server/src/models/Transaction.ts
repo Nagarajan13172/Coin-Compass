@@ -31,6 +31,11 @@ const transactionSchema = new Schema(
     // An informal credit (money to/from a person): set when this transaction was
     // created from — or linked to — a Credit entry. See creditService.
     credit: { type: Schema.Types.ObjectId, ref: "Credit", default: null },
+    // A savings-goal contribution: when set, this transaction's amount was added to
+    // the goal's saved total. `goalContribution` records how much was applied, so an
+    // edit/delete can reverse exactly what was applied (mirrors loan/loanPrincipal).
+    goal: { type: Schema.Types.ObjectId, ref: "Goal", default: null },
+    goalContribution: { type: Number, default: 0 },
     // Soft delete: when set, the row is in the "Recently deleted" trash — hidden
     // from every read (see hooks below) and hard-purged after the retention window.
     // Only side-effect-free transactions are soft-deleted; loan/credit-linked ones

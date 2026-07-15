@@ -13,7 +13,8 @@ import type { Category, CategoryType } from "@/lib/types";
 interface CategoryPickerProps {
   type: CategoryType;
   value: string | null;
-  onChange: (id: string) => void;
+  /** Called with the picked category's id and the full category (for flags like oneoffDefault). */
+  onChange: (id: string, category: Category) => void;
 }
 
 export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
@@ -41,7 +42,7 @@ export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
       <button
         key={c._id}
         type="button"
-        onClick={() => onChange(c._id)}
+        onClick={() => onChange(c._id, c)}
         className={cn(
           "flex flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition-all",
           active
@@ -86,7 +87,7 @@ export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
         open={addOpen}
         onOpenChange={setAddOpen}
         defaultType={type}
-        onCreated={(c) => onChange(c._id)}
+        onCreated={(c) => onChange(c._id, c)}
       />
     </>
   );

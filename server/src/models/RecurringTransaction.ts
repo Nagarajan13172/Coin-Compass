@@ -17,6 +17,9 @@ const recurringSchema = new Schema(
     currency: { type: String, default: "INR" },
     // When set, each posted occurrence reduces this loan's outstanding (e.g. an EMI).
     loan: { type: Schema.Types.ObjectId, ref: "Loan", default: null },
+    // When set, each posted occurrence adds its amount to this savings goal's progress
+    // (e.g. a monthly auto-debit that also counts toward a "Car Insurance" goal).
+    goal: { type: Schema.Types.ObjectId, ref: "Goal", default: null },
     // recurrence rule
     frequency: { type: String, enum: RECURRENCE_FREQUENCIES, default: "monthly" },
     interval: { type: Number, default: 1, min: 1 }, // every N frequency units

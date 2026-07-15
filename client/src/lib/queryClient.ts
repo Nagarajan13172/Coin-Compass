@@ -18,4 +18,6 @@ export function invalidateMoney() {
   queryClient.invalidateQueries({ queryKey: ["reports"] });
   queryClient.invalidateQueries({ queryKey: ["budgets"] });
   queryClient.invalidateQueries({ queryKey: ["networth"] });
+  // A goal-linked transaction (or recurring auto-debit) moves the goal's saved total.
+  queryClient.invalidateQueries({ queryKey: ["goals"] });
 }

@@ -4,6 +4,7 @@ import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
 import { balanceAsOf } from "../services/balanceService";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
+import { applyGoalContribution, reverseGoalContribution } from "../services/goalService";
 import { unlinkCreditTransaction, syncCreditFromTransaction, deleteCreditForTransaction } from "../services/creditService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
@@ -13,6 +14,7 @@ const POPULATE = [
   { path: "toAccount", select: "name color icon currency" },
   { path: "category", select: "name color icon type" },
   { path: "loan", select: "name" },
+  { path: "goal", select: "name color icon" },
   { path: "credit", select: "person direction" },
 ];
 
@@ -49,6 +51,31 @@ function buildFilter(query: Request["query"]): Record<string, unknown> {
   return filter;
 }
 
+/** Cast a single id or `{ $in: [...] }` of ids from strings to ObjectIds, skipping
+ *  invalid ones. `.find()` casts these automatically from the schema, but an
+ *  aggregate `$match` does not — so the summary pipeline needs it done by hand. */
+function castIdFilter(value: unknown): unknown {
+  if (value && typeof value === "object" && "$in" in (value as Record<string, unknown>)) {
+    const ids = (value as { $in: unknown[] }).$in
+      .map(String)
+      .filter((s) => Types.ObjectId.isValid(s))
+      .map((s) => new Types.ObjectId(s));
+    return { $in: ids };
+  }
+  const s = String(value);
+  return Types.ObjectId.isValid(s) ? new Types.ObjectId(s) : value;
+}
+
+/** buildFilter, but with the ObjectId fields cast for an aggregation pipeline and
+ *  scoped to the user. */
+function buildMatch(query: Request["query"], uid: string): Record<string, unknown> {
+  const match = buildFilter(query);
+  if (match.account !== undefined) match.account = castIdFilter(match.account);
+  if (match.category !== undefined) match.category = castIdFilter(match.category);
+  match.user = new Types.ObjectId(uid);
+  return match;
+}
+
 export async function listTransactions(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page ?? 1));
   const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 50)));
@@ -71,6 +98,49 @@ export async function listTransactions(req: Request, res: Response) {
     total,
     pages: Math.ceil(total / limit),
     hasMore: page * limit < total,
+  });
+}
+
+/**
+ * In / out / net totals for a *filtered* slice of the ledger — the same filters
+ * the list accepts (account, category, type, tag, one-off, date range, search).
+ * The list is paginated, so the client can't just sum the loaded rows; this runs
+ * one aggregation over the whole matching set. Transfers move money between the
+ * user's own accounts, so they count toward neither in nor out (matching the
+ * /reports summary); `count` still reflects every matched row so it lines up with
+ * the list's total.
+ */
+export async function transactionsSummary(req: Request, res: Response) {
+  const match = buildMatch(req.query, userId(req));
+  const [agg] = await Transaction.aggregate<{
+    income: number;
+    expense: number;
+    incomeCount: number;
+    expenseCount: number;
+    count: number;
+  }>([
+    { $match: match },
+    {
+      $group: {
+        _id: null,
+        income: { $sum: { $cond: [{ $eq: ["$type", "income"] }, "$amount", 0] } },
+        expense: { $sum: { $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0] } },
+        incomeCount: { $sum: { $cond: [{ $eq: ["$type", "income"] }, 1, 0] } },
+        expenseCount: { $sum: { $cond: [{ $eq: ["$type", "expense"] }, 1, 0] } },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const income = agg?.income ?? 0;
+  const expense = agg?.expense ?? 0;
+  res.json({
+    income,
+    expense,
+    net: income - expense,
+    incomeCount: agg?.incomeCount ?? 0,
+    expenseCount: agg?.expenseCount ?? 0,
+    count: agg?.count ?? 0,
   });
 }
 
@@ -114,13 +184,21 @@ export async function createTransaction(req: Request, res: Response) {
   if (data.type !== "transfer") data.toAccount = null;
   if (data.type === "transfer") data.category = null;
   const txn = await Transaction.create({ ...data, user: uid });
+  let touched = false;
   // Linked to a loan → principal reduces the balance, interest is tracked separately.
   if (txn.loan) {
     const { principal, interest } = await applyLoanPayment(txn.loan, uid, txn.amount);
     txn.loanPrincipal = principal;
     txn.loanInterest = interest;
-    await txn.save();
+    touched = true;
   }
+  // Linked to a goal → the amount is added to the goal's saved total; store how much
+  // was applied so an edit/delete can reverse it exactly.
+  if (txn.goal) {
+    txn.goalContribution = await applyGoalContribution(txn.goal, uid, txn.amount);
+    touched = true;
+  }
+  if (touched) await txn.save();
   const populated = await txn.populate(POPULATE);
   res.status(201).json(populated);
 }
@@ -137,6 +215,8 @@ export async function updateTransaction(req: Request, res: Response) {
   const prevLoan = txn.loan;
   const prevPrincipal = txn.loanPrincipal ?? 0;
   const prevInterest = txn.loanInterest ?? 0;
+  const prevGoal = txn.goal;
+  const prevGoalContribution = txn.goalContribution ?? 0;
   const prevCredit = txn.credit;
   Object.assign(txn, data);
 
@@ -162,6 +242,15 @@ export async function updateTransaction(req: Request, res: Response) {
   } else {
     txn.loanPrincipal = 0;
     txn.loanInterest = 0;
+  }
+
+  // Same reconcile for a linked goal: undo the previous contribution, then re-apply
+  // on the new amount (handles amount changes, re-linking, or clearing the goal).
+  if (prevGoal) await reverseGoalContribution(prevGoal, uid, prevGoalContribution);
+  if (txn.goal) {
+    txn.goalContribution = await applyGoalContribution(txn.goal, uid, txn.amount);
+  } else {
+    txn.goalContribution = 0;
   }
 
   // Keep a linked credit entry in sync, or unlink it (keeping the credit itself)
@@ -190,12 +279,13 @@ export async function deleteTransaction(req: Request, res: Response) {
   const txn = await Transaction.findOne({ _id: req.params.id, user: uid });
   if (!txn) throw new HttpError(404, "Transaction not found");
 
-  // Loan/credit-linked transactions carry stored side effects (a loan's outstanding,
-  // a paired Credit entry) that can't be cleanly reconstructed on restore — so they're
-  // still removed permanently, reversing those effects exactly as before.
-  if (txn.loan || txn.credit) {
+  // Loan/goal/credit-linked transactions carry stored side effects (a loan's outstanding,
+  // a goal's saved total, a paired Credit entry) that can't be cleanly reconstructed on
+  // restore — so they're still removed permanently, reversing those effects exactly as before.
+  if (txn.loan || txn.goal || txn.credit) {
     await Transaction.deleteOne({ _id: txn._id });
     if (txn.loan) await reverseLoanPayment(txn.loan, uid, txn.loanPrincipal ?? txn.amount, txn.loanInterest ?? 0);
+    if (txn.goal) await reverseGoalContribution(txn.goal, uid, txn.goalContribution ?? txn.amount);
     if (txn.credit) await deleteCreditForTransaction(uid, txn.credit);
     return res.json({ ok: true, recoverable: false });
   }

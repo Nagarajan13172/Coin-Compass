@@ -81,6 +81,10 @@
     "emiPrefix": "Each EMI: ≈",
     "emiSuffix": "to principal · {{interest}} interest.",
     "emiHint": "Each posted EMI reduces the loan's balance by its principal portion.",
+    "contributeToGoal": "Contribute to goal",
+    "goalLeft": "{{amount}} left",
+    "goalHint": "Each posted transaction adds {{amount}} to this goal — and still moves the money in your accounts.",
+    "goalHintEmpty": "Each posted transaction adds its amount to this goal — and still moves the money in your accounts.",
     "nextOccurrences": "Next occurrences",
     "errors": {
       "amount": "Enter a valid amount",
@@ -100,6 +104,8 @@
     "description": "Confirm the amount and date, then post this {{frequency}} {{type}}. The transaction is linked to the rule and the schedule moves to the next occurrence.",
     "loanNotePrefix": "This also reduces",
     "loanNoteSuffix": "'s outstanding balance by the amount posted.",
+    "goalNotePrefix": "This also adds the posted amount to",
+    "goalNoteSuffix": "'s progress.",
     "submit": "Post transaction",
     "fallbackTitle": "Recurring",
     "errors": {
@@ -142,6 +148,8 @@
     "editTitle": "Edit category",
     "newTitle": "New category",
     "namePlaceholder": "e.g. Coffee",
+    "oneoffDefault": "Mark as one-off by default",
+    "oneoffDefaultHelp": "New transactions in this category start with the one-off (irregular spend) toggle on. You can still change it per transaction.",
     "deleteAnyway": "Delete anyway and clear it from those transactions?",
     "errors": {
       "name": "Enter a name"

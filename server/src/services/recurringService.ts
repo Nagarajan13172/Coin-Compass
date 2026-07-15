@@ -1,6 +1,7 @@
 import { RecurringTransaction, type RecurringDoc } from "../models/RecurringTransaction";
 import { Transaction } from "../models/Transaction";
 import { applyLoanPayment } from "./loanService";
+import { applyGoalContribution } from "./goalService";
 import { notify } from "./notificationService";
 import { ruleTitle, postedDedupeKey, endedDedupeKey } from "./notificationLogic";
 import { addDays, addMonths, addYears } from "../utils/dateRange";
@@ -91,13 +92,20 @@ async function postDueForRule(rule: RuleDoc, now: Date): Promise<number> {
       currency: rule.currency,
       recurring: rule._id,
       loan: rule.loan,
+      goal: rule.goal,
     });
+    let touched = false;
     if (rule.loan) {
       const { principal, interest } = await applyLoanPayment(rule.loan, rule.user, rule.amount);
       posted.loanPrincipal = principal;
       posted.loanInterest = interest;
-      await posted.save();
+      touched = true;
     }
+    if (rule.goal) {
+      posted.goalContribution = await applyGoalContribution(rule.goal, rule.user, rule.amount);
+      touched = true;
+    }
+    if (touched) await posted.save();
     created += 1;
     rule.lastRun = new Date(next);
     next = advance(next, rule.frequency, rule.interval);
@@ -218,13 +226,20 @@ export async function postOneOccurrence(
     currency: rule.currency,
     recurring: rule._id,
     loan: rule.loan,
+    goal: rule.goal,
   });
+  let touched = false;
   if (rule.loan) {
     const { principal, interest } = await applyLoanPayment(rule.loan, rule.user, amount);
     posted.loanPrincipal = principal;
     posted.loanInterest = interest;
-    await posted.save();
+    touched = true;
   }
+  if (rule.goal) {
+    posted.goalContribution = await applyGoalContribution(rule.goal, rule.user, amount);
+    touched = true;
+  }
+  if (touched) await posted.save();
 
   rule.lastRun = date;
   const next = advance(new Date(rule.nextRun), rule.frequency, rule.interval);

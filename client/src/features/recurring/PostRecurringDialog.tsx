@@ -74,6 +74,12 @@ export function PostRecurringDialog({ rule, onClose }: { rule: Recurring | null;
               {t("post.loanNoteSuffix")}
             </p>
           )}
+          {rule?.goal && (
+            <p className="rounded-lg border border-primary/40 bg-primary/5 p-2.5 text-xs">
+              {t("post.goalNotePrefix")} <span className="font-semibold">{rule.goal.name}</span>
+              {t("post.goalNoteSuffix")}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="post-amount">{t("labels.amount", { ns: "common" })}</Label>

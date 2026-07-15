@@ -78,6 +78,7 @@ export const categorySchema = z.object({
   color: z.string().default("#64748B"),
   parent: optionalObjectId,
   order: z.number().default(0),
+  oneoffDefault: z.boolean().default(false),
 });
 export const categoryUpdateSchema = categorySchema.partial();
 
@@ -95,6 +96,7 @@ export const transactionSchema = z
     oneoff: z.boolean().default(false),
     currency: z.string().default("INR"),
     loan: optionalObjectId,
+    goal: optionalObjectId,
   })
   .refine((d) => d.type !== "transfer" || !!d.toAccount, {
     message: "Transfers require a destination account",
@@ -118,6 +120,7 @@ export const transactionUpdateSchema = z.object({
   oneoff: z.boolean().optional(),
   currency: z.string().optional(),
   loan: optionalObjectId,
+  goal: optionalObjectId,
 });
 
 export const templateSchema = z.object({
@@ -153,6 +156,7 @@ const recurringBase = z.object({
   tags: z.array(z.string()).default([]),
   currency: z.string().default("INR"),
   loan: optionalObjectId,
+  goal: optionalObjectId,
   frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).default("monthly"),
   interval: z.number().int().positive().default(1),
   startDate: z.coerce.date().default(() => new Date()),

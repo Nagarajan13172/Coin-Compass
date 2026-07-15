@@ -66,6 +66,8 @@ export interface Category {
   parent?: string | null;
   order: number;
   isDefault?: boolean;
+  /** When true, picking this category auto-enables the transaction's one-off toggle. */
+  oneoffDefault?: boolean;
   // Recent (last-90-day) transaction count, supplied by GET /categories, used to
   // surface "frequently used" categories in the picker. Absent on writes.
   usageCount?: number;
@@ -100,6 +102,10 @@ export interface Transaction {
   recurring?: string | null;
   /** When set, this transaction is a repayment that reduces the loan's balance. */
   loan?: RefLite | string | null;
+  /** When set, this transaction's amount was contributed to a savings goal. */
+  goal?: RefLite | string | null;
+  /** How much of this transaction was applied to the goal (for exact reversal). */
+  goalContribution?: number;
   /** When set, this transaction is the reflected side of a Credit entry (money to/from a person). */
   credit?: { _id: string; person: string; direction: CreditDirection } | string | null;
   /** Set when the transaction is in the "Recently deleted" trash (soft-deleted). */
@@ -145,6 +151,8 @@ export interface Recurring {
   tags: string[];
   currency: string;
   loan?: RefLite | null;
+  /** When set, each posted occurrence adds its amount to this savings goal. */
+  goal?: RefLite | null;
   frequency: Frequency;
   interval: number;
   startDate: string;
