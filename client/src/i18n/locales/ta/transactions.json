@@ -99,7 +99,8 @@
     "out": "−{{amount}} செலவு",
     "transfers_one": "{{count}} பரிமாற்றம்",
     "transfers_other": "{{count}} பரிமாற்றங்கள்",
-    "net": "நிகர"
+    "net": "நிகர",
+    "endOfDayBalance": "நாள் இறுதி இருப்பு"
   },
   "picker": {
     "new": "புதியது"

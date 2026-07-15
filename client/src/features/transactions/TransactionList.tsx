@@ -9,10 +9,22 @@ import { Separator } from "@/components/ui/separator";
 
 interface TransactionListProps {
   transactions: Transaction[];
+  /**
+   * The current total balance across all accounts. When provided, each day shows
+   * an "end-of-day balance" footer: we anchor at this present-day total (which
+   * already reflects every transaction) and walk the newest-first list backwards,
+   * subtracting each day's net. Transfers move money between accounts so they net
+   * to zero on the total, which is why income − expense is the day's balance delta.
+   *
+   * Only pass this for the full, unfiltered ledger — any account/category/type/
+   * tag/search filter makes the visible rows a subset that no longer reconciles
+   * with the account balances, so the caller omits it then.
+   */
+  endingBalance?: number;
 }
 
 /** Transactions grouped by day with a per-day net total header. */
-export function TransactionList({ transactions }: TransactionListProps) {
+export function TransactionList({ transactions, endingBalance }: TransactionListProps) {
   const { t } = useTranslation("transactions");
   const groups = useMemo(() => {
     type Group = {
@@ -35,6 +47,19 @@ export function TransactionList({ transactions }: TransactionListProps) {
     }
     return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [transactions]);
+
+  // Balance at the end of each day, keyed by dayKey. Walk from the newest day
+  // (whose end-of-day balance is the current total) back through history.
+  const endOfDay = useMemo(() => {
+    if (endingBalance == null) return null;
+    const out = new Map<string, number>();
+    let bal = endingBalance;
+    for (const [key, g] of groups) {
+      out.set(key, bal);
+      bal -= g.income - g.expense; // step back to the prior day's closing balance
+    }
+    return out;
+  }, [groups, endingBalance]);
 
   return (
     <div className="space-y-7">
@@ -81,6 +106,20 @@ export function TransactionList({ transactions }: TransactionListProps) {
                 <TransactionRow key={t._id} txn={t} showTime />
               ))}
             </div>
+            {endOfDay && (
+              <div className="mt-2 flex items-center justify-between border-t border-dashed border-border/60 px-1 pt-2">
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {t("group.endOfDayBalance")}
+                </span>
+                <span
+                  className={`tnum text-xs font-semibold ${
+                    (endOfDay.get(key) ?? 0) < 0 ? "text-expense" : "text-foreground"
+                  }`}
+                >
+                  {formatMoney(endOfDay.get(key) ?? 0)}
+                </span>
+              </div>
+            )}
           </motion.div>
         );
       })}

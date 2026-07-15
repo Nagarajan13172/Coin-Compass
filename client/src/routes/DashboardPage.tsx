@@ -311,6 +311,7 @@ export default function DashboardPage() {
                   <CategoryDonut
                     data={data.byCategory}
                     total={data.summary.expense}
+                    totals={{ income: data.summary.income, expense: data.summary.expense }}
                     onSelect={openCategory}
                     wideLegend
                   />

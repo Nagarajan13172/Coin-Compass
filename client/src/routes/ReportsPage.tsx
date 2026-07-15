@@ -260,6 +260,7 @@ export default function ReportsPage() {
               <CategoryDonut
                 data={byCategory.data}
                 total={total}
+                totals={{ income: summary.data?.income ?? 0, expense: summary.data?.expense ?? 0 }}
                 showBars
                 wideLegend
                 centerLabel={donutType === "expense" ? t("centerLabel.spent") : t("centerLabel.earned")}

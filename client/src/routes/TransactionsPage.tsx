@@ -144,6 +144,23 @@ export default function TransactionsPage() {
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
 
+  // Running end-of-day balance is only meaningful for the full ledger anchored at
+  // the current total balance: any narrowing filter makes the visible rows a
+  // subset, and a period ending in the past would anchor at the wrong (present)
+  // total. In those cases we hide the per-day balance footer.
+  const totalBalance = useMemo(
+    () => (accounts ?? []).reduce((sum, a) => sum + (a.balance ?? 0), 0),
+    [accounts]
+  );
+  const showRunningBalance =
+    !!accounts &&
+    type === ALL &&
+    accountIds.length === 0 &&
+    selectedTags.length === 0 &&
+    category === ALL &&
+    !debounced &&
+    (!range.to || new Date(range.to).getTime() >= Date.now());
+
   // infinite scroll sentinel
   const sentinel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -426,7 +443,10 @@ export default function TransactionsPage() {
         </div>
       ) : items.length ? (
         <>
-          <TransactionList transactions={items} />
+          <TransactionList
+            transactions={items}
+            endingBalance={showRunningBalance ? totalBalance : undefined}
+          />
           <div ref={sentinel} className="h-10" />
           {isFetchingNextPage && (
             <p className="py-4 text-center text-sm text-muted-foreground">{t("loadingMore")}</p>
