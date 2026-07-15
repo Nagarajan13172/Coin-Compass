@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryFormDialog } from "@/features/categories/CategoryFormDialog";
 import { cn } from "@/lib/utils";
 import { categoryLabel } from "@/lib/i18nLabels";
+import { splitByFrequency } from "@/lib/categoryOrder";
 import type { Category, CategoryType } from "@/lib/types";
 
 interface CategoryPickerProps {
@@ -14,13 +15,6 @@ interface CategoryPickerProps {
   value: string | null;
   onChange: (id: string) => void;
 }
-
-// Show the most-used categories in their own band only once the full list is
-// long enough that scanning it is a chore. Below this, a flat A–Z grid is faster.
-const SPLIT_THRESHOLD = 8;
-// Cap on the "Frequently used" band — enough to cover daily spends without the
-// band churning so much that muscle memory breaks.
-const FREQUENT_MAX = 6;
 
 export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
   const { t } = useTranslation("transactions");
@@ -37,19 +31,9 @@ export function CategoryPicker({ type, value, onChange }: CategoryPickerProps) {
     );
   }
 
-  const all = categories ?? [];
-  // `all` arrives A–Z (localized) from the hook. Array.sort is stable, so ranking
-  // by usage keeps ties in A–Z order — no separate tiebreak needed. Only split out
-  // a frequent band for longer lists; short lists stay a single flat grid.
-  const frequent =
-    all.length > SPLIT_THRESHOLD
-      ? all
-          .filter((c) => (c.usageCount ?? 0) > 0)
-          .sort((a, b) => (b.usageCount ?? 0) - (a.usageCount ?? 0))
-          .slice(0, FREQUENT_MAX)
-      : [];
-  const frequentIds = new Set(frequent.map((c) => c._id));
-  const rest = all.filter((c) => !frequentIds.has(c._id));
+  // Float the most-used categories into their own band above the A–Z remainder
+  // (shared with the transaction-list category filter). See splitByFrequency.
+  const { frequent, rest } = splitByFrequency(categories ?? []);
 
   const tile = (c: Category) => {
     const active = value === c._id;

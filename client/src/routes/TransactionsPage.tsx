@@ -10,7 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -47,6 +49,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { useUIStore } from "@/stores/ui";
 import { cn } from "@/lib/utils";
 import { categoryLabel } from "@/lib/i18nLabels";
+import { splitByFrequency } from "@/lib/categoryOrder";
 import type { TxnType } from "@/lib/types";
 
 const ALL = "__all__";
@@ -136,6 +139,10 @@ export default function TransactionsPage() {
   const { data: categories } = useCategories();
   const { data: tagOptions } = useTags();
   const { data: deleted } = useDeletedTransactions();
+
+  // Float the most-used categories to the top of the filter dropdown, then the
+  // rest A–Z — same ordering as the transaction-sheet picker. See splitByFrequency.
+  const categoryFilter = useMemo(() => splitByFrequency(categories ?? []), [categories]);
 
   const range = useMemo(() => selectionRange(selection), [selection]);
   const filters: TxnFilters = useMemo(
@@ -370,7 +377,17 @@ export default function TransactionsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>{t("filters.allCategories")}</SelectItem>
-              {categories?.map((c) => (
+              {categoryFilter.frequent.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>{t("picker.frequent")}</SelectLabel>
+                  {categoryFilter.frequent.map((c) => (
+                    <SelectItem key={c._id} value={c._id}>
+                      {categoryLabel(c.name)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              {categoryFilter.rest.map((c) => (
                 <SelectItem key={c._id} value={c._id}>
                   {categoryLabel(c.name)}
                 </SelectItem>
