@@ -4,9 +4,9 @@ import { AuthIdentity } from "../models/AuthIdentity";
 import { Settings } from "../models/Settings";
 import { Account } from "../models/Account";
 import { Category } from "../models/Category";
+import { Template } from "../models/Template";
 import { hashPassword, verifyPassword, needsRehash } from "../auth/password";
-import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from "../seed/defaults";
-import { createDefaultTemplates } from "./templateService";
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, DEFAULT_TEMPLATES } from "../seed/defaults";
 import { HttpError } from "../middleware/errorHandler";
 
 /**
@@ -16,18 +16,29 @@ import { HttpError } from "../middleware/errorHandler";
  */
 export async function provisionUser(userId: Types.ObjectId | string): Promise<void> {
   const user = userId;
-  // Mark templates as already seeded — we create them below, so the lazy seed on
-  // the first templates fetch is a no-op for fresh signups.
-  await Settings.create({ user, templatesSeeded: true });
+  await Settings.create({ user });
 
   const categories = [
     ...DEFAULT_EXPENSE_CATEGORIES.map((c, i) => ({ ...c, type: "expense", order: i, isDefault: true, user })),
     ...DEFAULT_INCOME_CATEGORIES.map((c, i) => ({ ...c, type: "income", order: i, isDefault: true, user })),
   ];
-  await Category.insertMany(categories);
+  const created = await Category.insertMany(categories);
 
   // Starter quick-add chips, wired to the expense categories just created.
-  await createDefaultTemplates(user);
+  const expenseCatId = new Map(
+    created.filter((c) => c.type === "expense").map((c) => [c.name, c._id])
+  );
+  await Template.insertMany(
+    DEFAULT_TEMPLATES.map((tpl, i) => ({
+      user,
+      name: tpl.name,
+      type: "expense",
+      amount: tpl.amount,
+      category: expenseCatId.get(tpl.category) ?? null,
+      note: tpl.note ?? "",
+      order: i,
+    }))
+  );
 
   await Account.create({ user, name: "Cash", type: "cash", icon: "wallet", color: "#2563EB" });
 }

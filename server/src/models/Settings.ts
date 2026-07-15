@@ -37,10 +37,6 @@ const settingsSchema = new Schema(
     // When set, the Net Worth section is hidden ("user" view) until the passcode is
     // entered ("superadmin" view). Null = wealth lock off (Net Worth always visible).
     wealthPasscodeHash: { type: String, default: null },
-    // One-time marker that the default quick-add templates have been provisioned.
-    // New signups get them during provisioning; pre-existing users (created before
-    // the feature shipped) are lazily seeded on their first templates fetch.
-    templatesSeeded: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

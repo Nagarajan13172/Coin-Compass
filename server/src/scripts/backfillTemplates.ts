@@ -15,7 +15,9 @@
 import mongoose from "mongoose";
 import { connectDB } from "../config/db";
 import { User } from "../models/User";
-import { createDefaultTemplates } from "../services/templateService";
+import { Category } from "../models/Category";
+import { Template } from "../models/Template";
+import { DEFAULT_TEMPLATES } from "../seed/defaults";
 
 function arg(flag: string): string | undefined {
   const args = process.argv.slice(2);
@@ -25,6 +27,27 @@ function arg(flag: string): string | undefined {
   const next = args[i + 1];
   if (i >= 0 && next && !next.startsWith("--")) return next;
   return undefined;
+}
+
+async function backfillUser(uid: mongoose.Types.ObjectId): Promise<number> {
+  const existing = await Template.find({ user: uid }).select("name").lean();
+  const have = new Set(existing.map((t) => t.name));
+
+  const cats = await Category.find({ user: uid, type: "expense" }).select("name").lean();
+  const catId = new Map(cats.map((c) => [c.name, c._id]));
+
+  const toAdd = DEFAULT_TEMPLATES.filter((tpl) => !have.has(tpl.name)).map((tpl, i) => ({
+    user: uid,
+    name: tpl.name,
+    type: "expense" as const,
+    amount: tpl.amount,
+    category: catId.get(tpl.category) ?? null,
+    note: tpl.note ?? "",
+    order: existing.length + i, // append after whatever the user already has
+  }));
+
+  if (toAdd.length) await Template.insertMany(toAdd);
+  return toAdd.length;
 }
 
 async function main() {
@@ -39,7 +62,7 @@ async function main() {
 
   let total = 0;
   for (const u of users) {
-    const n = await createDefaultTemplates(u._id as mongoose.Types.ObjectId);
+    const n = await backfillUser(u._id as mongoose.Types.ObjectId);
     total += n;
     if (n > 0) console.log(`✓ ${u.email}: added ${n} template${n === 1 ? "" : "s"}`);
   }
