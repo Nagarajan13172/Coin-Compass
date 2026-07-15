@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { Types } from "mongoose";
 import { Category } from "../models/Category";
 import { Transaction } from "../models/Transaction";
 import { Budget } from "../models/Budget";
@@ -6,12 +7,28 @@ import { categorySchema, categoryUpdateSchema } from "../validators/schemas";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
+// How far back the category picker looks to rank "frequently used" categories.
+// Recent (not all-time) so the ranking tracks how spending actually shifts over
+// time instead of ossifying around a category the user leaned on a year ago.
+const USAGE_WINDOW_DAYS = 90;
+
 export async function listCategories(req: Request, res: Response) {
   const uid = userId(req);
   const filter: Record<string, unknown> = { user: uid };
   if (req.query.type) filter.type = req.query.type;
   const categories = await Category.find(filter).sort({ order: 1, name: 1 }).lean();
-  res.json(categories);
+
+  // Attach a recent usage count per category so the client can float the ones
+  // the user actually reaches for to the top of the picker. The aggregate
+  // pre-hook already excludes soft-deleted transactions.
+  const since = new Date(Date.now() - USAGE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const usage = await Transaction.aggregate<{ _id: Types.ObjectId; count: number }>([
+    { $match: { user: new Types.ObjectId(uid), category: { $ne: null }, date: { $gte: since } } },
+    { $group: { _id: "$category", count: { $sum: 1 } } },
+  ]);
+  const counts = new Map(usage.map((u) => [String(u._id), u.count]));
+
+  res.json(categories.map((c) => ({ ...c, usageCount: counts.get(String(c._id)) ?? 0 })));
 }
 
 export async function createCategory(req: Request, res: Response) {

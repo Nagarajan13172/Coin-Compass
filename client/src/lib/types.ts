@@ -66,6 +66,9 @@ export interface Category {
   parent?: string | null;
   order: number;
   isDefault?: boolean;
+  // Recent (last-90-day) transaction count, supplied by GET /categories, used to
+  // surface "frequently used" categories in the picker. Absent on writes.
+  usageCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }

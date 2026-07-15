@@ -130,7 +130,8 @@
     "txnCount_other": "{{count}} transactions"
   },
   "picker": {
-    "new": "New"
+    "new": "New",
+    "frequent": "Frequently used"
   },
   "keypad": {
     "divide": "Divide",
