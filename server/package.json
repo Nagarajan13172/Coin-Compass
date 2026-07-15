@@ -11,6 +11,8 @@
     "migrate:user": "tsx src/scripts/migrateToUser.ts",
     "backfill:credit-categories": "tsx src/scripts/backfillCreditCategories.ts",
     "backfill:templates": "tsx src/scripts/backfillTemplates.ts",
+    "backfill:metals": "tsx src/scripts/backfillMetalHistory.ts",
+    "backfill:metals:est": "tsx src/scripts/backfillMetalHistoryEstimated.ts",
     "build": "tsc --noEmit",
     "test": "vitest run"
   },
