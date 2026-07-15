@@ -129,6 +129,11 @@
     "txnCount_one": "{{count}} பரிவர்த்தனை",
     "txnCount_other": "{{count}} பரிவர்த்தனைகள்"
   },
+  "filteredSummary": {
+    "title": "வடிகட்டிய மொத்தம்",
+    "count_one": "{{count}} பரிவர்த்தனை",
+    "count_other": "{{count}} பரிவர்த்தனைகள்"
+  },
   "picker": {
     "new": "புதியது",
     "frequent": "அடிக்கடி பயன்படுத்தியவை"

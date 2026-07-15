@@ -129,6 +129,11 @@
     "txnCount_one": "{{count}} transaction",
     "txnCount_other": "{{count}} transactions"
   },
+  "filteredSummary": {
+    "title": "Filtered totals",
+    "count_one": "{{count}} transaction",
+    "count_other": "{{count}} transactions"
+  },
   "picker": {
     "new": "New",
     "frequent": "Frequently used"

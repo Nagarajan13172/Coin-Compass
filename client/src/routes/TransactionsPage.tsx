@@ -29,6 +29,7 @@ import { TransactionList } from "@/features/transactions/TransactionList";
 import { RecentlyDeletedDialog } from "@/features/transactions/RecentlyDeletedDialog";
 import { AccountBalancesStrip } from "@/features/transactions/AccountBalancesStrip";
 import { MonthSummaryRail } from "@/features/transactions/MonthSummaryRail";
+import { FilteredSummary } from "@/features/transactions/FilteredSummary";
 import {
   PeriodNavigator,
   selectionRange,
@@ -39,6 +40,7 @@ import {
 import { QuickAddTemplates } from "@/features/templates/QuickAddTemplates";
 import {
   useTransactions,
+  useTransactionsSummary,
   useTags,
   useDeletedTransactions,
   useLedgerBalance,
@@ -177,6 +179,14 @@ export default function TransactionsPage() {
     !!debounced;
   const showRunningBalance = !!accounts && !hasNarrowingFilters;
 
+  // When a narrowing filter is on, the whole-ledger rail can't apply — so we show
+  // in/out/net for the filtered slice instead. Fetched server-side (the list is
+  // paginated, so summing the loaded rows would undercount).
+  const { data: filteredSummary, isLoading: filteredSummaryLoading } = useTransactionsSummary(
+    filters,
+    hasNarrowingFilters
+  );
+
   // Anchor for the per-day end-of-day balance: the grand total as of the window's
   // end (exclusive `to`), or the present total for an open-ended "all time" view.
   // Using the window's own `to` keeps a *past* month correct — it reads the total
@@ -261,10 +271,12 @@ export default function TransactionsPage() {
       ? t("summary.noMatch")
       : t("summary.all");
 
-  // The summary rail earns the wide-screen blank space; it reflects the same
-  // whole-ledger period the running balance uses, so hide it when filtering to a
-  // subset (the /reports summary can't honour those narrowing filters).
-  const showRail = !hasNarrowingFilters;
+  // The right column carries a summary on wide screens: the whole-ledger
+  // MonthSummaryRail on the default period views, or in/out/net for the filtered
+  // slice once a narrowing filter is on. When filtering yields no matches there's
+  // nothing to total, so the column collapses and the list gets the full width.
+  const showFilterTotals = hasNarrowingFilters && total > 0;
+  const showRail = !hasNarrowingFilters || showFilterTotals;
 
   const accountTriggerLabel =
     accountIds.length === 0
@@ -456,6 +468,18 @@ export default function TransactionsPage() {
 
       <div className={cn("grid gap-6", showRail && "lg:grid-cols-[minmax(0,1fr)_18rem]")}>
         <div className="min-w-0">
+          {/* filtered in/out/net — inline on narrow screens (the rail card, which
+              carries the same numbers, is hidden below lg) */}
+          {showFilterTotals && (
+            <div className="lg:hidden">
+              <FilteredSummary
+                variant="strip"
+                summary={filteredSummary}
+                label={periodLabel}
+                loading={filteredSummaryLoading}
+              />
+            </div>
+          )}
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -495,12 +519,21 @@ export default function TransactionsPage() {
 
         {showRail && (
           <aside className="hidden lg:block">
-            <MonthSummaryRail
-              range={range}
-              label={periodLabel}
-              onSelectCategory={(id) => (id ? setCategory(id) : setType("expense"))}
-              onSelectOneoff={() => setOneoffOnly(true)}
-            />
+            {hasNarrowingFilters ? (
+              <FilteredSummary
+                variant="card"
+                summary={filteredSummary}
+                label={periodLabel}
+                loading={filteredSummaryLoading}
+              />
+            ) : (
+              <MonthSummaryRail
+                range={range}
+                label={periodLabel}
+                onSelectCategory={(id) => (id ? setCategory(id) : setType("expense"))}
+                onSelectOneoff={() => setOneoffOnly(true)}
+              />
+            )}
           </aside>
         )}
       </div>

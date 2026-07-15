@@ -20,6 +20,31 @@ export interface TagCount {
   count: number;
 }
 
+/** In / out / net totals for a filtered slice of the ledger (whole matching set,
+ *  not just the loaded page). Transfers count toward neither in nor out. */
+export interface TxnSummary {
+  income: number;
+  expense: number;
+  net: number;
+  incomeCount: number;
+  expenseCount: number;
+  count: number;
+}
+
+/**
+ * Totals for the currently-filtered transactions. The list is paginated, so we
+ * can't sum the loaded rows; this hits a server aggregate that honours the same
+ * filters. Keyed under "transactions" so a mutation (invalidateMoney) refreshes it.
+ */
+export function useTransactionsSummary(filters: TxnFilters = {}, enabled = true) {
+  return useQuery({
+    queryKey: ["transactions", "summary", filters],
+    enabled,
+    queryFn: async () =>
+      (await api.get<TxnSummary>("/transactions/summary", { params: cleanFilters(filters) })).data,
+  });
+}
+
 /** Distinct tags the user has used, most-used first. Keyed under "transactions" so a
  *  transaction mutation (which calls invalidateMoney) refreshes it automatically. */
 export function useTags() {
