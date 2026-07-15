@@ -6,9 +6,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { useSummary, useByCategory } from "@/hooks/useReports";
+import { useTransactionList } from "@/hooks/useTransactions";
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/i18nLabels";
+import type { RefLite, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+function refName(v: RefLite | string | null | undefined): string {
+  return v && typeof v === "object" ? v.name : "";
+}
+
+/** A one-off's display label: its note, else payee, else its category name. */
+function oneoffLabel(txn: Transaction, fallback: string): string {
+  const note = txn.note?.trim();
+  const cat = refName(txn.category);
+  return note || txn.payee?.trim() || (cat ? categoryLabel(cat) : "") || fallback;
+}
 
 /**
  * A compact, sticky summary of the currently-selected period, shown beside the
@@ -18,14 +31,20 @@ import { cn } from "@/lib/utils";
  *
  * The list's period range uses an EXCLUSIVE upper bound (start of next month),
  * whereas /reports treats `to` as an inclusive day and adds 24h — so we pass the
- * day before the exclusive bound to line the two up exactly.
+ * day before the exclusive bound to line the two up exactly. The itemised one-off
+ * list, however, hits the transactions endpoint directly and so uses the raw
+ * exclusive range.
  */
 export function MonthSummaryRail({
   range,
   label,
+  onSelectCategory,
+  onSelectOneoff,
 }: {
   range: { from?: string; to?: string };
   label: string;
+  onSelectCategory: (categoryId: string | null) => void;
+  onSelectOneoff: () => void;
 }) {
   const { t } = useTranslation("transactions");
 
@@ -39,6 +58,17 @@ export function MonthSummaryRail({
 
   const { data: summary, isLoading } = useSummary(params);
   const { data: byCategory } = useByCategory({ ...params, type: "expense" });
+
+  const oneoffExpense = summary?.oneoffExpense ?? 0;
+  const regular = (summary?.expense ?? 0) - oneoffExpense;
+  const hasOneoff = oneoffExpense > 0;
+
+  // The actual one-off spends this period, to itemise them (only fetched when there are any).
+  const { data: oneoffItems } = useTransactionList(
+    { from: range.from, to: range.to, type: "expense", oneoff: true },
+    50,
+    hasOneoff
+  );
 
   const savingsRate =
     summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : null;
@@ -111,6 +141,54 @@ export function MonthSummaryRail({
                 />
               </div>
 
+              {/* regular vs one-off — so a lumpy month reads as "normal + extras" */}
+              {hasOneoff && (
+                <div className="space-y-2 border-t pt-3">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {t("summaryRail.spendSplit")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onSelectOneoff}
+                      className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {t("summaryRail.viewOneoffs")}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{t("summaryRail.regular")}</span>
+                    <span className="tnum font-semibold text-foreground">{formatMoney(regular)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-600 dark:text-amber-500">{t("summaryRail.oneoff")}</span>
+                    <span className="tnum font-semibold text-amber-600 dark:text-amber-500">
+                      {formatMoney(oneoffExpense)}
+                    </span>
+                  </div>
+                  {oneoffItems && oneoffItems.length > 0 && (
+                    <ul className="space-y-1 pt-0.5">
+                      {oneoffItems.slice(0, 4).map((it) => (
+                        <li
+                          key={it._id}
+                          className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
+                        >
+                          <span className="truncate">
+                            {oneoffLabel(it, t("summaryRail.oneoff"))}
+                          </span>
+                          <span className="tnum shrink-0">{formatMoney(it.amount)}</span>
+                        </li>
+                      ))}
+                      {oneoffItems.length > 4 && (
+                        <li className="text-[11px] text-muted-foreground/70">
+                          {t("summaryRail.moreOneoffs", { count: oneoffItems.length - 4 })}
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               {/* top spending categories */}
               {topCategories.length > 0 && (
                 <div className="space-y-2 border-t pt-3">
@@ -119,10 +197,11 @@ export function MonthSummaryRail({
                   </p>
                   <div className="space-y-2">
                     {topCategories.map((c) => (
-                      <Link
+                      <button
+                        type="button"
                         key={c.categoryId ?? c.name}
-                        to={c.categoryId ? `/transactions?category=${c.categoryId}` : "/transactions?type=expense"}
-                        className="group flex items-center gap-2"
+                        onClick={() => onSelectCategory(c.categoryId)}
+                        className="group flex w-full items-center gap-2 text-left"
                       >
                         <CategoryIcon icon={c.icon} color={c.color} size="sm" />
                         <div className="min-w-0 flex-1">
@@ -141,7 +220,7 @@ export function MonthSummaryRail({
                             />
                           </div>
                         </div>
-                      </Link>
+                      </button>
                     ))}
                   </div>
                 </div>

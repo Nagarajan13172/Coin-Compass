@@ -11,6 +11,8 @@ export interface TxnFilters {
   to?: string;
   search?: string;
   tag?: string;
+  /** Only irregular / one-off transactions. */
+  oneoff?: boolean;
 }
 
 export interface TagCount {
@@ -42,9 +44,10 @@ export function useTransactions(filters: TxnFilters = {}, limit = 30) {
 }
 
 /** Flat list for a fixed query (e.g. a single day or account). */
-export function useTransactionList(filters: TxnFilters = {}, limit = 200) {
+export function useTransactionList(filters: TxnFilters = {}, limit = 200, enabled = true) {
   return useQuery({
     queryKey: ["transactions", "list", filters, limit],
+    enabled,
     queryFn: async () => {
       const { data } = await api.get<TransactionPage>("/transactions", {
         params: { ...cleanFilters(filters), limit },

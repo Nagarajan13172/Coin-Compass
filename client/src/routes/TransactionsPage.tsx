@@ -78,7 +78,12 @@ function parseSelection(params: URLSearchParams): PeriodSelection {
   if (period === "year") return { kind: "year", anchor: new Date(new Date().getFullYear(), 0, 1).toISOString() };
   if (period === "month") return thisMonth();
   const narrowing =
-    params.get("type") || params.get("account") || params.get("category") || params.get("tag") || params.get("search");
+    params.get("type") ||
+    params.get("account") ||
+    params.get("category") ||
+    params.get("tag") ||
+    params.get("search") ||
+    params.get("oneoff");
   if (narrowing) return { kind: "all" };
   return thisMonth();
 }
@@ -105,6 +110,9 @@ export default function TransactionsPage() {
     params.get("tag") ? params.get("tag")!.split(",").filter(Boolean) : []
   );
   const [category, setCategory] = useState<string>(params.get("category") ?? ALL);
+  const [oneoffOnly, setOneoffOnly] = useState(
+    params.get("oneoff") === "1" || params.get("oneoff") === "true"
+  );
   // The visible period: a specific month by default, or a wider range / explicit
   // span deep-linked via the URL (see parseSelection).
   const [selection, setSelection] = useState<PeriodSelection>(() => parseSelection(params));
@@ -137,10 +145,11 @@ export default function TransactionsPage() {
       account: accountIds.length ? accountIds.join(",") : undefined,
       category: category === ALL ? undefined : category,
       tag: selectedTags.length ? selectedTags.join(",") : undefined,
+      oneoff: oneoffOnly || undefined,
       from: range.from,
       to: range.to,
     }),
-    [debounced, type, accountIds, category, selectedTags, range]
+    [debounced, type, accountIds, category, selectedTags, oneoffOnly, range]
   );
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -157,6 +166,7 @@ export default function TransactionsPage() {
     accountIds.length > 0 ||
     selectedTags.length > 0 ||
     category !== ALL ||
+    oneoffOnly ||
     !!debounced;
   const showRunningBalance = !!accounts && !hasNarrowingFilters;
 
@@ -207,6 +217,7 @@ export default function TransactionsPage() {
     setSelectedTags([]);
     setCategory(ALL);
     setSearch("");
+    setOneoffOnly(false);
     setSelection(thisMonth());
     setParams({});
   }
@@ -233,6 +244,7 @@ export default function TransactionsPage() {
     pills.push({ key: `tag-${tag}`, label: `#${tag}`, onRemove: () => toggleTag(tag) })
   );
   if (category !== ALL) pills.push({ key: "cat", label: categoryName, onRemove: () => setCategory(ALL) });
+  if (oneoffOnly) pills.push({ key: "oneoff", label: t("filters.oneoff"), onRemove: () => setOneoffOnly(false) });
   if (debounced) pills.push({ key: "search", label: `“${debounced}”`, onRemove: () => setSearch("") });
 
   const periodLabel = selectionLabel(selection, t);
@@ -466,7 +478,12 @@ export default function TransactionsPage() {
 
         {showRail && (
           <aside className="hidden lg:block">
-            <MonthSummaryRail range={range} label={periodLabel} />
+            <MonthSummaryRail
+              range={range}
+              label={periodLabel}
+              onSelectCategory={(id) => (id ? setCategory(id) : setType("expense"))}
+              onSelectOneoff={() => setOneoffOnly(true)}
+            />
           </aside>
         )}
       </div>

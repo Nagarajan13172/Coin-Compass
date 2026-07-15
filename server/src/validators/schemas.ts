@@ -92,6 +92,7 @@ export const transactionSchema = z
     note: z.string().max(280).default(""),
     payee: z.string().max(120).default(""),
     tags: z.array(z.string()).default([]),
+    oneoff: z.boolean().default(false),
     currency: z.string().default("INR"),
     loan: optionalObjectId,
   })
@@ -114,6 +115,7 @@ export const transactionUpdateSchema = z.object({
   note: z.string().max(280).optional(),
   payee: z.string().max(120).optional(),
   tags: z.array(z.string()).optional(),
+  oneoff: z.boolean().optional(),
   currency: z.string().optional(),
   loan: optionalObjectId,
 });

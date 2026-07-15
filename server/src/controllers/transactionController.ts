@@ -32,6 +32,8 @@ function buildFilter(query: Request["query"]): Record<string, unknown> {
   if (query.type) filter.type = oneOrMany(query.type);
   // A single tag matches array membership; a comma-separated list becomes $in (any of).
   if (query.tag) filter.tags = oneOrMany(query.tag);
+  // Drill-in to just the irregular / one-off spends (e.g. from the summary rail).
+  if (query.oneoff === "1" || query.oneoff === "true") filter.oneoff = true;
 
   if (query.from || query.to) {
     const date: Record<string, Date> = {};

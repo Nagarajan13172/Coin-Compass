@@ -90,6 +90,8 @@ export interface Transaction {
   note: string;
   payee: string;
   tags: string[];
+  /** Irregular / one-off spend (AC service, repairs) — kept out of the typical monthly run-rate. */
+  oneoff?: boolean;
   currency: string;
   /** Set when the transaction was auto-posted by a recurring rule. */
   recurring?: string | null;
@@ -392,6 +394,9 @@ export interface Summary {
   net: number;
   incomeCount: number;
   expenseCount: number;
+  /** Portion of income / expense flagged irregular / one-off. */
+  oneoffIncome: number;
+  oneoffExpense: number;
   netWorth: number;
   byCurrency: Record<string, number>;
   range: { start: string; end: string };

@@ -37,6 +37,7 @@
     "filterByTag": "Filter by tag",
     "clearTags": "Clear tags",
     "allCategories": "All categories",
+    "oneoff": "One-off",
     "label": "Filters:",
     "remove": "Remove filter {{label}}",
     "resetAll": "Reset all",
@@ -61,6 +62,8 @@
     "tags": "Tags",
     "tagsPlaceholder": "Add a tag, press Enter (e.g. Hari, Bed)",
     "removeTag": "Remove tag {{tag}}",
+    "oneoffTitle": "Irregular / one-off",
+    "oneoffHelp": "Big or rare spends that don't repeat every month (AC service, repairs). Kept out of your typical monthly spend.",
     "linkedPrefix": "Linked to credit ·",
     "linkedGave": "You gave",
     "linkedReceived": "You received",
@@ -98,7 +101,8 @@
     "empty": "Nothing here — deleted transactions show up for a while before they're purged."
   },
   "row": {
-    "recurringAria": "Auto-posted by a recurring rule"
+    "recurringAria": "Auto-posted by a recurring rule",
+    "oneoff": "One-off"
   },
   "group": {
     "in": "+{{amount}} in",
@@ -116,6 +120,11 @@
     "overspent": "Spent more than earned",
     "in": "In",
     "out": "Out",
+    "spendSplit": "Regular vs one-off",
+    "viewOneoffs": "View",
+    "regular": "Regular",
+    "oneoff": "One-off",
+    "moreOneoffs": "+{{count}} more",
     "topSpending": "Top spending",
     "txnCount_one": "{{count}} transaction",
     "txnCount_other": "{{count}} transactions"

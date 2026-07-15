@@ -7,6 +7,7 @@ import { Money } from "@/components/common/Money";
 import { useUIStore } from "@/stores/ui";
 import { useCreateTransaction, useDeleteTransaction, useRestoreTransaction } from "@/hooks/useTransactions";
 import { fmtDate } from "@/lib/dates";
+import { transactionSummary } from "@/lib/format";
 import { categoryLabel } from "@/lib/i18nLabels";
 import type { RefLite, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -122,10 +123,12 @@ export function TransactionRow({
         note: txn.note ?? "",
         payee: txn.payee ?? "",
         tags: txn.tags ?? [],
+        oneoff: txn.oneoff ?? false,
         currency: txn.currency,
         date: new Date().toISOString(),
       })) as Transaction;
       toast.success(t("toast.duplicated"), {
+        description: transactionSummary(created),
         action: { label: t("actions.undo", { ns: "common" }), onClick: () => delTxn.mutate(created._id) },
       });
     } catch (e) {
@@ -135,10 +138,12 @@ export function TransactionRow({
 
   async function remove() {
     setOpen(false);
+    const description = transactionSummary(txn);
     try {
       const res = await delTxn.mutateAsync(txn._id);
       if (res?.recoverable) {
         toast.success(t("toast.deleted"), {
+          description,
           action: {
             label: t("actions.undo", { ns: "common" }),
             onClick: () =>
@@ -149,7 +154,7 @@ export function TransactionRow({
           },
         });
       } else {
-        toast.success(t("toast.deleted"));
+        toast.success(t("toast.deleted"), { description });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("toast.deleteFailed"));
@@ -201,6 +206,11 @@ export function TransactionRow({
               <span className="truncate">{title}</span>
               {txn.recurring && (
                 <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" aria-label={t("row.recurringAria")} />
+              )}
+              {txn.oneoff && (
+                <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-px text-[10px] font-medium text-amber-600 dark:text-amber-500">
+                  {t("row.oneoff")}
+                </span>
               )}
             </p>
             <p className="truncate text-xs text-muted-foreground">{subtitle}</p>

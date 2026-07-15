@@ -14,6 +14,11 @@ const transactionSchema = new Schema(
     note: { type: String, default: "", trim: true },
     payee: { type: String, default: "", trim: true },
     tags: { type: [String], default: [] },
+    // Irregular / one-off spend (AC service, repairs, an annual fee): a real
+    // expense, but one that doesn't recur monthly. Tracked separately so a lumpy
+    // month can be split into "regular" vs "one-off" and kept out of the user's
+    // typical monthly run-rate. Applies to income/expense; never to transfers.
+    oneoff: { type: Boolean, default: false },
     currency: { type: String, default: "INR" },
     // Set when this transaction was auto-posted by a recurring rule (null for manual entries).
     recurring: { type: Schema.Types.ObjectId, ref: "RecurringTransaction", default: null },

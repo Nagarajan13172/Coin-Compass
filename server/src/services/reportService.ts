@@ -10,22 +10,39 @@ interface RangeArgs {
 /** Income / expense / net for a date range, plus current net worth. */
 export async function getSummary(userId: string, { start, end }: RangeArgs) {
   const user = new Types.ObjectId(userId);
-  const agg = await Transaction.aggregate<{ _id: string; total: number; count: number }>([
+  const agg = await Transaction.aggregate<{
+    _id: string;
+    total: number;
+    count: number;
+    oneoff: number;
+  }>([
     { $match: { user, date: { $gte: start, $lt: end }, type: { $in: ["income", "expense"] } } },
-    { $group: { _id: "$type", total: { $sum: "$amount" }, count: { $sum: 1 } } },
+    {
+      $group: {
+        _id: "$type",
+        total: { $sum: "$amount" },
+        count: { $sum: 1 },
+        // Portion of the total that's flagged irregular / one-off.
+        oneoff: { $sum: { $cond: [{ $eq: ["$oneoff", true] }, "$amount", 0] } },
+      },
+    },
   ]);
 
   let income = 0;
   let expense = 0;
   let incomeCount = 0;
   let expenseCount = 0;
+  let oneoffIncome = 0;
+  let oneoffExpense = 0;
   for (const row of agg) {
     if (row._id === "income") {
       income = row.total;
       incomeCount = row.count;
+      oneoffIncome = row.oneoff;
     } else if (row._id === "expense") {
       expense = row.total;
       expenseCount = row.count;
+      oneoffExpense = row.oneoff;
     }
   }
 
@@ -37,6 +54,8 @@ export async function getSummary(userId: string, { start, end }: RangeArgs) {
     net: income - expense,
     incomeCount,
     expenseCount,
+    oneoffIncome,
+    oneoffExpense,
     netWorth,
     byCurrency,
     range: { start, end },

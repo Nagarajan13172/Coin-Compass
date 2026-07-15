@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, transactionSummary } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { TagInput } from "@/components/common/TagInput";
@@ -80,6 +80,7 @@ export function TransactionSheet() {
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [oneoff, setOneoff] = useState(false);
   const [loanId, setLoanId] = useState("");
   // "Money to/from a person" — only offered when creating a new expense/income;
   // submitting goes through the Credits API instead so it also shows up there.
@@ -106,6 +107,7 @@ export function TransactionSheet() {
       setDate(format(new Date(editing.date), "yyyy-MM-dd"));
       setNote(editing.note ?? "");
       setTags(editing.tags ?? []);
+      setOneoff(editing.oneoff ?? false);
       setLoanId(refId(editing.loan) ?? "");
       setPersonMode(false);
       setPerson("");
@@ -121,6 +123,7 @@ export function TransactionSheet() {
       setNote(prefill?.note ?? "");
       setDate(prefill?.date ?? format(new Date(), "yyyy-MM-dd"));
       setTags(prefill?.tags ?? []);
+      setOneoff(false);
       setLoanId("");
       setPersonMode(false);
       setPerson("");
@@ -171,7 +174,15 @@ export function TransactionSheet() {
           note,
           reflected: true,
         });
-        toast.success(t("toast.added"));
+        toast.success(t("toast.added"), {
+          description: transactionSummary({
+            amount,
+            currency: activeAccount?.currency,
+            type,
+            account: activeAccount,
+            credit: { person: person.trim() },
+          }),
+        });
         close();
         return;
       }
@@ -185,17 +196,19 @@ export function TransactionSheet() {
         date: new Date(date).toISOString(),
         note,
         tags,
+        // One-off is an income/expense concept; a transfer can't be "irregular spend".
+        oneoff: type === "transfer" ? false : oneoff,
         currency: activeAccount?.currency ?? "INR",
         // Loan repayments only make sense for money leaving an account.
         loan: type !== "income" && loanId ? loanId : null,
       };
 
       if (isEdit && editing) {
-        await updateTxn.mutateAsync({ id: editing._id, ...payload });
-        toast.success(t("toast.updated"));
+        const updated = await updateTxn.mutateAsync({ id: editing._id, ...payload });
+        toast.success(t("toast.updated"), { description: transactionSummary(updated) });
       } else {
-        await createTxn.mutateAsync(payload);
-        toast.success(t("toast.added"));
+        const created = await createTxn.mutateAsync(payload);
+        toast.success(t("toast.added"), { description: transactionSummary(created) });
       }
       close();
     } catch (e) {
@@ -206,12 +219,14 @@ export function TransactionSheet() {
   async function handleDelete() {
     if (!editing) return;
     const id = editing._id;
+    const description = transactionSummary(editing);
     try {
       const res = await deleteTxn.mutateAsync(id);
       if (res?.recoverable) {
         // Soft-deleted → offer a one-tap undo (also restorable later from the
         // "Recently deleted" trash on the Transactions page).
         toast.success(t("toast.deleted"), {
+          description,
           action: {
             label: t("actions.undo", { ns: "common" }),
             onClick: () =>
@@ -223,7 +238,7 @@ export function TransactionSheet() {
           },
         });
       } else {
-        toast.success(t("toast.deleted"));
+        toast.success(t("toast.deleted"), { description });
       }
       close();
     } catch (e) {
@@ -388,6 +403,21 @@ export function TransactionSheet() {
                 placeholder={t("sheet.tagsPlaceholder")}
               />
             </div>
+
+            {/* Irregular / one-off — keeps big, non-monthly spends out of the typical run-rate */}
+            {type !== "transfer" && !personMode && (
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="pr-4">
+                  <p className="text-sm font-medium">{t("sheet.oneoffTitle")}</p>
+                  <p className="text-xs text-muted-foreground">{t("sheet.oneoffHelp")}</p>
+                </div>
+                <Switch
+                  checked={oneoff}
+                  onCheckedChange={setOneoff}
+                  aria-label={t("sheet.oneoffTitle")}
+                />
+              </div>
+            )}
 
             {/* Loan repayment — reduces the chosen loan's outstanding balance. */}
             {type !== "income" &&
