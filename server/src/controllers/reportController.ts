@@ -35,11 +35,17 @@ export async function summaryReport(req: Request, res: Response) {
   res.json(summary);
 }
 
-/** Send a report email to the signed-in user right now (to preview/test the scheduled ones). */
+/**
+ * Send a report email to the signed-in user right now (to preview/test the
+ * scheduled ones). Defaults to the current month-to-date ("midmonth") so the
+ * preview shows the user's actual recent activity rather than last month, which
+ * is empty for anyone who only started tracking this month. Always sends (no
+ * empty-skip) so the user gets delivery confirmation.
+ */
 export async function sendReportEmailNow(req: Request, res: Response) {
   const user = await User.findById(userId(req));
   if (!user) throw new HttpError(404, "User not found");
-  const kind: ReportKind = req.query.kind === "midmonth" ? "midmonth" : "monthly";
+  const kind: ReportKind = req.query.kind === "monthly" ? "monthly" : "midmonth";
   await sendReportTo(user, kind, new Date(), req);
   res.json({ ok: true, sentTo: user.email, kind });
 }

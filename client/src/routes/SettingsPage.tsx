@@ -79,7 +79,7 @@ export default function SettingsPage() {
 
   async function sendTestReport() {
     try {
-      const r = await sendReport.mutateAsync("monthly");
+      const r = await sendReport.mutateAsync("midmonth");
       toast.success(ts("reports.sentTo", { email: r.sentTo }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ts("reports.sendFailed"));

@@ -18,7 +18,7 @@ interface RangeParams {
 /** Send a summary report email to the signed-in user now (previews the scheduled ones). */
 export function useSendReportEmail() {
   return useMutation({
-    mutationFn: async (kind: "monthly" | "midmonth" = "monthly") =>
+    mutationFn: async (kind: "monthly" | "midmonth" = "midmonth") =>
       (await api.post<{ ok: boolean; sentTo: string }>(`/reports/email-now?kind=${kind}`)).data,
   });
 }
