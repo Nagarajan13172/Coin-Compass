@@ -71,6 +71,41 @@ export async function computeAllBalances(userId: string): Promise<Map<string, Ac
   return map;
 }
 
+/**
+ * Total balance across ALL of a user's accounts as of an instant (exclusive):
+ * every account's initial balance plus income minus expense for transactions
+ * dated before `asOf`. Transfers move money between two of the user's own
+ * accounts, so they cancel in the whole-portfolio total and are ignored — which
+ * makes this consistent with the sum of `computeAllBalances` (whose transferIn /
+ * transferOut totals also cancel). With no `asOf` it's the current grand total.
+ *
+ * This is the anchor the Transactions page walks back from to show each day's
+ * end-of-day balance, and it stays correct for a past month (where the present
+ * account balances would be the wrong anchor).
+ */
+export async function balanceAsOf(userId: string, asOf?: Date): Promise<number> {
+  const user = new Types.ObjectId(userId);
+  const accounts = await Account.find({ user }).select("initialBalance").lean();
+  const initial = accounts.reduce((sum, a) => sum + (a.initialBalance ?? 0), 0);
+
+  const match: Record<string, unknown> = { user, type: { $in: ["income", "expense"] } };
+  if (asOf) match.date = { $lt: asOf };
+
+  // Soft-deleted rows are excluded automatically by the aggregate pre-hook.
+  const agg = await Transaction.aggregate<{ _id: "income" | "expense"; total: number }>([
+    { $match: match },
+    { $group: { _id: "$type", total: { $sum: "$amount" } } },
+  ]);
+
+  let income = 0;
+  let expense = 0;
+  for (const row of agg) {
+    if (row._id === "income") income = row.total;
+    else if (row._id === "expense") expense = row.total;
+  }
+  return initial + income - expense;
+}
+
 /** Total net worth across accounts that are flagged includeInTotal. */
 export async function computeNetWorth(userId: string): Promise<{ netWorth: number; byCurrency: Record<string, number> }> {
   const accounts = await Account.find({ user: new Types.ObjectId(userId), includeInTotal: true, archived: false }).lean();

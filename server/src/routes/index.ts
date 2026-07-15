@@ -91,6 +91,7 @@ router.delete("/categories/:id", asyncHandler(categories.deleteCategory));
 // Transactions
 router.get("/transactions", asyncHandler(transactions.listTransactions));
 router.get("/transactions/tags", asyncHandler(transactions.listTags));
+router.get("/transactions/balance", asyncHandler(transactions.ledgerBalance));
 router.get("/transactions/deleted", asyncHandler(transactions.listDeletedTransactions));
 router.post("/transactions", asyncHandler(transactions.createTransaction));
 router.get("/transactions/:id", asyncHandler(transactions.getTransaction));

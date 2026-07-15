@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
+import { balanceAsOf } from "../services/balanceService";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
 import { unlinkCreditTransaction, syncCreditFromTransaction, deleteCreditForTransaction } from "../services/creditService";
 import { userId } from "../middleware/auth";
@@ -69,6 +70,20 @@ export async function listTransactions(req: Request, res: Response) {
     pages: Math.ceil(total / limit),
     hasMore: page * limit < total,
   });
+}
+
+/**
+ * Grand-total balance across all accounts as of an instant (`?asOf=<ISO>`,
+ * exclusive), or right now when omitted. The Transactions page uses this to
+ * anchor the per-day "end-of-day balance": for the current/all-time view the
+ * present total works, but for a past month it needs the total as it stood at
+ * the end of that month — which this returns.
+ */
+export async function ledgerBalance(req: Request, res: Response) {
+  const asOfRaw = req.query.asOf ? new Date(String(req.query.asOf)) : undefined;
+  const asOf = asOfRaw && !Number.isNaN(asOfRaw.getTime()) ? asOfRaw : undefined;
+  const balance = await balanceAsOf(userId(req), asOf);
+  res.json({ balance });
 }
 
 /** Distinct tags the user has applied across their transactions, with usage counts

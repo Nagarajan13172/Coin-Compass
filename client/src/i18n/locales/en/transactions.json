@@ -16,6 +16,12 @@
     "last30": "Last 30 days",
     "thisYear": "This year"
   },
+  "nav": {
+    "previous": "Previous month",
+    "next": "Next month",
+    "previousYear": "Previous year",
+    "nextYear": "Next year"
+  },
   "filters": {
     "searchAria": "Filter this list by note, payee, or tag",
     "searchPlaceholder": "Filter this list by note, payee, or tag…",
@@ -101,6 +107,18 @@
     "transfers_other": "{{count}} transfers",
     "net": "Net",
     "endOfDayBalance": "End-of-day balance"
+  },
+  "summaryRail": {
+    "report": "Report",
+    "noActivity": "No activity in this period",
+    "net": "Net",
+    "saved": "Saved {{percent}}% of income",
+    "overspent": "Spent more than earned",
+    "in": "In",
+    "out": "Out",
+    "topSpending": "Top spending",
+    "txnCount_one": "{{count}} transaction",
+    "txnCount_other": "{{count}} transactions"
   },
   "picker": {
     "new": "New"

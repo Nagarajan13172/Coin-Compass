@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-import { addDays, addMonths, addYears, format, startOfDay, startOfMonth, startOfYear, subDays } from "date-fns";
 import { ChevronDown, Plus, Receipt, Search, Trash2, X } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -27,49 +26,69 @@ import {
 import { TransactionList } from "@/features/transactions/TransactionList";
 import { RecentlyDeletedDialog } from "@/features/transactions/RecentlyDeletedDialog";
 import { AccountBalancesStrip } from "@/features/transactions/AccountBalancesStrip";
+import { MonthSummaryRail } from "@/features/transactions/MonthSummaryRail";
+import {
+  PeriodNavigator,
+  selectionRange,
+  selectionLabel,
+  thisMonth,
+  type PeriodSelection,
+} from "@/features/transactions/PeriodNavigator";
 import { QuickAddTemplates } from "@/features/templates/QuickAddTemplates";
-import { useTransactions, useTags, useDeletedTransactions, type TxnFilters } from "@/hooks/useTransactions";
+import {
+  useTransactions,
+  useTags,
+  useDeletedTransactions,
+  useLedgerBalance,
+  type TxnFilters,
+} from "@/hooks/useTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useUIStore } from "@/stores/ui";
 import { cn } from "@/lib/utils";
 import { categoryLabel } from "@/lib/i18nLabels";
-import { dateFnsLocale } from "@/lib/dates";
 import type { TxnType } from "@/lib/types";
 
 const ALL = "__all__";
 
-type PeriodKey = "all" | "month" | "30d" | "year" | "custom";
-const PERIODS: { value: PeriodKey; labelKey: string }[] = [
-  { value: "all", labelKey: "period.all" },
-  { value: "month", labelKey: "period.thisMonth" },
-  { value: "30d", labelKey: "period.last30" },
-  { value: "year", labelKey: "period.thisYear" },
-];
-const PERIOD_KEYS = PERIODS.map((p) => p.value);
-
-function initialPeriod(raw: string | null): PeriodKey {
-  return raw && (PERIOD_KEYS as string[]).includes(raw) ? (raw as PeriodKey) : "all";
+/**
+ * Resolve the initial period from the URL. A specific month is the everyday
+ * default, but a deep link can pin an exact month (`?month=2026-07`), year
+ * (`?year=2026`), rolling range (`?period=30d|all`), or explicit span
+ * (`?from&to`). A link that only narrows by a filter (e.g. the dashboard's
+ * "spending by category" → `?category=…`) keeps showing all history for that
+ * filter rather than silently scoping it to this month.
+ */
+function parseSelection(params: URLSearchParams): PeriodSelection {
+  const month = params.get("month");
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    const [y, m] = month.split("-").map(Number);
+    return { kind: "month", anchor: new Date(y, m - 1, 1).toISOString() };
+  }
+  const year = params.get("year");
+  if (year && /^\d{4}$/.test(year)) {
+    return { kind: "year", anchor: new Date(Number(year), 0, 1).toISOString() };
+  }
+  const from = params.get("from");
+  const to = params.get("to");
+  if (from && to) return { kind: "custom", from, to };
+  const period = params.get("period");
+  if (period === "all") return { kind: "all" };
+  if (period === "30d") return { kind: "last30" };
+  if (period === "year") return { kind: "year", anchor: new Date(new Date().getFullYear(), 0, 1).toISOString() };
+  if (period === "month") return thisMonth();
+  const narrowing =
+    params.get("type") || params.get("account") || params.get("category") || params.get("tag") || params.get("search");
+  if (narrowing) return { kind: "all" };
+  return thisMonth();
 }
 
-/** Human label for an explicit from/to range (single day, else a span). */
-function rangeLabel(fromIso: string, toIso: string): string {
-  const from = new Date(fromIso);
-  const to = new Date(toIso);
-  const oneDay = to.getTime() - from.getTime() <= 25 * 3600 * 1000; // ~a single day (DST-safe)
-  const locale = dateFnsLocale();
-  if (oneDay) return format(from, "dd MMM yyyy", { locale });
-  return `${format(from, "dd MMM", { locale })} – ${format(new Date(to.getTime() - 1), "dd MMM yyyy", { locale })}`;
-}
-
-/** Resolve a period key to an inclusive-from / exclusive-to date range (server uses $gte / $lt). */
-function periodRange(p: PeriodKey): { from?: string; to?: string } {
-  if (p === "all") return {};
+/** Whether a selection is exactly the current calendar month (the default view). */
+function isCurrentMonth(sel: PeriodSelection): boolean {
+  if (sel.kind !== "month") return false;
+  const a = new Date(sel.anchor);
   const now = new Date();
-  if (p === "month") return { from: startOfMonth(now).toISOString(), to: startOfMonth(addMonths(now, 1)).toISOString() };
-  if (p === "year") return { from: startOfYear(now).toISOString(), to: startOfYear(addYears(now, 1)).toISOString() };
-  // last 30 days, including today
-  return { from: startOfDay(subDays(now, 29)).toISOString(), to: startOfDay(addDays(now, 1)).toISOString() };
+  return a.getFullYear() === now.getFullYear() && a.getMonth() === now.getMonth();
 }
 
 export default function TransactionsPage() {
@@ -86,20 +105,9 @@ export default function TransactionsPage() {
     params.get("tag") ? params.get("tag")!.split(",").filter(Boolean) : []
   );
   const [category, setCategory] = useState<string>(params.get("category") ?? ALL);
-  // An explicit ?from=&to= range (e.g. deep-link from the Calendar) becomes a "Custom" period.
-  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(() => {
-    const from = params.get("from");
-    const to = params.get("to");
-    return from && to ? { from, to } : null;
-  });
-  const [period, setPeriod] = useState<PeriodKey>(
-    customRange ? "custom" : initialPeriod(params.get("period"))
-  );
-
-  function changePeriod(v: PeriodKey) {
-    setPeriod(v);
-    if (v !== "custom") setCustomRange(null);
-  }
+  // The visible period: a specific month by default, or a wider range / explicit
+  // span deep-linked via the URL (see parseSelection).
+  const [selection, setSelection] = useState<PeriodSelection>(() => parseSelection(params));
 
   // debounce the search input
   const [debounced, setDebounced] = useState(search);
@@ -121,10 +129,7 @@ export default function TransactionsPage() {
   const { data: tagOptions } = useTags();
   const { data: deleted } = useDeletedTransactions();
 
-  const range = useMemo(
-    () => (period === "custom" && customRange ? customRange : periodRange(period)),
-    [period, customRange]
-  );
+  const range = useMemo(() => selectionRange(selection), [selection]);
   const filters: TxnFilters = useMemo(
     () => ({
       search: debounced || undefined,
@@ -144,22 +149,22 @@ export default function TransactionsPage() {
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
 
-  // Running end-of-day balance is only meaningful for the full ledger anchored at
-  // the current total balance: any narrowing filter makes the visible rows a
-  // subset, and a period ending in the past would anchor at the wrong (present)
-  // total. In those cases we hide the per-day balance footer.
-  const totalBalance = useMemo(
-    () => (accounts ?? []).reduce((sum, a) => sum + (a.balance ?? 0), 0),
-    [accounts]
-  );
-  const showRunningBalance =
-    !!accounts &&
-    type === ALL &&
-    accountIds.length === 0 &&
-    selectedTags.length === 0 &&
-    category === ALL &&
-    !debounced &&
-    (!range.to || new Date(range.to).getTime() >= Date.now());
+  // A filter that narrows the ledger to a subset (account/category/type/tag/search)
+  // makes a running total meaningless — so the per-day end-of-day balance and the
+  // period summary rail only appear on the whole-ledger period views.
+  const hasNarrowingFilters =
+    type !== ALL ||
+    accountIds.length > 0 ||
+    selectedTags.length > 0 ||
+    category !== ALL ||
+    !!debounced;
+  const showRunningBalance = !!accounts && !hasNarrowingFilters;
+
+  // Anchor for the per-day end-of-day balance: the grand total as of the window's
+  // end (exclusive `to`), or the present total for an open-ended "all time" view.
+  // Using the window's own `to` keeps a *past* month correct — it reads the total
+  // as it stood then, not today's balance.
+  const { data: ledgerBalance } = useLedgerBalance(range.to, showRunningBalance);
 
   // infinite scroll sentinel
   const sentinel = useRef<HTMLDivElement>(null);
@@ -186,13 +191,9 @@ export default function TransactionsPage() {
         })()
       : "";
 
-  const hasFilters =
-    type !== ALL ||
-    accountIds.length > 0 ||
-    selectedTags.length > 0 ||
-    category !== ALL ||
-    !!debounced ||
-    period !== "all";
+  // "Filtered" for the empty-state / reset affordances = any narrowing filter, or a
+  // period other than the default current month.
+  const hasFilters = hasNarrowingFilters || !isCurrentMonth(selection);
 
   function toggleAccount(id: string) {
     setAccountIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -206,8 +207,7 @@ export default function TransactionsPage() {
     setSelectedTags([]);
     setCategory(ALL);
     setSearch("");
-    setCustomRange(null);
-    setPeriod("all");
+    setSelection(thisMonth());
     setParams({});
   }
 
@@ -222,7 +222,7 @@ export default function TransactionsPage() {
     });
   }
 
-  // Removable pills for the active fine-grained filters (period lives in its own select + summary).
+  // Removable pills for the active fine-grained filters (the period lives in its own navigator).
   const pills: { key: string; label: string; onRemove: () => void }[] = [];
   if (type !== ALL)
     pills.push({ key: "type", label: t(`txnType.${type}`, { ns: "common" }), onRemove: () => setType(ALL) });
@@ -235,15 +235,17 @@ export default function TransactionsPage() {
   if (category !== ALL) pills.push({ key: "cat", label: categoryName, onRemove: () => setCategory(ALL) });
   if (debounced) pills.push({ key: "search", label: `“${debounced}”`, onRemove: () => setSearch("") });
 
-  const periodLabel =
-    period === "custom" && customRange
-      ? rangeLabel(customRange.from, customRange.to)
-      : t(PERIODS.find((p) => p.value === period)?.labelKey ?? "period.all");
+  const periodLabel = selectionLabel(selection, t);
   const summary = total
-    ? `${t("summary.count", { count: total })}${period !== "all" ? ` · ${periodLabel}` : ""}`
+    ? `${t("summary.count", { count: total })} · ${periodLabel}`
     : hasFilters
       ? t("summary.noMatch")
       : t("summary.all");
+
+  // The summary rail earns the wide-screen blank space; it reflects the same
+  // whole-ledger period the running balance uses, so hide it when filtering to a
+  // subset (the /reports summary can't honour those narrowing filters).
+  const showRail = !hasNarrowingFilters;
 
   const accountTriggerLabel =
     accountIds.length === 0
@@ -261,7 +263,7 @@ export default function TransactionsPage() {
         : t("filters.tagsCount", { count: selectedTags.length });
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className={cn("mx-auto transition-[max-width]", showRail ? "max-w-6xl" : "max-w-3xl")}>
       <PageHeader
         title={t("title")}
         description={summary}
@@ -286,22 +288,26 @@ export default function TransactionsPage() {
       {/* one-tap "quick add" templates for frequent spends (tea, snacks, …) */}
       <QuickAddTemplates />
 
-      {/* filters — search on its own row, then an even 4-up row of dropdowns */}
+      {/* filters — the month navigator leads (primary control), then search, then
+          a row of the fine-grained dropdowns */}
       <div className="mb-3 space-y-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label={t("filters.searchAria")}
-            placeholder={t("filters.searchPlaceholder")}
-            className="pl-9"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <PeriodNavigator value={selection} onChange={setSelection} />
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label={t("filters.searchAria")}
+              placeholder={t("filters.searchPlaceholder")}
+              className="pl-9"
+            />
+          </div>
         </div>
         <div
           className={cn(
             "grid grid-cols-2 gap-2",
-            showTagFilter ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"
+            showTagFilter ? "sm:grid-cols-4" : "sm:grid-cols-3"
           )}
         >
           <Select value={type} onValueChange={setType}>
@@ -357,22 +363,6 @@ export default function TransactionsPage() {
                   {categoryLabel(c.name)}
                 </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={period} onValueChange={(v) => changePeriod(v as PeriodKey)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIODS.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {t(p.labelKey)}
-                </SelectItem>
-              ))}
-              {period === "custom" && customRange && (
-                <SelectItem value="custom">{rangeLabel(customRange.from, customRange.to)}</SelectItem>
-              )}
             </SelectContent>
           </Select>
 
@@ -435,41 +425,51 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 rounded-lg" />
-          ))}
-        </div>
-      ) : items.length ? (
-        <>
-          <TransactionList
-            transactions={items}
-            endingBalance={showRunningBalance ? totalBalance : undefined}
-          />
-          <div ref={sentinel} className="h-10" />
-          {isFetchingNextPage && (
-            <p className="py-4 text-center text-sm text-muted-foreground">{t("loadingMore")}</p>
+      <div className={cn("grid gap-6", showRail && "lg:grid-cols-[minmax(0,1fr)_18rem]")}>
+        <div className="min-w-0">
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 rounded-lg" />
+              ))}
+            </div>
+          ) : items.length ? (
+            <>
+              <TransactionList
+                transactions={items}
+                endingBalance={showRunningBalance ? ledgerBalance : undefined}
+              />
+              <div ref={sentinel} className="h-10" />
+              {isFetchingNextPage && (
+                <p className="py-4 text-center text-sm text-muted-foreground">{t("loadingMore")}</p>
+              )}
+            </>
+          ) : (
+            <EmptyState
+              icon={Receipt}
+              title={hasFilters ? t("empty.matchTitle") : t("empty.title")}
+              description={hasFilters ? t("empty.matchDescription") : t("empty.description")}
+              action={
+                hasFilters ? (
+                  <Button variant="outline" onClick={clearFilters}>
+                    {t("filters.clear")}
+                  </Button>
+                ) : (
+                  <Button onClick={addTransaction}>
+                    <Plus /> {t("actions.addTransaction", { ns: "common" })}
+                  </Button>
+                )
+              }
+            />
           )}
-        </>
-      ) : (
-        <EmptyState
-          icon={Receipt}
-          title={hasFilters ? t("empty.matchTitle") : t("empty.title")}
-          description={hasFilters ? t("empty.matchDescription") : t("empty.description")}
-          action={
-            hasFilters ? (
-              <Button variant="outline" onClick={clearFilters}>
-                {t("filters.clear")}
-              </Button>
-            ) : (
-              <Button onClick={addTransaction}>
-                <Plus /> {t("actions.addTransaction", { ns: "common" })}
-              </Button>
-            )
-          }
-        />
-      )}
+        </div>
+
+        {showRail && (
+          <aside className="hidden lg:block">
+            <MonthSummaryRail range={range} label={periodLabel} />
+          </aside>
+        )}
+      </div>
 
       <RecentlyDeletedDialog open={trashOpen} onOpenChange={setTrashOpen} />
     </div>

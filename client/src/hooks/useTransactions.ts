@@ -58,6 +58,23 @@ function cleanFilters(f: TxnFilters) {
   return Object.fromEntries(Object.entries(f).filter(([, v]) => v != null && v !== ""));
 }
 
+/**
+ * Grand-total balance across all accounts as of an instant (`asOf`, exclusive),
+ * or right now when omitted. Anchors the Transactions page's per-day end-of-day
+ * balance so it's correct even when viewing a past month. Keyed under
+ * "transactions" so a mutation (invalidateMoney) refreshes it automatically.
+ */
+export function useLedgerBalance(asOf?: string, enabled = true) {
+  return useQuery({
+    queryKey: ["transactions", "balance", asOf ?? null],
+    enabled,
+    queryFn: async () =>
+      (await api.get<{ balance: number }>("/transactions/balance", {
+        params: asOf ? { asOf } : {},
+      })).data.balance,
+  });
+}
+
 /** The user's soft-deleted transactions (the "Recently deleted" trash), newest first. */
 export function useDeletedTransactions() {
   return useQuery({
