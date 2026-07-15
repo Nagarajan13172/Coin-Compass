@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
+import { CountUp } from "@/components/common/CountUp";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -150,9 +151,11 @@ export default function NetWorthPage() {
                 {negative ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
               </span>
             </div>
-            <p className={`tnum text-3xl font-extrabold ${negative ? "text-expense" : "text-income"}`}>
-              {formatMoney(totals.netWorth)}
-            </p>
+            <CountUp
+              value={totals.netWorth}
+              id="nw-networth"
+              className={`tnum block text-3xl font-extrabold ${negative ? "text-expense" : "text-income"}`}
+            />
             <p className="mt-1 text-xs text-muted-foreground">{netWorthNote}</p>
           </CardContent>
         </Card>
@@ -168,7 +171,7 @@ export default function NetWorthPage() {
                 {t("summary.accounts")} <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
-            <p className="tnum text-2xl font-bold text-income">{formatMoney(totals.assets)}</p>
+            <CountUp value={totals.assets} id="nw-assets" className="tnum block text-2xl font-bold text-income" />
             <div className="mt-2 space-y-1 text-xs">
               <MiniRow label={t("summary.accounts")} value={formatMoney(totals.accountsTotal)} />
               <MiniRow
@@ -193,7 +196,7 @@ export default function NetWorthPage() {
                 </Link>
               )}
             </div>
-            <p className="tnum text-2xl font-bold text-expense">{formatMoney(totals.liabilities)}</p>
+            <CountUp value={totals.liabilities} id="nw-liabilities" className="tnum block text-2xl font-bold text-expense" />
             <p className="mt-1 text-xs text-muted-foreground">
               {activeLoans.length > 0
                 ? t("summary.outstandingAcross", { count: activeLoans.length })

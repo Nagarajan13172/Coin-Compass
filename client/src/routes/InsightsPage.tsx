@@ -17,6 +17,7 @@ import { PeriodSwitcher } from "@/components/common/PeriodSwitcher";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CountUp } from "@/components/common/CountUp";
 import { useInsights } from "@/hooks/useReports";
 import { periodLabel, shiftPeriod, fmtDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
@@ -83,9 +84,9 @@ export default function InsightsPage() {
 
           {/* headline comparison */}
           <div className="grid gap-4 sm:grid-cols-3">
-            <CompareCard label={t("compare.spending")} metric={data.expense} noun={noun} goodWhenUp={false} />
-            <CompareCard label={t("compare.income")} metric={data.income} noun={noun} goodWhenUp />
-            <CompareCard label={t("compare.net")} metric={data.net} noun={noun} goodWhenUp />
+            <CompareCard label={t("compare.spending")} metric={data.expense} noun={noun} goodWhenUp={false} animId="insights-spending" />
+            <CompareCard label={t("compare.income")} metric={data.income} noun={noun} goodWhenUp animId="insights-income" />
+            <CompareCard label={t("compare.net")} metric={data.net} noun={noun} goodWhenUp animId="insights-net" />
           </div>
 
           {/* spending pace */}
@@ -169,18 +170,21 @@ function CompareCard({
   metric,
   noun,
   goodWhenUp,
+  animId,
 }: {
   label: string;
   metric: InsightsMetric;
   noun: string;
   goodWhenUp: boolean;
+  /** Stable id so the count-up rolls once per session (see CountUp). */
+  animId?: string;
 }) {
   const { t } = useTranslation("insights");
   return (
     <Card>
       <CardContent className="p-5">
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="tnum mt-1 text-2xl font-bold tracking-tight">{formatMoney(metric.current)}</p>
+        <CountUp value={metric.current} id={animId} className="tnum mt-1 block text-2xl font-bold tracking-tight" />
         <div className="mt-2 flex items-center gap-2">
           <DeltaBadge delta={metric.delta} pct={metric.pct} goodWhenUp={goodWhenUp} />
           <span className="text-xs text-muted-foreground">{t("compare.vsLast", { noun })}</span>
@@ -240,17 +244,17 @@ function PaceCard({ data, noun }: { data: InsightsReport; noun: string }) {
         <div className="grid gap-5 sm:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">{t("pace.spentSoFar")}</p>
-            <p className="tnum mt-0.5 text-xl font-bold">{formatMoney(expense.current)}</p>
+            <CountUp value={expense.current} id="insights-pace-spent" className="tnum mt-0.5 block text-xl font-bold" />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{t("pace.avgPerDay")}</p>
-            <p className="tnum mt-0.5 text-xl font-bold">{formatMoney(Math.round(pace.avgPerDay))}</p>
+            <CountUp value={Math.round(pace.avgPerDay)} id="insights-pace-avg" className="tnum mt-0.5 block text-xl font-bold" />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">
               {pace.isCurrent ? t("pace.projected", { noun }) : t("pace.total", { noun })}
             </p>
-            <p className="tnum mt-0.5 text-xl font-bold text-expense">{formatMoney(pace.projected)}</p>
+            <CountUp value={pace.projected} id="insights-pace-projected" className="tnum mt-0.5 block text-xl font-bold text-expense" />
           </div>
         </div>
 

@@ -24,6 +24,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
+import { GoldTicker } from "@/features/metals/GoldTicker";
 import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { useUIStore } from "@/stores/ui";
 import { useMe, useLogout } from "@/hooks/useAuth";
@@ -166,6 +167,9 @@ export function TopBar() {
             </form>
           </SheetContent>
         </Sheet>
+        {/* today's gold rate + day-over-day change — desktop only (self-hides
+            until the metals feature is configured) */}
+        <GoldTicker />
         <NotificationBell />
         <LanguageToggle />
         {/* Phones don't have room for a fifth control — the theme picker stays

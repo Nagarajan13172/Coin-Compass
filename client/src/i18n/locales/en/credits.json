@@ -76,6 +76,7 @@
     "asOf": "As of {{date}}",
     "asOfLower": "as of {{date}}",
     "cardHeadline": "Gold · 22K / gram · {{city}}",
+    "tickerAria": "Gold · 22K per gram in {{city}}, change vs yesterday — view details",
     "silverLine": "Silver · 999 / gram",
     "seriesGold": "22K / g",
     "seriesOther": "/ g",

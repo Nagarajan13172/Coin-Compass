@@ -131,6 +131,7 @@ export default function AccountDetailPage() {
               <p className="text-sm text-muted-foreground">{t("detail.currentBalance")}</p>
               <CountUp
                 value={account.balance ?? 0}
+                id={`account-balance-${account._id}`}
                 className={`tnum block text-3xl font-extrabold ${negative ? "text-expense" : ""}`}
               />
             </div>

@@ -133,6 +133,7 @@ export default function DashboardPage() {
               label={t("txnType.income", { ns: "common" })}
               value={data.summary.income}
               tone="income"
+              animId="dash-income"
               to="/transactions?type=income"
             />
             <StatCard
@@ -140,6 +141,7 @@ export default function DashboardPage() {
               label={t("txnType.expense", { ns: "common" })}
               value={data.summary.expense}
               tone="expense"
+              animId="dash-expense"
               to="/transactions?type=expense"
             />
             <StatCard
@@ -148,6 +150,7 @@ export default function DashboardPage() {
               value={data.summary.net}
               tone={data.summary.net >= 0 ? "income" : "expense"}
               signed
+              animId="dash-net"
               sub={savingsRateLabel}
               to="/reports"
             />
@@ -166,6 +169,7 @@ export default function DashboardPage() {
               <CardContent>
                 <CountUp
                   value={data.summary.netWorth}
+                  id="dash-networth"
                   className="tnum block text-3xl font-extrabold tracking-tight"
                 />
                 {(() => {
@@ -573,6 +577,7 @@ function StatCard({
   to,
   sub,
   signed,
+  animId,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -584,6 +589,8 @@ function StatCard({
   sub?: React.ReactNode;
   /** Prefix a +/− sign and colour by sign — used for Net, which can be negative. */
   signed?: boolean;
+  /** Stable id so the count-up rolls once per session (see CountUp). */
+  animId?: string;
 }) {
   const toneClass = tone === "income" ? "text-income" : "text-expense";
   const body = (
@@ -597,14 +604,12 @@ function StatCard({
       </span>
       <div className="min-w-0">
         <p className="text-sm text-muted-foreground">{label}</p>
-        {signed ? (
-          <p className={`tnum text-xl font-bold ${toneClass}`}>
-            {value >= 0 ? "+" : "−"}
-            {formatMoney(Math.abs(value))}
-          </p>
-        ) : (
-          <Money amount={value} className={`text-xl ${toneClass}`} />
-        )}
+        <CountUp
+          value={value}
+          signed={signed}
+          id={animId}
+          className={`tnum block text-xl ${signed ? "font-bold" : "font-semibold"} ${toneClass}`}
+        />
         {sub && <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>}
       </div>
     </CardContent>

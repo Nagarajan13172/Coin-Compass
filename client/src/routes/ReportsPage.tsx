@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Money } from "@/components/common/Money";
+import { CountUp } from "@/components/common/CountUp";
 import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { NetTrendArea } from "@/features/reports/NetTrendArea";
 import { IncomeExpenseBar } from "@/features/reports/IncomeExpenseBar";
@@ -120,19 +120,27 @@ export default function ReportsPage() {
       {/* summary */}
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <SummaryStat label={t("txnType.income", { ns: "common" })} loading={summary.isLoading}>
-          <Money amount={summary.data?.income ?? 0} className="text-2xl text-income" />
+          <CountUp
+            value={summary.data?.income ?? 0}
+            id="reports-income"
+            className="tnum text-2xl font-semibold text-income"
+          />
         </SummaryStat>
         <SummaryStat label={t("txnType.expense", { ns: "common" })} loading={summary.isLoading}>
-          <Money amount={summary.data?.expense ?? 0} className="text-2xl text-expense" />
+          <CountUp
+            value={summary.data?.expense ?? 0}
+            id="reports-expense"
+            className="tnum text-2xl font-semibold text-expense"
+          />
         </SummaryStat>
         <SummaryStat label={t("net")} loading={summary.isLoading}>
-          <span
+          <CountUp
+            value={summary.data?.net ?? 0}
+            id="reports-net"
             className={`tnum text-2xl font-semibold ${
               (summary.data?.net ?? 0) >= 0 ? "text-income" : "text-expense"
             }`}
-          >
-            <Money amount={summary.data?.net ?? 0} />
-          </span>
+          />
         </SummaryStat>
       </div>
 
@@ -144,7 +152,7 @@ export default function ReportsPage() {
           hint={t("avgDailyHint")}
           sub={t("overDays", { count: insights.days })}
         >
-          <span className="tnum text-2xl font-semibold">{formatMoney(insights.avgDaily)}</span>
+          <CountUp value={insights.avgDaily} id="reports-avgdaily" className="tnum text-2xl font-semibold" />
         </SummaryStat>
 
         <SummaryStat

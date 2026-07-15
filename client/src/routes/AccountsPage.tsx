@@ -127,7 +127,7 @@ export default function AccountsPage() {
                     </span>
                     <div>
                       <p className="text-sm text-muted-foreground">{t("totalBalance")}</p>
-                      <CountUp value={total} className="tnum block text-3xl font-extrabold tracking-tight" />
+                      <CountUp value={total} id="accounts-total" className="tnum block text-3xl font-extrabold tracking-tight" />
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {t("across", { count: included.length })}
                       </p>

@@ -7,6 +7,7 @@ import { BadgeCheck, Calculator, Coins, Info, Landmark, MoreVertical, Pencil, Pl
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
+import { CountUp } from "@/components/common/CountUp";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -399,8 +400,8 @@ function LoansOverview({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label={t("loanOverview.totalOutstanding")} tone="expense" value={formatMoney(stats.totalOutstanding)} sub={outstandingSub} />
-        <Stat label={t("loanOverview.monthlyEmi")} value={formatMoney(stats.totalEmi)} sub={t("loanOverview.totalAcross", { loans: count })} />
+        <Stat label={t("loanOverview.totalOutstanding")} tone="expense" amount={stats.totalOutstanding} animId="loans-outstanding" sub={outstandingSub} />
+        <Stat label={t("loanOverview.monthlyEmi")} amount={stats.totalEmi} animId="loans-emi" sub={t("loanOverview.totalAcross", { loans: count })} />
         <Stat
           label={t("loanOverview.interestRemaining")}
           tone="expense"
@@ -490,17 +491,25 @@ function LoansOverview({
 function Stat({
   label,
   value,
+  amount,
+  animId,
   sub,
   tone,
   info,
 }: {
   label: string;
-  value: string;
+  /** Pre-formatted string, used when the figure isn't a plain money value (e.g. the "~" estimate). */
+  value?: string;
+  /** Numeric money value — rolls up once per session via CountUp. Takes precedence over `value`. */
+  amount?: number;
+  /** Stable id scoping the roll to once per session (see CountUp). */
+  animId?: string;
   sub: string;
   tone?: "expense";
   info?: string;
 }) {
   const { t } = useTranslation("wealth");
+  const toneClass = tone === "expense" ? "text-expense" : "";
   return (
     <Card>
       <CardContent className="p-5">
@@ -521,7 +530,11 @@ function Stat({
             </Tooltip>
           )}
         </div>
-        <p className={`tnum text-2xl font-bold ${tone === "expense" ? "text-expense" : ""}`}>{value}</p>
+        {amount != null ? (
+          <CountUp value={amount} id={animId} className={`tnum block text-2xl font-bold ${toneClass}`} />
+        ) : (
+          <p className={`tnum text-2xl font-bold ${toneClass}`}>{value}</p>
+        )}
         <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
       </CardContent>
     </Card>

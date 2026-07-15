@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CountUp } from "@/components/common/CountUp";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -96,9 +97,9 @@ export default function CreditsPage() {
       ) : people && people.length > 0 ? (
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Stat label={t("totals.owed")} tone="income" value={formatMoney(totals.owedToYou)} />
-            <Stat label={t("totals.owe")} tone="expense" value={formatMoney(totals.youOwe)} />
-            <Stat label={t("totals.net")} value={formatMoney(totals.net, { signed: true })} />
+            <Stat label={t("totals.owed")} tone="income" amount={totals.owedToYou} animId="credits-owed" />
+            <Stat label={t("totals.owe")} tone="expense" amount={totals.youOwe} animId="credits-owe" />
+            <Stat label={t("totals.net")} amount={totals.net} signed animId="credits-net" />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -141,20 +142,35 @@ export default function CreditsPage() {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "income" | "expense" }) {
+function Stat({
+  label,
+  amount,
+  tone,
+  signed,
+  animId,
+}: {
+  label: string;
+  amount: number;
+  tone?: "income" | "expense";
+  /** Prefix a +/− sign — used for the net figure, which can be negative. */
+  signed?: boolean;
+  /** Stable id scoping the roll to once per session (see CountUp). */
+  animId?: string;
+}) {
   return (
     <Card>
       <CardContent className="p-5">
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p
+        <CountUp
+          value={amount}
+          signed={signed}
+          id={animId}
           className={cn(
-            "tnum text-2xl font-bold",
+            "tnum block text-2xl font-bold",
             tone === "income" && "text-income",
             tone === "expense" && "text-expense"
           )}
-        >
-          {value}
-        </p>
+        />
       </CardContent>
     </Card>
   );
