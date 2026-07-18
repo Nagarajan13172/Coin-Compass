@@ -270,6 +270,18 @@ export async function refreshMetalPricesOnDemand(): Promise<void> {
   await refreshMetalPrices({ force: true });
 }
 
+/**
+ * True when today's (IST) gold snapshot exists and came from GRT — i.e. the
+ * daily capture succeeded. Used to raise a loud log if a scheduled scrape
+ * couldn't land today's rate, since GRT has no historical API: a day missed
+ * entirely can only be recovered later by an (estimated) manual backfill.
+ */
+export async function isTodayCaptured(): Promise<boolean> {
+  if (!env.metals.enabled) return true; // feature off — nothing to capture
+  const gold = await MetalPrice.findOne({ metal: "gold", date: istDate() }).lean();
+  return gold?.retailSource === GRT_SOURCE;
+}
+
 /** Latest stored snapshot for gold and silver, plus whether the feature is on. */
 export async function getLatestMetals() {
   const [gold, silver] = await Promise.all([
