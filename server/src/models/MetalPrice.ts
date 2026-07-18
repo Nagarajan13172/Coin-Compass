@@ -20,9 +20,9 @@ const metalPriceSchema = new Schema(
     pricePerGram22k: { type: Number, default: 0 },
     pricePerGram18k: { type: Number, default: 0 },
     prevClose: { type: Number, default: 0 },
-    change: { type: Number, default: 0 }, // absolute change in ounce price vs prev close
+    change: { type: Number, default: 0 }, // absolute day-over-day change in the headline rate
     changePct: { type: Number, default: 0 },
-    source: { type: String, default: "goldapi.io" },
+    source: { type: String, default: "" },
     fetchedAt: { type: Date, default: Date.now },
     // Actual local retail rate (GRT Jewellers), scraped daily. Gold only; 0 when
     // the scrape failed and the client should fall back to the spot + premium.

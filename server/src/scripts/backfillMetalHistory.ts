@@ -132,8 +132,8 @@ async function main() {
   const to = (arg("--to") ?? "2026-06-30").trim();
   const delayMs = Number(arg("--delay") ?? 300);
 
-  if (!env.metals.configured && !dryRun) {
-    console.error("GOLD_API_KEY is not set — metals feature disabled. Set it in server/.env, or use --dry-run.");
+  if (!env.metals.goldApiConfigured && !dryRun) {
+    console.error("GOLD_API_KEY is not set — this GoldAPI backfill needs a key. Set it in server/.env, or use --dry-run.");
     process.exit(1);
   }
 

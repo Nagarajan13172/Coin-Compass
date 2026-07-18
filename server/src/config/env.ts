@@ -59,13 +59,20 @@ export const env = {
     emailCodeMaxAttempts: Number(process.env.TWO_FACTOR_EMAIL_CODE_MAX_ATTEMPTS ?? 5),
     backupCodeCount: Number(process.env.TWO_FACTOR_BACKUP_CODE_COUNT ?? 10),
   },
-  // Live precious-metal (gold/silver) rates. When GOLD_API_KEY is absent the
-  // feature is disabled: the API returns `configured: false` and the client
-  // hides the widget/page instead of erroring.
+  // Live precious-metal (gold/silver) rates. These come from a FREE scrape of
+  // GRT Jewellers' site (grtjewels.com) — no API key required — so the feature
+  // is ON by default. Set METALS_ENABLED=false to turn it off; the test harness
+  // does this so the suite never hits the live site.
+  //
+  // `apiKey`/`goldApiConfigured` are LEGACY: GoldAPI.io is no longer used to
+  // fetch live rates (its free quota is exhausted). They remain only so the
+  // one-off GoldAPI backfill script (scripts/backfillMetalHistory.ts) still
+  // compiles/runs if you ever have a key + quota again.
   metals: {
+    enabled: process.env.METALS_ENABLED !== "false",
+    provider: "GRT · grtjewels.com",
     apiKey: process.env.GOLD_API_KEY ?? "",
-    provider: "goldapi.io",
-    configured: Boolean(process.env.GOLD_API_KEY),
+    goldApiConfigured: Boolean(process.env.GOLD_API_KEY),
   },
   mail: {
     // When SMTP isn't configured, the mailer logs verification links to the console

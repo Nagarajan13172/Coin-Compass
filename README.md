@@ -25,7 +25,7 @@ A polished, full-stack **personal finance manager**. Track accounts and day-to-d
 - **Credits** — informal IOUs with friends/family, optionally linked to a real transaction, with a net owed/owing summary.
 - **Investments (holdings)** — track holdings and their value as part of net worth.
 - **Net worth** — assets (accounts + holdings) minus liabilities (loans), with a daily-accumulated trend chart. Guarded behind an extra **wealth passcode** lock, separate from your login.
-- **Gold & Silver** — live gold/silver rates in ₹ (24K/22K/18K per gram), a daily-refreshed dashboard widget and a dedicated page with a history chart. Requires a free `GOLD_API_KEY` ([goldapi.io](https://www.goldapi.io)); auto-hidden when unset.
+- **Gold & Silver** — live Chennai gold/silver rates in ₹ (24K/22K/18K per gram), scraped daily from GRT Jewellers ([grtjewels.com](https://www.grtjewels.com)) — no API key needed. A daily-refreshed dashboard widget and a dedicated page with a history chart; set `METALS_ENABLED=false` to hide it.
 
 ### Insight & review
 
@@ -82,7 +82,7 @@ cp client/.env.example client/.env
 The defaults work out of the box for local dev — MongoDB on `:27017`, the client proxying `/api` to the server on `:4000`. Everything below is **optional**:
 
 - **Email** (SMTP) — leave blank and the server prints verification/reset links to the console instead of sending them, so signup still works locally.
-- **Gold & Silver** — set `GOLD_API_KEY` to enable the metals widget/page; unset hides it.
+- **Gold & Silver** — on by default (free daily GRT scrape, no key); set `METALS_ENABLED=false` to hide the widget/page.
 - **Social login** — set a provider's client id/secret to show its button.
 
 For production, set a strong `AUTH_JWT_SECRET` (and ideally `AUTH_PASSWORD_PEPPER`), plus your public `CLIENT_URL`/`APP_URL`. See [`docs/auth-setup.md`](docs/auth-setup.md) for step-by-step OAuth registration.

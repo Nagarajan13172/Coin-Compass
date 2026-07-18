@@ -3,10 +3,10 @@ import { createVerifiedUser } from "../harness/users";
 import { newSession } from "../harness/http";
 
 /**
- * The test server runs with no GOLD_API_KEY, so the metals feature is disabled.
- * These assert the graceful "not configured" behaviour (the realistic path
- * without a live third-party key). With a key set, latest/history return data
- * and refresh returns a fresh snapshot subject to the cooldown.
+ * The test server runs with METALS_ENABLED=false, so the metals feature is
+ * disabled (and the suite never scrapes the live GRT site). These assert the
+ * graceful "not configured" behaviour. With the feature enabled, latest/history
+ * return data and refresh returns a fresh GRT snapshot subject to the cooldown.
  */
 
 describe("Metals — read (feature disabled without an API key)", () => {

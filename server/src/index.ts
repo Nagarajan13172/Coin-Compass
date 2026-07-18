@@ -72,7 +72,7 @@ async function bootstrap() {
   );
 
   // Refresh gold/silver rates on boot (backfills today if missing), then daily
-  // at 06:30 IST. No-op when GOLD_API_KEY isn't configured.
+  // at 06:30 IST by scraping GRT. No-op when METALS_ENABLED=false.
   await refreshMetalPrices().catch((e) => console.error("[metals] boot run failed", e));
   cron.schedule(
     "30 6 * * *",
