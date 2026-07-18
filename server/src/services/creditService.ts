@@ -2,20 +2,48 @@ import type { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
 import { Credit, type CreditDirection } from "../models/Credit";
 import { Category } from "../models/Category";
+import { Account } from "../models/Account";
 import { HttpError } from "../middleware/errorHandler";
 
-/** The auto-managed category a reflected credit's transaction is filed under, so
- *  lends/repayments group into a named bucket instead of showing uncategorized. */
+/**
+ * Auto-managed "Money Lent" account — the receivable that money you lend moves
+ * INTO (and repayments move back OUT of). Because lends/repayments are modelled
+ * as transfers between your real account and this one, they never touch
+ * income/expense, and your net worth stays flat while money is out (the drop in
+ * your bank is offset by the rise here). See the Credits feature docs.
+ */
+const LENT_ACCOUNT = { system: "money_lent", name: "Money Lent", type: "receivable", icon: "hand-coins", color: "#F59E0B" } as const;
+
+/** The auto-managed categories the Credits feature can tag transactions with.
+ *  Only `received` (income) is used now — for the overpayment excess; `given`
+ *  is retained so the legacy category backfill script still resolves. */
 const CREDIT_CATEGORY = {
   given: { system: "credit_given", name: "Credit Given", type: "expense", icon: "hand-coins", color: "#F59E0B" },
   received: { system: "credit_received", name: "Credit Received", type: "income", icon: "coins", color: "#14B8A6" },
 } as const;
 
+/** Find — or lazily create — the auto-managed "Money Lent" receivable account. */
+export async function ensureLentAccount(uid: unknown): Promise<Types.ObjectId> {
+  const existing = await Account.findOne({ user: uid, system: LENT_ACCOUNT.system });
+  if (existing) return existing._id as Types.ObjectId;
+  const created = await Account.create({
+    user: uid,
+    name: LENT_ACCOUNT.name,
+    type: LENT_ACCOUNT.type,
+    icon: LENT_ACCOUNT.icon,
+    color: LENT_ACCOUNT.color,
+    system: LENT_ACCOUNT.system,
+    initialBalance: 0,
+    includeInTotal: true, // it's a real asset (money owed to you) — counts in net worth
+  });
+  return created._id as Types.ObjectId;
+}
+
 /**
- * Find — or lazily create — the credit category for a direction and return its id.
- * Matched by the stable `system` marker (not the display name), so a renamed
- * category still resolves and a deleted one is recreated on the next use. Also
- * used by the one-off backfill script.
+ * Find — or lazily create — the credit category for a direction. Matched by the
+ * stable `system` marker (not display name), so a renamed category still resolves
+ * and a deleted one is recreated. `received` tags the overpayment-excess income;
+ * kept general so the legacy backfill script (backfillCreditCategories) still works.
  */
 export async function ensureCreditCategoryId(uid: unknown, direction: CreditDirection): Promise<Types.ObjectId> {
   const spec = CREDIT_CATEGORY[direction];
@@ -31,6 +59,42 @@ export async function ensureCreditCategoryId(uid: unknown, direction: CreditDire
     system: spec.system,
   });
   return created._id as Types.ObjectId;
+}
+
+/**
+ * THE RULE, as a pure function: a repayment neutralizes what the person owes you,
+ * and only the part BEYOND that is real income.
+ *
+ *   splitRepayment(owed=20000, received=15000) -> { neutral: 15000, income: 0 }
+ *   splitRepayment(owed=5000,  received=5000)  -> { neutral: 5000,  income: 0 }
+ *   splitRepayment(owed=20000, received=22000) -> { neutral: 20000, income: 2000 }
+ *   splitRepayment(owed=0,     received=5000)  -> { neutral: 0,     income: 5000 } (a gift)
+ *
+ * A negative `owed` (you actually owe THEM) is treated as 0 owed — receiving more
+ * money in that state is all income, never a "negative neutralization".
+ */
+export function splitRepayment(owed: number, received: number): { neutral: number; income: number } {
+  const owedToYou = Math.max(0, owed);
+  const neutral = Math.min(Math.max(received, 0), owedToYou);
+  return { neutral, income: Math.max(received, 0) - neutral };
+}
+
+/**
+ * Net amount a person currently owes you (given − received), across all their
+ * entries EXCEPT `excludeId` (so an entry being edited doesn't count itself).
+ * Positive = they owe you; negative = you owe them. Person is matched
+ * case-insensitively, the same way getCreditSummary groups.
+ */
+export async function personOutstanding(uid: unknown, person: string, excludeId?: unknown): Promise<number> {
+  const rows = await Credit.find({ user: uid }).select("person direction amount").lean();
+  const key = person.trim().toLowerCase();
+  let owed = 0;
+  for (const r of rows) {
+    if (String(r._id) === String(excludeId)) continue;
+    if (r.person.trim().toLowerCase() !== key) continue;
+    owed += r.direction === "given" ? r.amount : -r.amount;
+  }
+  return owed;
 }
 
 export interface CreditInput {
@@ -50,26 +114,83 @@ function defaultNote(data: Pick<CreditInput, "direction" | "person" | "note" | "
   return data.method ? `${base} via ${data.method}` : base;
 }
 
-/** The linked transaction a credit's `reflected` flag creates — an expense when
- *  money left an account (given), income when it arrived (received). Filed under
- *  the direction's credit category so it's never left uncategorized. Only called
- *  once we've confirmed an account is present (reflecting requires one). */
-function txnPayload(uid: unknown, data: CreditInput, creditId: unknown, category: unknown) {
-  return {
-    user: uid,
-    type: data.direction === "given" ? "expense" : "income",
-    amount: data.amount,
-    account: data.account,
-    toAccount: null,
-    category,
-    date: data.date,
-    note: defaultNote(data),
-    payee: data.person,
-    credit: creditId,
-  };
+/** Delete both reflected legs of a credit (the transfer + any overpayment income). */
+async function clearReflectedTransactions(uid: unknown, credit: { transaction?: unknown; incomeTransaction?: unknown }): Promise<void> {
+  const ids = [credit.transaction, credit.incomeTransaction].filter(Boolean);
+  if (ids.length) await Transaction.deleteMany({ _id: { $in: ids }, user: uid });
 }
 
-/** Create a credit entry, optionally creating its linked transaction. */
+/**
+ * (Re)build a reflected credit's transaction legs from scratch. Deletes any
+ * existing legs first, then — if `reflected` — creates:
+ *   • GIVEN     → one TRANSFER  yourAccount → Money Lent  (you lent; receivable up)
+ *   • RECEIVED  → one TRANSFER  Money Lent → yourAccount  for the neutralized part,
+ *                 PLUS an INCOME txn for any excess beyond what they owed.
+ * Neither leg is ever an expense, and only the true excess is income.
+ * `outstandingBefore` = what the person owed you before this entry.
+ */
+async function rebuildReflection(uid: unknown, credit: any, data: CreditInput, outstandingBefore: number): Promise<void> {
+  await clearReflectedTransactions(uid, credit);
+  credit.transaction = null;
+  credit.incomeTransaction = null;
+  if (!data.reflected) return;
+
+  const lentAccount = await ensureLentAccount(uid);
+  const note = defaultNote(data);
+
+  if (data.direction === "given") {
+    const txn = await Transaction.create({
+      user: uid,
+      type: "transfer",
+      amount: data.amount,
+      account: data.account, // money leaves your real account…
+      toAccount: lentAccount, // …and becomes a receivable
+      category: null,
+      date: data.date,
+      note,
+      payee: data.person,
+      credit: credit._id,
+    });
+    credit.transaction = txn._id;
+    return;
+  }
+
+  // received: neutralize up to what they owed; the rest is real income.
+  const { neutral, income } = splitRepayment(outstandingBefore, data.amount);
+  if (neutral > 0) {
+    const txn = await Transaction.create({
+      user: uid,
+      type: "transfer",
+      amount: neutral,
+      account: lentAccount, // drawn from the receivable…
+      toAccount: data.account, // …back into your real account
+      category: null,
+      date: data.date,
+      note,
+      payee: data.person,
+      credit: credit._id,
+    });
+    credit.transaction = txn._id;
+  }
+  if (income > 0) {
+    const category = await ensureCreditCategoryId(uid, "received");
+    const txn = await Transaction.create({
+      user: uid,
+      type: "income",
+      amount: income,
+      account: data.account,
+      toAccount: null,
+      category,
+      date: data.date,
+      note: neutral > 0 ? `${note} (extra over dues)` : note,
+      payee: data.person,
+      credit: credit._id,
+    });
+    credit.incomeTransaction = txn._id;
+  }
+}
+
+/** Create a credit entry, optionally creating its reflected transaction leg(s). */
 export async function createCredit(uid: unknown, data: CreditInput) {
   if (data.reflected && !data.account) {
     throw new HttpError(400, "Pick an account to reflect this in your balances");
@@ -81,20 +202,19 @@ export async function createCredit(uid: unknown, data: CreditInput) {
     note: data.note ?? "",
     user: uid,
     transaction: null,
+    incomeTransaction: null,
   });
-  if (data.reflected) {
-    const category = await ensureCreditCategoryId(uid, data.direction);
-    const txn = await Transaction.create(txnPayload(uid, data, credit._id, category));
-    credit.transaction = txn._id as Types.ObjectId;
-    await credit.save();
-  }
+  // Outstanding BEFORE this entry = net of every other entry for the person.
+  const outstandingBefore = await personOutstanding(uid, data.person, credit._id);
+  await rebuildReflection(uid, credit, data, outstandingBefore);
+  await credit.save();
   return credit;
 }
 
 /**
- * Update a credit entry, keeping its linked transaction in sync: creates one if
- * `reflected` just turned on, updates it in place if still on, or deletes it if
- * `reflected` just turned off.
+ * Update a credit entry, rebuilding its reflected transaction legs to match.
+ * The reflection is always torn down and recreated, so amount/direction/account/
+ * reflected changes stay consistent (incl. flipping reflected on or off).
  */
 export async function updateCredit(uid: unknown, creditId: unknown, patch: Partial<CreditInput>) {
   const credit = await Credit.findOne({ _id: creditId, user: uid });
@@ -107,7 +227,6 @@ export async function updateCredit(uid: unknown, creditId: unknown, patch: Parti
     date: patch.date ?? credit.date,
     method: patch.method ?? credit.method,
     // Distinguish "account omitted" (keep current) from "account: null" (clear it).
-    // `patch.account ?? …` would swallow an explicit null and never unset it.
     account: "account" in patch ? (patch.account ?? null) : credit.account ? String(credit.account) : null,
     note: patch.note ?? credit.note,
     reflected: patch.reflected ?? credit.reflected,
@@ -117,62 +236,49 @@ export async function updateCredit(uid: unknown, creditId: unknown, patch: Parti
     throw new HttpError(400, "Pick an account to reflect this in your balances");
   }
 
-  const hadTxn = credit.transaction;
   Object.assign(credit, { ...merged, account: merged.account ?? null });
-
-  if (merged.reflected && hadTxn) {
-    const category = await ensureCreditCategoryId(uid, merged.direction);
-    await Transaction.updateOne({ _id: hadTxn, user: uid }, txnPayload(uid, merged, credit._id, category));
-  } else if (merged.reflected && !hadTxn) {
-    const category = await ensureCreditCategoryId(uid, merged.direction);
-    const txn = await Transaction.create(txnPayload(uid, merged, credit._id, category));
-    credit.transaction = txn._id as Types.ObjectId;
-  } else if (!merged.reflected && hadTxn) {
-    await Transaction.deleteOne({ _id: hadTxn, user: uid });
-    credit.transaction = null;
-  }
-
+  const outstandingBefore = await personOutstanding(uid, merged.person, credit._id);
+  await rebuildReflection(uid, credit, merged, outstandingBefore);
   await credit.save();
   return credit;
 }
 
-/** Delete a credit entry and its linked transaction (if any). */
+/** Delete a credit entry and both of its reflected transaction legs (if any). */
 export async function deleteCredit(uid: unknown, creditId: unknown): Promise<boolean> {
   const credit = await Credit.findOneAndDelete({ _id: creditId, user: uid });
   if (!credit) return false;
-  if (credit.transaction) await Transaction.deleteOne({ _id: credit.transaction, user: uid });
+  await clearReflectedTransactions(uid, credit);
   return true;
 }
 
 /**
- * Delete the credit entry a transaction was linked to, when that transaction is
- * deleted from the Transactions page. A credit and its reflected transaction are
- * two sides of the same event, so removing one removes the other — the credit
- * shouldn't linger in the Credits section. The transaction itself is already
- * being deleted by the caller, so we only drop the credit doc here.
+ * A credit and its reflected transaction(s) are two sides of one event: when one
+ * of those transactions is deleted from the Transactions page, remove the credit
+ * AND its other leg so nothing is left orphaned. (The triggering transaction is
+ * already being deleted by the caller; deleting it again here is a harmless no-op.)
  */
 export async function deleteCreditForTransaction(uid: unknown, creditId: unknown): Promise<void> {
-  await Credit.deleteOne({ _id: creditId, user: uid });
+  const credit = await Credit.findOneAndDelete({ _id: creditId, user: uid });
+  if (credit) await clearReflectedTransactions(uid, credit);
 }
 
 /**
- * Un-link a credit's transaction without deleting the credit entry itself — the
- * money movement it recorded still happened, only the accounting record is gone.
- * Used when that transaction is deleted directly from the Transactions page, or
- * edited into something a credit can't represent (e.g. changed to a transfer).
+ * Detach a credit's reflection without deleting the credit entry: turn `reflected`
+ * off and drop the leg links, deleting the OTHER leg but keeping `keepTxnId`
+ * (the transaction the user is editing directly on the Transactions page — it
+ * becomes a standalone transaction). The credit stays as a pure ledger entry.
  */
-export async function unlinkCreditTransaction(uid: unknown, creditId: unknown): Promise<void> {
-  await Credit.updateOne({ _id: creditId, user: uid }, { reflected: false, transaction: null });
-}
-
-/** Keep a credit's amount/date/account/direction in sync when its linked
- *  transaction is edited directly from the Transactions page. */
-export async function syncCreditFromTransaction(
-  uid: unknown,
-  creditId: unknown,
-  fields: { amount: number; date: Date; account: unknown; direction: CreditDirection }
-): Promise<void> {
-  await Credit.updateOne({ _id: creditId, user: uid }, fields);
+export async function unlinkCreditTransaction(uid: unknown, creditId: unknown, keepTxnId?: unknown): Promise<void> {
+  const credit = await Credit.findOne({ _id: creditId, user: uid });
+  if (!credit) return;
+  const toDelete = [credit.transaction, credit.incomeTransaction].filter(
+    (id) => id && String(id) !== String(keepTxnId)
+  );
+  if (toDelete.length) await Transaction.deleteMany({ _id: { $in: toDelete }, user: uid });
+  credit.reflected = false;
+  credit.transaction = null;
+  credit.incomeTransaction = null;
+  await credit.save();
 }
 
 /** Every credit entry, newest first. */

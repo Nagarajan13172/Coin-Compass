@@ -9,6 +9,7 @@
     "seed": "tsx src/seed/index.ts",
     "seed:all": "tsx src/scripts/seedAll.ts",
     "migrate:user": "tsx src/scripts/migrateToUser.ts",
+    "migrate:credits": "tsx src/scripts/migrateCreditsToTransfers.ts",
     "backfill:credit-categories": "tsx src/scripts/backfillCreditCategories.ts",
     "backfill:templates": "tsx src/scripts/backfillTemplates.ts",
     "backfill:metals": "tsx src/scripts/backfillMetalHistory.ts",

@@ -5,7 +5,7 @@ import { transactionSchema, transactionUpdateSchema } from "../validators/schema
 import { balanceAsOf } from "../services/balanceService";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
 import { applyGoalContribution, reverseGoalContribution } from "../services/goalService";
-import { unlinkCreditTransaction, syncCreditFromTransaction, deleteCreditForTransaction } from "../services/creditService";
+import { unlinkCreditTransaction, deleteCreditForTransaction } from "../services/creditService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -253,20 +253,13 @@ export async function updateTransaction(req: Request, res: Response) {
     txn.goalContribution = 0;
   }
 
-  // Keep a linked credit entry in sync, or unlink it (keeping the credit itself)
-  // if this transaction no longer represents a person-to-person movement.
+  // A credit's reflected transactions are managed from the Credits page (a credit
+  // can map to a transfer plus an income leg). Editing one directly here detaches
+  // the whole credit's reflection — its other leg is removed and the credit stays
+  // as a pure ledger entry, while THIS transaction becomes standalone.
   if (prevCredit) {
-    if (txn.type === "transfer") {
-      txn.credit = null;
-      await unlinkCreditTransaction(uid, prevCredit);
-    } else {
-      await syncCreditFromTransaction(uid, prevCredit, {
-        amount: txn.amount,
-        date: txn.date,
-        account: txn.account,
-        direction: txn.type === "expense" ? "given" : "received",
-      });
-    }
+    txn.credit = null;
+    await unlinkCreditTransaction(uid, prevCredit, txn._id);
   }
   await txn.save();
 

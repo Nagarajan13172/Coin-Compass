@@ -1,6 +1,8 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-export const ACCOUNT_TYPES = ["cash", "bank", "card", "wallet", "upi", "savings"] as const;
+// "receivable" is an auto-managed asset bucket (currently "Money Lent"), not a
+// spendable account the user creates — money owed TO the user by other people.
+export const ACCOUNT_TYPES = ["cash", "bank", "card", "wallet", "upi", "savings", "receivable"] as const;
 
 const accountSchema = new Schema(
   {
@@ -14,6 +16,11 @@ const accountSchema = new Schema(
     includeInTotal: { type: Boolean, default: true },
     archived: { type: Boolean, default: false },
     order: { type: Number, default: 0 },
+    // Marks an app-managed account the user didn't create by hand — currently the
+    // Credits feature's "Money Lent" receivable ("money_lent"). Lets the app
+    // find/reuse the same bucket and lets the client hide it from spend pickers.
+    // null for ordinary user accounts. Mirrors Category.system.
+    system: { type: String, default: null },
   },
   { timestamps: true }
 );

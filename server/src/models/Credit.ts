@@ -41,7 +41,13 @@ const creditSchema = new Schema(
     account: { type: Schema.Types.ObjectId, ref: "Account", default: null },
     note: { type: String, default: "", trim: true },
     reflected: { type: Boolean, default: false },
+    // The primary reflected transaction — a TRANSFER between the user's real
+    // account and the auto-managed "Money Lent" account, so lending/repaying
+    // moves balances without ever counting as income/expense (see creditService).
     transaction: { type: Schema.Types.ObjectId, ref: "Transaction", default: null },
+    // The SECOND leg, present only when a "received" exceeds what the person owed:
+    // the excess is genuine income (interest/gift) and gets its own income txn.
+    incomeTransaction: { type: Schema.Types.ObjectId, ref: "Transaction", default: null },
   },
   { timestamps: true }
 );
