@@ -115,8 +115,8 @@ an EMI — pay down a **loan** and nudge **net worth**.
 ## 7. Setup & configuration (for operators)
 
 - Auth providers & SMTP: [`docs/auth-setup.md`](./auth-setup.md).
-- Gold rates need `GOLD_API_KEY`; email reports need SMTP configured (falls back to logging the
-  email to the server console in dev).
+- Gold/silver rates are scraped from GRT daily (no key; disable with `METALS_ENABLED=false`); email
+  reports need SMTP configured (falls back to logging the email to the server console in dev).
 - Env template: `server/.env.example`.
 
 ## 8. Ideas on the roadmap

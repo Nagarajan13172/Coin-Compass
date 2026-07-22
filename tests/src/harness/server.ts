@@ -31,7 +31,9 @@ export async function startServer(
     SMTP_HOST: "",
     SMTP_USER: "",
     SMTP_PASS: "",
-    // Keep optional integrations dormant during tests.
+    // Keep optional integrations dormant during tests: disable the metals
+    // feature so the suite never scrapes the live grtjewels.com site.
+    METALS_ENABLED: "false",
     GOLD_API_KEY: "",
     ...extraEnv,
   };

@@ -14,7 +14,7 @@ import { requestLogger } from "./middleware/requestLogger";
 import { processDueRecurring } from "./services/recurringService";
 import { runNotificationSweep } from "./services/notificationService";
 import { purgeExpiredDeletions } from "./services/trashService";
-import { refreshMetalPrices } from "./services/metalPriceService";
+import { refreshMetalPrices, isTodayCaptured } from "./services/metalPriceService";
 import { sendDueReports } from "./services/reportEmailService";
 
 async function bootstrap() {
@@ -71,16 +71,30 @@ async function bootstrap() {
     { timezone: "Asia/Kolkata" }
   );
 
-  // Refresh gold/silver rates on boot (backfills today if missing), then daily
-  // at 06:30 IST. No-op when GOLD_API_KEY isn't configured.
-  await refreshMetalPrices().catch((e) => console.error("[metals] boot run failed", e));
-  cron.schedule(
-    "30 6 * * *",
-    () => {
-      refreshMetalPrices().catch((e) => console.error("[metals] scheduled run failed", e));
-    },
-    { timezone: "Asia/Kolkata" }
-  );
+  // Refresh gold/silver rates by scraping GRT: on boot (backfills today if
+  // missing), then twice a day at 06:30 and 13:30 IST. The midday run is a cheap
+  // retry — refreshMetalPrices is idempotent, so it only does work if the morning
+  // scrape failed, which keeps a single transient GRT/network blip from losing a
+  // whole (unrecoverable) day. No-op when METALS_ENABLED=false.
+  const refreshMetalsAndAlert = async (label: string): Promise<void> => {
+    try {
+      await refreshMetalPrices();
+      // GRT publishes only today's rate, so a fully-missed day can't be re-fetched
+      // — surface it loudly so it can be recovered via the on-demand refresh.
+      if (!(await isTodayCaptured())) {
+        console.error(
+          `[metals] ⚠ today's rate is still missing after the ${label} run — GRT scrape is failing. ` +
+            `Use the on-demand refresh or check grtjewels.com.`
+        );
+      }
+    } catch (e) {
+      console.error(`[metals] ${label} run failed`, e);
+    }
+  };
+  await refreshMetalsAndAlert("boot");
+  for (const time of ["30 6 * * *", "30 13 * * *"]) {
+    cron.schedule(time, () => void refreshMetalsAndAlert(`cron ${time}`), { timezone: "Asia/Kolkata" });
+  }
 
   // Email summary reports on the 1st (last month) and 15th (month-to-date) at 08:00
   // IST. Also run on boot to catch a run missed while the server was down; the

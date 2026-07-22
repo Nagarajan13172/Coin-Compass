@@ -81,7 +81,7 @@
     "seriesGold": "22K / g",
     "seriesOther": "/ g",
     "notConfiguredTitle": "Gold tracking isn’t set up yet",
-    "notConfiguredDesc": "Add a free GOLD_API_KEY (from goldapi.io) to the server environment to enable daily gold & silver rates.",
+    "notConfiguredDesc": "Gold & silver tracking is turned off. Set METALS_ENABLED=true in the server environment to enable the daily GRT rate scrape.",
     "noRatesTitle": "No rates yet",
     "noRatesDesc": "The first snapshot will appear after the next daily fetch. Check back shortly.",
     "history": "Price history",
@@ -93,7 +93,7 @@
     },
     "historyBuildingTitle": "History is still building.",
     "historyBuildingDesc": "A new data point is added each day — check back tomorrow.",
-    "disclaimer": "Spot from goldapi.io (international spot × ₹). Chennai shows GRT Jewellers’ published counter rate (from grtjewels.com); other cities estimate spot + a local premium (duty, GST & margin) and exclude making charges. Refreshed automatically once a day, or on demand with the refresh button above (max once every 15 minutes).",
+    "disclaimer": "Rates are scraped daily from GRT Jewellers (grtjewels.com). Chennai shows their published counter rate; other cities are estimated from it with a local premium (duty, GST & margin) and exclude making charges. Refreshed automatically once a day, or on demand with the refresh button above (max once every 15 minutes).",
     "refreshed": "Rates refreshed",
     "refreshFailed": "Couldn't refresh rates"
   }

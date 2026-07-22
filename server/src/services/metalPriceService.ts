@@ -2,9 +2,6 @@ import { env } from "../config/env";
 import { MetalPrice, METALS, type Metal } from "../models/MetalPrice";
 import { HttpError } from "../middleware/errorHandler";
 
-/** GoldAPI symbol for each metal we track. */
-const SYMBOL: Record<Metal, string> = { gold: "XAU", silver: "XAG" };
-
 /** Today's date as YYYY-MM-DD in IST, so "today" matches the Indian market day. */
 function istDate(d = new Date()): string {
   // en-CA formats as YYYY-MM-DD.
@@ -16,59 +13,95 @@ function istDate(d = new Date()): string {
   }).format(d);
 }
 
-/** Shape of the fields we use from a GoldAPI.io /api/{symbol}/INR response. */
-interface GoldApiResponse {
-  price: number; // per troy ounce, in INR
-  prev_close_price?: number;
-  ch?: number; // absolute change vs prev close
-  chp?: number; // percent change vs prev close
-  price_gram_24k?: number;
-  price_gram_22k?: number;
-  price_gram_18k?: number;
-}
-
-async function fetchMetal(metal: Metal): Promise<GoldApiResponse> {
-  const url = `https://www.goldapi.io/api/${SYMBOL[metal]}/INR`;
-  // Bound the request so a slow/hung API can never stall server startup.
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  try {
-    const res = await fetch(url, {
-      headers: { "x-access-token": env.metals.apiKey, "Content-Type": "application/json" },
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`GoldAPI ${metal} responded ${res.status}: ${body.slice(0, 200)}`);
-    }
-    return (await res.json()) as GoldApiResponse;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 /**
  * GRT Jewellers publishes no API, but their homepage embeds the current rates
- * as JSON (`"purity":"22 KT","amount":12905`). Reading that directly means our
- * figure matches exactly what shoppers see on grtjewels.com.
+ * as JSON in a `gold_rate` array (despite the name it holds every metal):
+ *   {"type":"GOLD","unit":"G","purity":"22 KT","amount":13065}
+ *   {"type":"SILVER","unit":"G","purity":null,"amount":235}
+ * Reading that directly means our figures match exactly what shoppers see on
+ * grtjewels.com — no third-party rate API involved.
  */
 const GRT_URL = "https://www.grtjewels.com/";
 
 /** Source marker stored on GRT snapshots; a mismatch triggers a re-scrape. */
 const GRT_SOURCE = "GRT · grtjewels.com";
 
-interface GrtRate {
+/**
+ * Chennai retail carries roughly this premium over international spot (import
+ * duty + GST + local dealer margin) — the same figure the client calibrates its
+ * per-city rates with (see client/src/features/metals/cities.ts). GRT gives us
+ * the actual Chennai retail rate; we back an implied spot out of it so the
+ * per-city estimates and the "spot" reference lines still render a sensible
+ * number for cities other than Chennai.
+ */
+const CHENNAI_RETAIL_PREMIUM_PCT = 15.2;
+const GRAMS_PER_TROY_OZ = 31.1034768;
+
+/** International spot per-gram implied by a GRT retail per-gram (0 stays 0). */
+function impliedSpotPerGram(retail: number): number {
+  if (!(retail > 0)) return 0;
+  return Math.round((retail / (1 + CHENNAI_RETAIL_PREMIUM_PCT / 100)) * 100) / 100;
+}
+
+/** Per-gram INR rates parsed from GRT's homepage. 0 = that figure was absent. */
+export interface GrtRates {
   gram22k: number;
   gram24k: number;
   gram18k: number;
+  silverPerGram: number; // .999 silver retail, ₹/g
 }
 
 /**
- * Scrape GRT's published per-gram gold rates (22K/24K/18K) from grtjewels.com.
- * Best-effort: returns null on any network/parse/sanity failure so the caller
- * falls back to the spot price + a calibrated premium.
+ * Parse GRT's per-gram rates out of the raw homepage HTML. Best-effort: returns
+ * null when gold's 22K rate can't be read or fails a sanity check (the caller
+ * then leaves the existing snapshot untouched and retries next run). Pure and
+ * network-free so it can be unit-tested against a saved page fixture.
  */
-async function fetchGrtChennaiRate(): Promise<GrtRate | null> {
+export function parseGrtRates(html: string): GrtRates | null {
+  // The rate JSON sits inside a JS string, so its quotes are backslash-escaped;
+  // unescape first, then read each metal's amount out of its typed object.
+  const norm = html.replace(/\\"/g, '"');
+
+  // Gold purities are tagged `"type":"GOLD" ... "purity":"22 KT"`; `[^}]*` never
+  // crosses an object boundary (each item ends in `}`), so this stays within one.
+  const pickGoldKt = (kt: number): number => {
+    const m = norm.match(
+      new RegExp(`"type":"GOLD"[^}]*"purity":"${kt}\\s*KT"[^}]*"amount":([0-9]+(?:\\.[0-9]+)?)`)
+    );
+    return m ? parseFloat(m[1]) : NaN;
+  };
+  // Non-gold metals (SILVER/PLATINUM) carry `"purity":null`, so match by type.
+  const pickType = (type: string): number => {
+    const m = norm.match(new RegExp(`"type":"${type}"[^}]*"amount":([0-9]+(?:\\.[0-9]+)?)`));
+    return m ? parseFloat(m[1]) : NaN;
+  };
+
+  let gram22k = pickGoldKt(22);
+  const gram24k = pickGoldKt(24);
+  const gram18k = pickGoldKt(18);
+  const silverPerGram = pickType("SILVER");
+
+  // Fallback: read 22K from the header button if the JSON shape ever changes.
+  if (isNaN(gram22k)) {
+    const hm = norm.match(/GOLD\s*22\s*KT\/1g[^0-9]*([0-9,]+)/i);
+    if (hm) gram22k = parseFloat(hm[1].replace(/,/g, ""));
+  }
+
+  // Sanity: plausible per-gram INR values, with 24K richer than 22K when present.
+  if (!(gram22k > 5000 && gram22k < 60000)) return null;
+  if (!isNaN(gram24k) && !(gram24k > gram22k && gram24k < 70000)) return null;
+  return {
+    gram22k,
+    gram24k: isNaN(gram24k) ? 0 : gram24k,
+    gram18k: isNaN(gram18k) ? 0 : gram18k,
+    // Silver ~₹80–400/g retail; drop anything implausible so a stray match can't
+    // poison the silver series.
+    silverPerGram: silverPerGram > 30 && silverPerGram < 5000 ? silverPerGram : 0,
+  };
+}
+
+/** Fetch + parse GRT's homepage rates. Null on any network/parse/sanity failure. */
+async function fetchGrtRates(): Promise<GrtRates | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
@@ -80,120 +113,150 @@ async function fetchGrtChennaiRate(): Promise<GrtRate | null> {
       signal: controller.signal,
     });
     if (!res.ok) return null;
-    // The rate JSON sits inside a JS string, so its quotes are backslash-escaped;
-    // unescape first, then read each purity's amount.
-    const norm = (await res.text()).replace(/\\"/g, '"');
-    const pick = (kt: number): number => {
-      const m = norm.match(new RegExp(`"purity":"${kt}\\s*KT","amount":([0-9]+(?:\\.[0-9]+)?)`));
-      return m ? parseFloat(m[1]) : NaN;
-    };
-    let gram22k = pick(22);
-    const gram24k = pick(24);
-    const gram18k = pick(18);
-    // Fallback: read 22K from the header button if the JSON shape ever changes.
-    if (isNaN(gram22k)) {
-      const hm = norm.match(/GOLD\s*22\s*KT\/1g[^0-9]*([0-9,]+)/i);
-      if (hm) gram22k = parseFloat(hm[1].replace(/,/g, ""));
-    }
-    // Sanity: plausible per-gram INR values, with 24K richer than 22K when present.
-    if (!(gram22k > 5000 && gram22k < 60000)) return null;
-    if (!isNaN(gram24k) && !(gram24k > gram22k && gram24k < 70000)) return null;
-    return {
-      gram22k,
-      gram24k: isNaN(gram24k) ? 0 : gram24k,
-      gram18k: isNaN(gram18k) ? 0 : gram18k,
-    };
+    return parseGrtRates(await res.text());
+  } catch {
+    return null;
   } finally {
     clearTimeout(timer);
   }
 }
 
 /**
- * Fetch today's gold + silver rates and upsert one snapshot per metal for the
- * current IST day. Idempotent and quota-friendly: if today's snapshot already
- * exists it is skipped (pass `{ force: true }` to refetch). Failures for one
- * metal are logged and don't abort the other.
+ * Percentage change of `current` vs the most recent EARLIER snapshot of `metal`
+ * that came from GRT, read via `field`. Comparing only against another GRT day
+ * keeps the day-over-day % on one consistent scale (a jump from older estimated
+ * data would otherwise show a bogus double-digit move on the first GRT day).
+ */
+async function changeVsPrevGrtDay(
+  metal: Metal,
+  field: "retail22k" | "pricePerGram24k",
+  sourceField: "retailSource" | "source",
+  date: string,
+  current: number
+): Promise<{ prevClose: number; change: number; changePct: number }> {
+  const prev = await MetalPrice.findOne({ metal, date: { $lt: date }, [sourceField]: GRT_SOURCE })
+    .sort({ date: -1 })
+    .lean();
+  const prevClose = (prev?.[field] as number | undefined) ?? 0;
+  const change = prevClose ? current - prevClose : 0;
+  const changePct = prevClose ? Math.round((change / prevClose) * 100 * 100) / 100 : 0;
+  return { prevClose, change, changePct };
+}
+
+/**
+ * Scrape today's gold + silver rates from GRT and upsert one snapshot per metal
+ * for the current IST day. Idempotent and polite: if today's snapshot for a
+ * metal already came from GRT it is left alone (pass `{ force: true }` to
+ * re-scrape). A failure on one metal never aborts the other.
  */
 export async function refreshMetalPrices(opts: { force?: boolean } = {}): Promise<void> {
-  if (!env.metals.configured) return; // feature disabled — nothing to do
+  if (!env.metals.enabled) return; // feature disabled — nothing to do
   const date = istDate();
 
-  for (const metal of METALS) {
-    try {
-      const existing = await MetalPrice.findOne({ metal, date }).lean();
-      if (existing && !opts.force) continue; // already have today's — save the quota
+  const [goldToday, silverToday] = await Promise.all([
+    MetalPrice.findOne({ metal: "gold", date }).lean(),
+    MetalPrice.findOne({ metal: "silver", date }).lean(),
+  ]);
+  const haveGold = goldToday?.retailSource === GRT_SOURCE;
+  const haveSilver = silverToday?.source === GRT_SOURCE;
+  if (haveGold && haveSilver && !opts.force) return; // already scraped today — save the trip
 
-      const r = await fetchMetal(metal);
-      const prevClose = r.prev_close_price ?? 0;
-      const change = r.ch ?? (prevClose ? r.price - prevClose : 0);
-      const changePct = r.chp ?? (prevClose ? (change / prevClose) * 100 : 0);
-
-      const update: Record<string, unknown> = {
-        metal,
-        currency: "INR",
-        date,
-        pricePerOunce: r.price,
-        pricePerGram24k: r.price_gram_24k ?? 0,
-        pricePerGram22k: r.price_gram_22k ?? 0,
-        pricePerGram18k: r.price_gram_18k ?? 0,
-        prevClose,
-        change,
-        changePct,
-        source: env.metals.provider,
-        fetchedAt: new Date(),
-      };
-
-      await MetalPrice.findOneAndUpdate({ metal, date }, update, {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      });
-      console.log(`[metals] ${metal} ${date}: ₹${r.price_gram_24k}/g (24k)`);
-    } catch (e) {
-      console.error(`[metals] failed to refresh ${metal}`, e);
-    }
+  const grt = await fetchGrtRates();
+  if (!grt) {
+    console.error("[metals] GRT scrape returned nothing; leaving existing snapshots in place");
+    return;
   }
 
-  // Refresh GRT's actual Chennai retail rate onto today's gold snapshot. This is
-  // a FREE scrape (no GoldAPI quota), so it runs independently of the spot guard
-  // above — it populates today even when the spot snapshot already existed, and
-  // retries on the next run if it previously failed (retail stays 0).
-  try {
-    const goldDoc = await MetalPrice.findOne({ metal: "gold", date }).lean();
-    // Re-scrape when today's snapshot isn't yet from GRT (missing or a prior
-    // source), so a source switch self-heals; otherwise skip to run once a day.
-    if (goldDoc && (goldDoc.retailSource !== GRT_SOURCE || opts.force)) {
-      const grt = await fetchGrtChennaiRate();
-      if (grt) {
-        await MetalPrice.updateOne(
-          { metal: "gold", date },
-          {
+  // GOLD — GRT's Chennai retail is the headline (retail22k/24k/18k); the spot
+  // fields are derived so other-city estimates still work. Change is measured
+  // day-over-day against the previous GRT retail day.
+  if (!haveGold || opts.force) {
+    try {
+      const { prevClose, change, changePct } = await changeVsPrevGrtDay(
+        "gold",
+        "retail22k",
+        "retailSource",
+        date,
+        grt.gram22k
+      );
+      await MetalPrice.findOneAndUpdate(
+        { metal: "gold", date },
+        {
+          $set: {
+            currency: "INR",
+            pricePerOunce: impliedSpotPerGram(grt.gram24k) * GRAMS_PER_TROY_OZ,
+            pricePerGram24k: impliedSpotPerGram(grt.gram24k),
+            pricePerGram22k: impliedSpotPerGram(grt.gram22k),
+            pricePerGram18k: impliedSpotPerGram(grt.gram18k),
+            prevClose,
+            change,
+            changePct,
+            source: GRT_SOURCE,
+            fetchedAt: new Date(),
             retail22k: grt.gram22k,
             retail24k: grt.gram24k,
             retail18k: grt.gram18k,
             retailSource: GRT_SOURCE,
-          }
-        );
-        console.log(`[metals] GRT grtjewels.com ${date}: ₹${grt.gram22k}/g (22k)`);
-      }
+          },
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+      console.log(`[metals] GRT gold ${date}: ₹${grt.gram22k}/g (22k), Δ ${changePct}%`);
+    } catch (e) {
+      console.error("[metals] gold upsert failed", e);
     }
-  } catch (e) {
-    console.error("[metals] GRT Chennai scrape failed", e);
+  }
+
+  // SILVER — GRT publishes a .999 retail per-gram rate; that IS the headline
+  // (stored as pricePerGram24k, the field the silver card/chart plot). Skipped
+  // when the scrape didn't yield a silver figure, so it retries next run.
+  if ((!haveSilver || opts.force) && grt.silverPerGram > 0) {
+    try {
+      const { prevClose, change, changePct } = await changeVsPrevGrtDay(
+        "silver",
+        "pricePerGram24k",
+        "source",
+        date,
+        grt.silverPerGram
+      );
+      await MetalPrice.findOneAndUpdate(
+        { metal: "silver", date },
+        {
+          $set: {
+            currency: "INR",
+            pricePerOunce: grt.silverPerGram * GRAMS_PER_TROY_OZ,
+            pricePerGram24k: grt.silverPerGram,
+            // Silver is sold as .999 with no purity tiers, so the "22k/18k"
+            // fields just mirror the single rate rather than showing ₹0.
+            pricePerGram22k: grt.silverPerGram,
+            pricePerGram18k: grt.silverPerGram,
+            prevClose,
+            change,
+            changePct,
+            source: GRT_SOURCE,
+            fetchedAt: new Date(),
+          },
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+      console.log(`[metals] GRT silver ${date}: ₹${grt.silverPerGram}/g, Δ ${changePct}%`);
+    } catch (e) {
+      console.error("[metals] silver upsert failed", e);
+    }
   }
 }
 
-// Floor between user-triggered refreshes, so a few impatient clicks can't burn
-// through GoldAPI's (quota-limited) free tier. The daily cron keeps running on
-// its own schedule regardless of this.
+// Floor between user-triggered refreshes, so a few impatient clicks can't hammer
+// grtjewels.com. The daily cron keeps running on its own schedule regardless.
 const ON_DEMAND_COOLDOWN_MS = 15 * 60 * 1000;
 
 /**
- * User-triggered refresh: force-refetch today's spot + GRT rate right now,
- * subject to a cooldown since the last fetch (on-demand or scheduled). Throws
- * 429 with the wait time remaining if called too soon.
+ * User-triggered refresh: re-scrape today's GRT rate right now, subject to a
+ * cooldown since the last fetch (on-demand or scheduled). Throws 429 with the
+ * wait time remaining if called too soon.
  */
 export async function refreshMetalPricesOnDemand(): Promise<void> {
-  if (!env.metals.configured) throw new HttpError(400, "Gold tracking isn't configured");
+  if (!env.metals.enabled) throw new HttpError(400, "Gold tracking isn't configured");
 
   const date = istDate();
   const gold = await MetalPrice.findOne({ metal: "gold", date }).lean();
@@ -207,13 +270,25 @@ export async function refreshMetalPricesOnDemand(): Promise<void> {
   await refreshMetalPrices({ force: true });
 }
 
+/**
+ * True when today's (IST) gold snapshot exists and came from GRT — i.e. the
+ * daily capture succeeded. Used to raise a loud log if a scheduled scrape
+ * couldn't land today's rate, since GRT has no historical API: a day missed
+ * entirely can only be recovered later by an (estimated) manual backfill.
+ */
+export async function isTodayCaptured(): Promise<boolean> {
+  if (!env.metals.enabled) return true; // feature off — nothing to capture
+  const gold = await MetalPrice.findOne({ metal: "gold", date: istDate() }).lean();
+  return gold?.retailSource === GRT_SOURCE;
+}
+
 /** Latest stored snapshot for gold and silver, plus whether the feature is on. */
 export async function getLatestMetals() {
   const [gold, silver] = await Promise.all([
     MetalPrice.findOne({ metal: "gold" }).sort({ date: -1 }).lean(),
     MetalPrice.findOne({ metal: "silver" }).sort({ date: -1 }).lean(),
   ]);
-  return { configured: env.metals.configured, gold, silver };
+  return { configured: env.metals.enabled, gold, silver };
 }
 
 /** Daily snapshots for one metal, oldest → newest, capped to `days` points. */
