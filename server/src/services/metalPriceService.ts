@@ -26,6 +26,10 @@ const GRT_URL = "https://www.grtjewels.com/";
 /** Source marker stored on GRT snapshots; a mismatch triggers a re-scrape. */
 const GRT_SOURCE = "GRT · grtjewels.com";
 
+/** Source markers stamped on interpolated gap-fill snapshots (see fillMetalGaps). */
+const GAP_SOURCE = "estimated · gap interpolation";
+const GAP_GOLD_RETAIL_SOURCE = "Estimated · gap (interpolated)";
+
 /**
  * Chennai retail carries roughly this premium over international spot (import
  * duty + GST + local dealer margin) — the same figure the client calibrates its
@@ -295,4 +299,139 @@ export async function getLatestMetals() {
 export async function getMetalHistory(metal: Metal, days: number) {
   const rows = await MetalPrice.find({ metal }).sort({ date: -1 }).limit(days).lean();
   return rows.reverse();
+}
+
+const DAY_MS = 86_400_000;
+/** Midnight-UTC epoch for a YYYY-MM-DD date. */
+const dayTs = (iso: string): number => Date.parse(`${iso}T00:00:00Z`);
+
+// Every stored rate field is interpolated across a gap, so whichever field the
+// chart reads for a given metal/city (gold Chennai → retail22k; other cities →
+// pricePerGram22k + premium; silver → pricePerGram24k) lands on the line between
+// the two neighbours and the plotted series stays continuous.
+const GAP_FIELDS_GOLD = [
+  "pricePerOunce", "pricePerGram24k", "pricePerGram22k", "pricePerGram18k",
+  "retail22k", "retail24k", "retail18k",
+] as const;
+const GAP_FIELDS_SILVER = [
+  "pricePerOunce", "pricePerGram24k", "pricePerGram22k", "pricePerGram18k",
+] as const;
+
+/** Minimal shape the gap planner reads off each stored snapshot. */
+export interface GapBracket {
+  date: string; // YYYY-MM-DD
+  source?: string;
+  [field: string]: unknown; // the numeric rate fields it interpolates
+}
+
+/**
+ * PURE planner (no DB) behind {@link fillMetalGaps}: given one metal's snapshots
+ * and options, return the interpolated snapshots that should be inserted to close
+ * interior gaps. Linearly interpolates every stored rate field between the two
+ * bracketing snapshots, so whichever field the chart reads (gold Chennai →
+ * retail22k; other cities → pricePerGram22k + premium; silver → pricePerGram24k)
+ * lands on the line between the neighbours and the plotted series stays
+ * continuous. Exported so the interpolation/gating invariants can be unit-tested
+ * without a database.
+ *
+ * Interior only — never extrapolates before the first snapshot or after the last
+ * (today). It emits a candidate for EVERY interior day; the caller inserts them
+ * insert-only, so existing/real days are never overwritten.
+ *
+ *   liveOnly (default true): bridge a gap only when BOTH brackets came from the
+ *     live GRT scrape — targets exactly the "server was offline" gaps and leaves
+ *     the deliberately weekday-only estimated history untouched.
+ *   since: additionally, only emit dates on/after this YYYY-MM-DD.
+ */
+export function planMetalGapFill(
+  rows: GapBracket[],
+  metal: Metal,
+  opts: { liveOnly?: boolean; since?: string } = {}
+): GapBracket[] {
+  const liveOnly = opts.liveOnly ?? true;
+  const sinceTs = opts.since ? dayTs(opts.since) : -Infinity;
+  const fields = metal === "gold" ? GAP_FIELDS_GOLD : GAP_FIELDS_SILVER;
+  const sorted = [...rows].sort((x, y) => x.date.localeCompare(y.date));
+  const out: GapBracket[] = [];
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    // Only bridge between two live-captured days when liveOnly, so estimated
+    // history (with its intentional weekend gaps) is never densified.
+    if (liveOnly && !(a.source === GRT_SOURCE && b.source === GRT_SOURCE)) continue;
+
+    const ta = dayTs(a.date);
+    const tb = dayTs(b.date);
+    if (!(tb - ta > DAY_MS)) continue; // adjacent days — no interior to fill
+
+    for (let t = ta + DAY_MS; t < tb; t += DAY_MS) {
+      if (t < sinceTs) continue;
+      const date = new Date(t).toISOString().slice(0, 10);
+      const f = (t - ta) / (tb - ta); // 0 → a, 1 → b
+
+      const snap: GapBracket = {
+        metal,
+        currency: "INR",
+        date,
+        prevClose: 0,
+        change: 0,
+        changePct: 0,
+        source: GAP_SOURCE,
+      };
+      for (const key of fields) {
+        const av = Number(a[key] ?? 0);
+        const bv = Number(b[key] ?? 0);
+        const v = av + (bv - av) * f;
+        // Retail figures are whole rupees like the live scrape; spot keeps precision.
+        snap[key] = key.startsWith("retail") ? Math.round(v) : v;
+      }
+      if (metal === "gold") {
+        snap.retailSource = GAP_GOLD_RETAIL_SOURCE;
+      } else {
+        snap.retail22k = 0;
+        snap.retail24k = 0;
+        snap.retail18k = 0;
+        snap.retailSource = "";
+      }
+      out.push(snap);
+    }
+  }
+  return out;
+}
+
+/**
+ * Recover days the daily scrape never captured — most often because the server
+ * was offline for a stretch — by interpolating between the snapshots we DO have
+ * (see {@link planMetalGapFill}). GRT publishes only today's rate and has no
+ * historical endpoint, so a missed day can't be re-fetched; interpolation is the
+ * only recovery, and it keeps the chart continuous instead of drawing one
+ * straight jump across the hole.
+ *
+ * Idempotent and non-destructive: each candidate is upserted `$setOnInsert`, so
+ * an existing (metal, date) — real or estimated — is never overwritten and
+ * re-runs are no-ops. Safe to call on every boot/cron with the default options.
+ * Returns the number of interpolated day-snapshots inserted.
+ */
+export async function fillMetalGaps(
+  opts: { liveOnly?: boolean; since?: string } = {}
+): Promise<number> {
+  if (!env.metals.enabled) return 0;
+  let inserted = 0;
+
+  for (const metal of METALS) {
+    const rows = await MetalPrice.find({ metal }).sort({ date: 1 }).lean();
+    const plan = planMetalGapFill(rows as unknown as GapBracket[], metal, opts);
+    for (const snap of plan) {
+      const res = await MetalPrice.updateOne(
+        { metal, date: snap.date },
+        { $setOnInsert: { ...snap, fetchedAt: new Date() } },
+        { upsert: true }
+      );
+      if (res.upsertedCount) inserted++;
+    }
+  }
+
+  if (inserted) console.log(`[metals] gap-fill: inserted ${inserted} interpolated day(s)`);
+  return inserted;
 }

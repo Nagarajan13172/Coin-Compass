@@ -14,6 +14,7 @@
     "backfill:templates": "tsx src/scripts/backfillTemplates.ts",
     "backfill:metals": "tsx src/scripts/backfillMetalHistory.ts",
     "backfill:metals:est": "tsx src/scripts/backfillMetalHistoryEstimated.ts",
+    "gapfill:metals": "tsx src/scripts/fillMetalGaps.ts",
     "build": "tsc --noEmit",
     "test": "vitest run"
   },

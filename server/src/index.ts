@@ -14,7 +14,7 @@ import { requestLogger } from "./middleware/requestLogger";
 import { processDueRecurring } from "./services/recurringService";
 import { runNotificationSweep } from "./services/notificationService";
 import { purgeExpiredDeletions } from "./services/trashService";
-import { refreshMetalPrices, isTodayCaptured } from "./services/metalPriceService";
+import { refreshMetalPrices, fillMetalGaps, isTodayCaptured } from "./services/metalPriceService";
 import { sendDueReports } from "./services/reportEmailService";
 
 async function bootstrap() {
@@ -79,6 +79,16 @@ async function bootstrap() {
   const refreshMetalsAndAlert = async (label: string): Promise<void> => {
     try {
       await refreshMetalPrices();
+      // Now that today's live rate is captured, recover any days missed while the
+      // server was offline (a common local-dev case) by interpolating between the
+      // stored snapshots — GRT has no historical endpoint, so this is the only way
+      // to keep the chart continuous instead of drawing a straight jump across the
+      // gap. liveOnly (default) bridges only between real GRT days, leaving the
+      // weekday-only estimated history untouched. Idempotent, so it's safe here.
+      const filled = await fillMetalGaps();
+      if (filled) {
+        console.log(`[metals] ${label} run: recovered ${filled} missed day(s) by interpolation`);
+      }
       // GRT publishes only today's rate, so a fully-missed day can't be re-fetched
       // — surface it loudly so it can be recovered via the on-demand refresh.
       if (!(await isTodayCaptured())) {
