@@ -20,7 +20,7 @@ const COLORS = {
 // surfaces to the client as "Request failed with status code 500" on /api.
 // Override the container name with MONGO_CONTAINER; skip this step entirely
 // with SKIP_DB_START=1 (e.g. when you run MongoDB some other way).
-ensureDatabase();
+// ensureDatabase();
 
 // Kill any stale process still holding the dev ports. `tsx watch` (server) and
 // Vite's strictPort (client) both die on EADDRINUSE, and a leftover from a
@@ -41,7 +41,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 function ensureDatabase() {
   if (process.env.SKIP_DB_START === "1") return;
-  const container = process.env.MONGO_CONTAINER ?? "local-mongo";
+  const container = process.env.MONGO_CONTAINER ?? "money-tracker-mongo";
   const db = (msg) => console.log(`${COLORS.blue}[db]${COLORS.reset} ${msg}`);
 
   // `docker start` is idempotent: a no-op (exit 0) if the container is already
@@ -61,7 +61,7 @@ function ensureDatabase() {
   }
   db(
     `couldn't start container "${container}": ${(result.stderr || "").trim()}. ` +
-      `If you run MongoDB another way, set SKIP_DB_START=1 to silence this.`
+    `If you run MongoDB another way, set SKIP_DB_START=1 to silence this.`
   );
 }
 
@@ -72,7 +72,7 @@ function freeStalePorts() {
     if (owners.length === 0) continue;
     console.log(
       `${COLORS.blue}[ports]${COLORS.reset} freeing port ${port} held by stale ` +
-        `process${owners.length > 1 ? "es" : ""} ${owners.join(", ")}`
+      `process${owners.length > 1 ? "es" : ""} ${owners.join(", ")}`
     );
     for (const pid of owners) killPid(pid);
   }
