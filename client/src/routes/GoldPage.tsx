@@ -121,7 +121,7 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
 export default function GoldPage() {
   const { t } = useTranslation("credits");
   const [metal, setMetal] = useState<Metal>("gold");
-  const [days, setDays] = useState(90);
+  const [days, setDays] = useState(30);
   const [cityKey, setCityKey] = useState(DEFAULT_CITY);
   const city = findCity(cityKey);
   const { data: latest, isLoading } = useMetalsLatest();

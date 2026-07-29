@@ -91,6 +91,8 @@
       "90d": "90D",
       "1y": "1Y"
     },
+    "zoomReset": "Reset zoom",
+    "zoomHint": "Scroll or pinch to zoom",
     "historyBuildingTitle": "History is still building.",
     "historyBuildingDesc": "A new data point is added each day — check back tomorrow.",
     "disclaimer": "Rates are scraped daily from GRT Jewellers (grtjewels.com). Chennai shows their published counter rate; other cities are estimated from it with a local premium (duty, GST & margin) and exclude making charges. Refreshed automatically once a day, or on demand with the refresh button above (max once every 15 minutes).",

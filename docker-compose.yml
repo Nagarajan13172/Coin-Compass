@@ -3,6 +3,12 @@ services:
     image: mongo:latest
     container_name: money-tracker-mongo
     restart: unless-stopped
+    # Publish to the host loopback only. In prod the app talks to Mongo over the
+    # internal `traefik` network and doesn't need this, but local dev runs the
+    # server on the host (tsx watch) and connects via localhost:27017. Binding to
+    # 127.0.0.1 keeps Mongo off any external interface.
+    ports:
+      - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_DATABASE: money-tracker
     volumes:

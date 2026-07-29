@@ -20,7 +20,7 @@ const COLORS = {
 // surfaces to the client as "Request failed with status code 500" on /api.
 // Override the container name with MONGO_CONTAINER; skip this step entirely
 // with SKIP_DB_START=1 (e.g. when you run MongoDB some other way).
-// ensureDatabase();
+ensureDatabase();
 
 // Kill any stale process still holding the dev ports. `tsx watch` (server) and
 // Vite's strictPort (client) both die on EADDRINUSE, and a leftover from a

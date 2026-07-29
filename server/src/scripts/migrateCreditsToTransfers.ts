@@ -40,8 +40,9 @@ export interface CreditMigrationSummary {
  * be unit-tested against an in-memory DB. Idempotent.
  */
 export async function migrateCredits(dryRun: boolean): Promise<CreditMigrationSummary> {
-  // EVERY credit per (user, person), oldest first — so `owed` matches live
-  // personOutstanding (which counts all entries, reflected or not).
+  // EVERY credit per (user, person), oldest first — so `owed` matches how live
+  // sizes neutralization: the running receivable counts only REFLECTED entries
+  // (the ones that actually fund the Money Lent account a repayment draws from).
   const credits = await Credit.find({}).sort({ date: 1, createdAt: 1 }).lean();
   const groups = new Map<string, typeof credits>();
   for (const c of credits) {
@@ -123,7 +124,9 @@ export async function migrateCredits(dryRun: boolean): Promise<CreditMigrationSu
         if (income > 0) incomeLegs++;
       }
 
-      owed += c.direction === "given" ? c.amount : -c.amount;
+      // Only reflected entries move money in/out of Money Lent, so only they
+      // change what a later reflected repayment can neutralize against.
+      if (c.reflected) owed += c.direction === "given" ? c.amount : -c.amount;
     }
   }
 

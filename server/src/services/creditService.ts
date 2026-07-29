@@ -80,13 +80,27 @@ export function splitRepayment(owed: number, received: number): { neutral: numbe
 }
 
 /**
- * Net amount a person currently owes you (given − received), across all their
+ * Net amount a person currently owes you (given − received), across their
  * entries EXCEPT `excludeId` (so an entry being edited doesn't count itself).
  * Positive = they owe you; negative = you owe them. Person is matched
  * case-insensitively, the same way getCreditSummary groups.
+ *
+ * Pass `{ reflectedOnly: true }` to count ONLY entries reflected into balances.
+ * Sizing a reflected repayment's neutralization MUST use this: the neutral part
+ * is drawn back OUT of the "Money Lent" account, which only ever received the
+ * REFLECTED lends. Capping it against unreflected IOUs (which never posted a
+ * transfer in) would draw that receivable below zero — the exact drift that made
+ * the Money Lent balance disagree with the Credits ledger's "You're owed".
  */
-export async function personOutstanding(uid: unknown, person: string, excludeId?: unknown): Promise<number> {
-  const rows = await Credit.find({ user: uid }).select("person direction amount").lean();
+export async function personOutstanding(
+  uid: unknown,
+  person: string,
+  excludeId?: unknown,
+  opts?: { reflectedOnly?: boolean }
+): Promise<number> {
+  const filter: Record<string, unknown> = { user: uid };
+  if (opts?.reflectedOnly) filter.reflected = true;
+  const rows = await Credit.find(filter).select("person direction amount").lean();
   const key = person.trim().toLowerCase();
   let owed = 0;
   for (const r of rows) {
@@ -127,7 +141,8 @@ async function clearReflectedTransactions(uid: unknown, credit: { transaction?: 
  *   • RECEIVED  → one TRANSFER  Money Lent → yourAccount  for the neutralized part,
  *                 PLUS an INCOME txn for any excess beyond what they owed.
  * Neither leg is ever an expense, and only the true excess is income.
- * `outstandingBefore` = what the person owed you before this entry.
+ * `outstandingBefore` = the person's REFLECTED receivable before this entry (only
+ * reflected lends fund Money Lent, so only they can be neutralized against).
  */
 async function rebuildReflection(uid: unknown, credit: any, data: CreditInput, outstandingBefore: number): Promise<void> {
   await clearReflectedTransactions(uid, credit);
@@ -204,8 +219,9 @@ export async function createCredit(uid: unknown, data: CreditInput) {
     transaction: null,
     incomeTransaction: null,
   });
-  // Outstanding BEFORE this entry = net of every other entry for the person.
-  const outstandingBefore = await personOutstanding(uid, data.person, credit._id);
+  // Outstanding BEFORE this entry = net of every other REFLECTED entry for the
+  // person (only reflected lends fund the Money Lent a repayment neutralizes).
+  const outstandingBefore = await personOutstanding(uid, data.person, credit._id, { reflectedOnly: true });
   await rebuildReflection(uid, credit, data, outstandingBefore);
   await credit.save();
   return credit;
@@ -237,7 +253,7 @@ export async function updateCredit(uid: unknown, creditId: unknown, patch: Parti
   }
 
   Object.assign(credit, { ...merged, account: merged.account ?? null });
-  const outstandingBefore = await personOutstanding(uid, merged.person, credit._id);
+  const outstandingBefore = await personOutstanding(uid, merged.person, credit._id, { reflectedOnly: true });
   await rebuildReflection(uid, credit, merged, outstandingBefore);
   await credit.save();
   return credit;

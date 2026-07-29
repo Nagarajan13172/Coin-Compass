@@ -251,4 +251,38 @@ describe("Credits — neutralize via transfers (no income inflation)", () => {
     expect(acc["Money Lent"]).toBeUndefined(); // not even created
     expect((await txnItems(u)).length).toBe(0);
   });
+
+  it("a reflected repayment can't drag Money Lent negative when the loan wasn't reflected", async () => {
+    // Regression for the reported mismatch: an unreflected loan never funds the
+    // Money Lent receivable, so a reflected repayment has nothing there to draw
+    // back out. It must fall to INCOME, not pull the receivable below zero.
+    const u = await createVerifiedUser();
+    const b = await bank(u);
+    // An IOU you jotted down but chose NOT to reflect into balances…
+    await u.session.http.post("/credits", { person: "Ilan", direction: "given", amount: 10_000, reflected: false });
+    // …then a repayment you DID reflect.
+    await repay(u, "Ilan", 10_000, b._id);
+
+    const acc = await accounts(u);
+    expect(acc["Money Lent"].balance).toBe(0); // never negative (old bug: −10,000)
+    expect(acc["Bank"].balance).toBe(INITIAL + 10_000); // the money really arrived…
+    expect((await summary(u)).income).toBe(10_000); // …as income, since nothing reflected was owed
+  });
+
+  it("mixed reflected/unreflected entries keep Money Lent within [0, reflected-lent]", async () => {
+    // Mirrors the reported data shape (one loan reflected, one not, both repayments
+    // reflected). The old code neutralized the repayments against the unreflected
+    // loan too, driving Money Lent to −19,000; it must now stay non-negative and
+    // never exceed what was actually reflected as lent.
+    const u = await createVerifiedUser();
+    const b = await bank(u);
+    await lend(u, "Karthi", 10_000, b._id); // reflected loan
+    await u.session.http.post("/credits", { person: "Karthi", direction: "given", amount: 19_000, reflected: false }); // unreflected loan
+    await repay(u, "Karthi", 19_000, b._id); // reflected repayment
+    await repay(u, "Karthi", 10_000, b._id); // reflected repayment
+
+    const ml = (await accounts(u))["Money Lent"].balance;
+    expect(ml).toBeGreaterThanOrEqual(0);
+    expect(ml).toBeLessThanOrEqual(10_000);
+  });
 });
