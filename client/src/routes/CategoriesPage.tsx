@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Plus, Shapes, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -11,6 +11,7 @@ import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { useCategories, useDeleteCategory } from "@/hooks/useCategories";
 import { CategoryFormDialog } from "@/features/categories/CategoryFormDialog";
 import { categoryLabel } from "@/lib/i18nLabels";
+import { GROUP_META, UNGROUPED, groupLabel } from "@/lib/categoryGroups";
 import type { Category, CategoryType } from "@/lib/types";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -79,6 +80,27 @@ function CategoryGrid({
   const del = useDeleteCategory();
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
+  // Sectioned by reporting group so it's obvious at a glance which categories are
+  // still ungrouped (and therefore land in the charts' "Ungrouped" bucket).
+  const sections = useMemo(() => {
+    const byGroup = new Map<string, Category[]>();
+    for (const c of categories ?? []) {
+      const key = c.group?.trim() || UNGROUPED;
+      const list = byGroup.get(key);
+      if (list) list.push(c);
+      else byGroup.set(key, [c]);
+    }
+    // Presets in their declared order; custom groups after them alphabetically;
+    // ungrouped always last so it reads as the leftovers pile.
+    return [...byGroup.entries()].sort(([a], [b]) => {
+      if (a === UNGROUPED) return 1;
+      if (b === UNGROUPED) return -1;
+      const oa = GROUP_META[a]?.order ?? Number.MAX_SAFE_INTEGER;
+      const ob = GROUP_META[b]?.order ?? Number.MAX_SAFE_INTEGER;
+      return oa - ob || a.localeCompare(b);
+    });
+  }, [categories]);
+
   async function confirmDelete(c: Category): Promise<void | ForceResult> {
     try {
       await del.mutateAsync({ id: c._id });
@@ -124,28 +146,38 @@ function CategoryGrid({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {categories.map((c) => (
-        <Card key={c._id} className="group">
-          <CardContent className="flex items-center gap-3 p-3">
-            <CategoryIcon icon={c.icon} color={c.color} size="md" />
-            <span className="flex-1 truncate text-sm font-medium">{categoryLabel(c.name)}</span>
-            <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-              <Button variant="ghost" size="icon-sm" onClick={() => onEdit(c)} aria-label={t("actions.edit", { ns: "common" })}>
-                <Pencil />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-destructive"
-                onClick={() => setDeleteTarget(c)}
-                aria-label={t("actions.delete", { ns: "common" })}
-              >
-                <Trash2 />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      {sections.map(([groupKey, items]) => (
+        <section key={groupKey}>
+          <h3 className="mb-2.5 flex items-baseline gap-2 text-sm font-semibold text-muted-foreground">
+            {groupLabel(groupKey === UNGROUPED ? null : groupKey)}
+            <span className="tnum text-xs font-normal">{items.length}</span>
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((c) => (
+              <Card key={c._id} className="group">
+                <CardContent className="flex items-center gap-3 p-3">
+                  <CategoryIcon icon={c.icon} color={c.color} size="md" />
+                  <span className="flex-1 truncate text-sm font-medium">{categoryLabel(c.name)}</span>
+                  <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button variant="ghost" size="icon-sm" onClick={() => onEdit(c)} aria-label={t("actions.edit", { ns: "common" })}>
+                      <Pencil />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-destructive"
+                      onClick={() => setDeleteTarget(c)}
+                      aria-label={t("actions.delete", { ns: "common" })}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
       ))}
       {deleteTarget && (
         <ConfirmDeleteDialog

@@ -39,6 +39,34 @@ describe("Reports — breakdowns", () => {
     expect(Array.isArray(byAcc.data)).toBe(true);
     expect(byAcc.data.length).toBeGreaterThanOrEqual(1);
   });
+
+  // The grouped donut folds these rows by `group` on the client, so the field has
+  // to survive the aggregation — and stay null (not absent, not "") for a category
+  // with no group, or every ungrouped row would fall into the wrong bucket.
+  it("carries each category's report group on the by-category rows", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const grouped = (await u.session.http.post("/categories", { name: "Chai", type: "expense", group: "food" })).data;
+    const loose = (await u.session.http.post("/categories", { name: "Odd", type: "expense" })).data;
+    await u.session.http.post("/transactions", { type: "expense", amount: 40, account: acc._id, category: grouped._id });
+    await u.session.http.post("/transactions", { type: "expense", amount: 60, account: acc._id, category: loose._id });
+
+    const rows = (await u.session.http.get(`/reports/by-category${ALL}`)).data as any[];
+    const find = (id: string) => rows.find((r) => r.categoryId === id);
+    expect(find(grouped._id).group).toBe("food");
+    expect(find(loose._id)).toHaveProperty("group", null);
+  });
+
+  it("groups a seeded category under its default group", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const cats = (await u.session.http.get("/categories?type=expense")).data as any[];
+    const food = cats.find((c) => c.name === "Food & Dining");
+    await u.session.http.post("/transactions", { type: "expense", amount: 25, account: acc._id, category: food._id });
+
+    const rows = (await u.session.http.get(`/reports/by-category${ALL}`)).data as any[];
+    expect(rows.find((r) => r.categoryId === food._id).group).toBe("food");
+  });
 });
 
 describe("Reports — email", () => {

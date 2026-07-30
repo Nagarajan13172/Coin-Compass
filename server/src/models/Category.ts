@@ -10,6 +10,13 @@ const categorySchema = new Schema(
     icon: { type: String, default: "tag" },
     color: { type: String, default: "#64748B" },
     parent: { type: Schema.Types.ObjectId, ref: "Category", default: null },
+    // Reporting-only rollup bucket ("food", "transport", "bills", …). Purely a
+    // display dimension for the by-category charts: it creates no extra Category
+    // documents, so the transaction picker and budgets keep seeing only real
+    // leaf categories. null = ungrouped. Slugs come from a preset list on the
+    // client (lib/categoryGroups.ts) but the field is a plain string so a custom
+    // group degrades to showing its own text, same as a custom category name.
+    group: { type: String, default: null, trim: true },
     order: { type: Number, default: 0 },
     isDefault: { type: Boolean, default: false },
     // When true, picking this category in the transaction sheet auto-enables the

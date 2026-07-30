@@ -64,6 +64,8 @@ export interface Category {
   icon: string;
   color: string;
   parent?: string | null;
+  /** Reporting rollup bucket (see lib/categoryGroups.ts). null = ungrouped. */
+  group?: string | null;
   order: number;
   isDefault?: boolean;
   /** When true, picking this category auto-enables the transaction's one-off toggle. */
@@ -430,6 +432,8 @@ export interface CategoryDatum {
   name: string;
   color: string;
   icon: string;
+  /** Rollup bucket of the row's category; null for ungrouped and uncategorized. */
+  group?: string | null;
   total: number;
   count: number;
   percent: number;

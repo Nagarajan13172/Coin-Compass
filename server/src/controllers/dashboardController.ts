@@ -79,7 +79,10 @@ export async function getDashboard(req: Request, res: Response) {
     range: { start, end },
     summary: showWealth ? summary : { ...summary, netWorth: 0, byCurrency: {} },
     accounts,
-    byCategory: byCategory.slice(0, 6),
+    // Full leaf list, not a top-N slice: the client can fold these into category
+    // groups, and grouping a truncated list would understate every group total.
+    // The dashboard still only *renders* the top few in the flat view.
+    byCategory,
     trend,
     recent,
     budgets: budgetProgress,
