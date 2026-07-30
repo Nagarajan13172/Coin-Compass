@@ -28,12 +28,24 @@ import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { CREDIT_METHODS, type Credit, type CreditDirection, type CreditMethod } from "@/lib/types";
 
+/**
+ * Seed values for a NEW entry — adding against an existing person, or settling
+ * a balance up (where the person, direction and exact amount are all already
+ * known). Ignored when editing, since the credit's own values win.
+ */
+export interface CreditPrefill {
+  person?: string;
+  direction?: CreditDirection;
+  amount?: number;
+  /** Account id to reflect into — e.g. the one the original lend went out of. */
+  account?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   credit?: Credit | null;
-  /** Seed a new entry's person name (e.g. reopening for the same person). */
-  defaultPerson?: string;
+  prefill?: CreditPrefill;
 }
 
 function refId(v: { _id: string } | string | null | undefined): string {
@@ -46,7 +58,7 @@ const DIRECTIONS: { value: CreditDirection; cls: string }[] = [
   { value: "received", cls: "data-[active=true]:bg-income data-[active=true]:text-income-foreground" },
 ];
 
-export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: Props) {
+export function CreditFormDialog({ open, onOpenChange, credit, prefill }: Props) {
   const { t } = useTranslation("credits");
   const { data: accounts } = useAccounts();
   const create = useCreateCredit();
@@ -64,15 +76,15 @@ export function CreditFormDialog({ open, onOpenChange, credit, defaultPerson }: 
 
   useEffect(() => {
     if (!open) return;
-    setPerson(credit?.person ?? defaultPerson ?? "");
-    setDirection(credit?.direction ?? "given");
-    setAmount(credit ? String(credit.amount) : "");
+    setPerson(credit?.person ?? prefill?.person ?? "");
+    setDirection(credit?.direction ?? prefill?.direction ?? "given");
+    setAmount(credit ? String(credit.amount) : prefill?.amount ? String(prefill.amount) : "");
     setDate(credit ? credit.date.slice(0, 10) : format(new Date(), "yyyy-MM-dd"));
     setMethod((credit?.method as CreditMethod) || "Cash");
-    setAccountId(refId(credit?.account) || accounts?.[0]?._id || "");
+    setAccountId(refId(credit?.account) || prefill?.account || accounts?.[0]?._id || "");
     setNote(credit?.note ?? "");
     setReflected(credit ? credit.reflected : true);
-  }, [open, credit, defaultPerson, accounts]);
+  }, [open, credit, prefill, accounts]);
 
   async function submit() {
     if (!person.trim()) return toast.error(t("toast.enterPerson"));

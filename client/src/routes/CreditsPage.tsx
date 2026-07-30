@@ -2,7 +2,17 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { HeartHandshake, Link2, Link2Off, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  HeartHandshake,
+  Link2,
+  Link2Off,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -22,12 +32,24 @@ import { useCreditSummary, useDeleteCredit } from "@/hooks/useCredits";
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { dateFnsLocale } from "@/lib/dates";
+import { partitionCredits, type SettledPerson } from "@/lib/credits";
 import { cn } from "@/lib/utils";
 import type { Credit, CreditPersonSummary } from "@/lib/types";
-import { CreditFormDialog } from "@/features/credits/CreditFormDialog";
+import { CreditFormDialog, type CreditPrefill } from "@/features/credits/CreditFormDialog";
 
 function initials(name: string) {
   return name.trim().slice(0, 2).toUpperCase();
+}
+
+/**
+ * The account the person's money last moved through, so a settle-up lands back
+ * where the lend came from. Entries are newest-first, and only reflected ones
+ * carry an account.
+ */
+function reflectedAccountId(p: CreditPersonSummary): string | undefined {
+  const entry = p.entries.find((e) => e.reflected && e.account);
+  if (!entry?.account) return undefined;
+  return typeof entry.account === "string" ? entry.account : entry.account._id;
 }
 
 function dayLabel(d: string) {
@@ -44,7 +66,9 @@ export default function CreditsPage() {
   const del = useDeleteCredit();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Credit | null>(null);
-  const [prefillPerson, setPrefillPerson] = useState<string | undefined>();
+  // Held in state (not built inline) so its identity is stable — the dialog
+  // re-seeds its fields whenever this reference changes.
+  const [prefill, setPrefill] = useState<CreditPrefill | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Credit | null>(null);
 
   const totals = useMemo(() => {
@@ -53,14 +77,30 @@ export default function CreditsPage() {
     return { owedToYou, youOwe, net: owedToYou - youOwe };
   }, [people]);
 
+  // People who still owe (or are owed) stay as full cards; squared-up people
+  // fold into a collapsed section so the page doesn't fill with closed business.
+  const { active, settled } = useMemo(() => partitionCredits(people ?? []), [people]);
+
   function openNew(person?: string) {
     setEditing(null);
-    setPrefillPerson(person);
+    setPrefill(person ? { person } : undefined);
+    setOpen(true);
+  }
+  /** Close a balance out: the exact outstanding amount, in the opposite direction. */
+  function openSettle(p: CreditPersonSummary) {
+    setEditing(null);
+    setPrefill({
+      person: p.person,
+      direction: p.net > 0 ? "received" : "given",
+      amount: Math.abs(p.net),
+      // Send it back to whichever account the money last moved through.
+      account: reflectedAccountId(p),
+    });
     setOpen(true);
   }
   function openEdit(c: Credit) {
     setEditing(c);
-    setPrefillPerson(undefined);
+    setPrefill(undefined);
     setOpen(true);
   }
   async function confirmDelete(c: Credit) {
@@ -102,17 +142,36 @@ export default function CreditsPage() {
             <Stat label={t("totals.net")} amount={totals.net} signed animId="credits-net" />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {people.map((p) => (
-              <PersonCard
-                key={p.person}
-                summary={p}
-                onAdd={() => openNew(p.person)}
-                onEdit={openEdit}
-                onDelete={setDeleteTarget}
-              />
-            ))}
-          </div>
+          {active.length > 0 ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {active.map((p) => (
+                <PersonCard
+                  key={p.person}
+                  summary={p}
+                  onAdd={() => openNew(p.person)}
+                  onSettle={() => openSettle(p)}
+                  onEdit={openEdit}
+                  onDelete={setDeleteTarget}
+                />
+              ))}
+            </div>
+          ) : (
+            // Everyone is square — say so, rather than leaving a gap above the
+            // settled section.
+            <p className="flex items-center gap-2 rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
+              <Check className="h-4 w-4 text-income" />
+              {t("settled.allSettled")}
+            </p>
+          )}
+
+          {settled.length > 0 && (
+            <SettledSection
+              people={settled}
+              onAdd={openNew}
+              onEdit={openEdit}
+              onDelete={setDeleteTarget}
+            />
+          )}
         </div>
       ) : (
         <EmptyState
@@ -127,7 +186,7 @@ export default function CreditsPage() {
         />
       )}
 
-      <CreditFormDialog open={open} onOpenChange={setOpen} credit={editing} defaultPerson={prefillPerson} />
+      <CreditFormDialog open={open} onOpenChange={setOpen} credit={editing} prefill={prefill} />
 
       {deleteTarget && (
         <ConfirmDeleteDialog
@@ -179,11 +238,13 @@ function Stat({
 function PersonCard({
   summary,
   onAdd,
+  onSettle,
   onEdit,
   onDelete,
 }: {
   summary: CreditPersonSummary;
   onAdd: () => void;
+  onSettle: () => void;
   onEdit: (c: Credit) => void;
   onDelete: (c: Credit) => void;
 }) {
@@ -213,6 +274,11 @@ function PersonCard({
                 : t("person.youOwe", { amount: formatMoney(-net) })}
             </Badge>
           )}
+          {/* Opens the normal form prefilled with the exact outstanding amount in
+              the opposite direction — nothing is posted without confirming. */}
+          <Button variant="outline" size="sm" onClick={onSettle}>
+            <Check className="h-4 w-4" /> {t("person.settleUp")}
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -229,6 +295,110 @@ function PersonCard({
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Everyone who is square, folded into one collapsed block. Nothing is hidden
+ * permanently — each person expands to their full history, and adding an entry
+ * moves them back up to the active list on the next refetch.
+ */
+function SettledSection({
+  people,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  people: SettledPerson[];
+  onAdd: (person: string) => void;
+  onEdit: (c: Credit) => void;
+  onDelete: (c: Credit) => void;
+}) {
+  const { t } = useTranslation("credits");
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Card>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 rounded-xl px-5 py-4 text-left transition-colors hover:bg-accent/50"
+      >
+        <ChevronRight
+          className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+        />
+        <Check className="h-4 w-4 shrink-0 text-income" />
+        <span className="text-sm font-semibold">
+          {t("settled.section", { count: people.length })}
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {t(open ? "settled.collapse" : "settled.expand")}
+        </span>
+      </button>
+      {open && (
+        <CardContent className="space-y-1 pt-0">
+          {people.map((p) => (
+            <SettledRow key={p.person} summary={p} onAdd={() => onAdd(p.person)} onEdit={onEdit} onDelete={onDelete} />
+          ))}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+/** One squared-up person: a compact line that expands to their entries. */
+function SettledRow({
+  summary,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  summary: SettledPerson;
+  onAdd: () => void;
+  onEdit: (c: Credit) => void;
+  onDelete: (c: Credit) => void;
+}) {
+  const { t } = useTranslation("credits");
+  const [open, setOpen] = useState(false);
+  const { person, cycled, closedOn, entries } = summary;
+
+  return (
+    <div className="rounded-lg border">
+      <div className="flex items-center gap-3 px-2 py-2">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left transition-colors hover:bg-accent/50"
+          title={t(open ? "settled.collapse" : "settled.expand")}
+        >
+          <ChevronRight
+            className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+          />
+          <Avatar className="h-8 w-8 border opacity-70">
+            <AvatarFallback className="text-xs font-semibold">{initials(person)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{person}</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {t("settled.cycled", { amount: formatMoney(cycled) })}
+              {closedOn && ` · ${t("settled.closedOn", { date: dayLabel(closedOn) })}`}
+            </span>
+          </span>
+        </button>
+        <Button variant="ghost" size="icon-sm" aria-label={t("person.addWith", { person })} onClick={onAdd}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {open && (
+        <div className="space-y-1.5 border-t px-2 py-2">
+          {entries.map((c) => (
+            <EntryRow key={c._id} credit={c} onEdit={() => onEdit(c)} onDelete={() => onDelete(c)} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

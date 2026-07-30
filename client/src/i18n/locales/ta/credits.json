@@ -18,7 +18,17 @@
     "entries_other": "{{count}} பதிவுகள்",
     "owesYou": "உங்களுக்கு {{amount}} தர வேண்டும்",
     "youOwe": "நீங்கள் {{amount}} தர வேண்டும்",
-    "addWith": "{{person}} உடன் பதிவு சேர்"
+    "addWith": "{{person}} உடன் பதிவு சேர்",
+    "settleUp": "கணக்கு முடி"
+  },
+  "settled": {
+    "section_one": "முடிந்தவை · {{count}} நபர்",
+    "section_other": "முடிந்தவை · {{count}} நபர்கள்",
+    "cycled": "{{amount}} சுழன்றது",
+    "closedOn": "{{date}} அன்று முடிந்தது",
+    "allSettled": "எல்லாக் கணக்கும் முடிந்தது — இப்போது யாருக்கும் பாக்கி இல்லை.",
+    "expand": "காட்டு",
+    "collapse": "மறை"
   },
   "direction": {
     "given": "நீங்கள் கொடுத்தீர்கள்",

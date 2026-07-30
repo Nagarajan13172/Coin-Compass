@@ -18,7 +18,17 @@
     "entries_other": "{{count}} entries",
     "owesYou": "Owes you {{amount}}",
     "youOwe": "You owe {{amount}}",
-    "addWith": "Add credit with {{person}}"
+    "addWith": "Add credit with {{person}}",
+    "settleUp": "Settle up"
+  },
+  "settled": {
+    "section_one": "Settled · {{count}} person",
+    "section_other": "Settled · {{count}} people",
+    "cycled": "{{amount}} cycled",
+    "closedOn": "closed {{date}}",
+    "allSettled": "All settled up — nobody owes anybody right now.",
+    "expand": "Show",
+    "collapse": "Hide"
   },
   "direction": {
     "given": "You gave",
