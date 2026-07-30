@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
-import { balanceAsOf } from "../services/balanceService";
+import { balancesAsOf } from "../services/balanceService";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
 import { applyGoalContribution, reverseGoalContribution } from "../services/goalService";
 import { unlinkCreditTransaction, deleteCreditForTransaction } from "../services/creditService";
@@ -27,10 +27,29 @@ function oneOrMany(value: unknown): unknown {
   return parts.length > 1 ? { $in: parts } : parts[0];
 }
 
-function buildFilter(query: Request["query"]): Record<string, unknown> {
+/**
+ * `castId` converts id strings to ObjectIds. `.find()` does that itself from the
+ * schema, so it passes nothing; an aggregate `$match` doesn't, so the summary
+ * pipeline passes `castIdFilter`.
+ *
+ * Account and search each need an `$or`, so both go into `$and` rather than
+ * fighting over the single top-level `$or` key.
+ */
+function buildFilter(
+  query: Request["query"],
+  castId: (value: unknown) => unknown = (v) => v
+): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
-  if (query.account) filter.account = oneOrMany(query.account);
-  if (query.category) filter.category = query.category;
+  const and: Record<string, unknown>[] = [];
+
+  if (query.account) {
+    const ids = castId(oneOrMany(query.account));
+    // A transfer INTO the account names it on `toAccount` — a credit settlement
+    // landing back in your bank, or the receiving side of a self-transfer.
+    // Matching only `account` would drop those from the account's own ledger.
+    and.push({ $or: [{ account: ids }, { toAccount: ids }] });
+  }
+  if (query.category) filter.category = castId(query.category);
   if (query.type) filter.type = oneOrMany(query.type);
   // A single tag matches array membership; a comma-separated list becomes $in (any of).
   if (query.tag) filter.tags = oneOrMany(query.tag);
@@ -46,8 +65,10 @@ function buildFilter(query: Request["query"]): Record<string, unknown> {
 
   if (query.search) {
     const rx = new RegExp(String(query.search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-    filter.$or = [{ note: rx }, { payee: rx }, { tags: rx }];
+    and.push({ $or: [{ note: rx }, { payee: rx }, { tags: rx }] });
   }
+
+  if (and.length) filter.$and = and;
   return filter;
 }
 
@@ -69,11 +90,7 @@ function castIdFilter(value: unknown): unknown {
 /** buildFilter, but with the ObjectId fields cast for an aggregation pipeline and
  *  scoped to the user. */
 function buildMatch(query: Request["query"], uid: string): Record<string, unknown> {
-  const match = buildFilter(query);
-  if (match.account !== undefined) match.account = castIdFilter(match.account);
-  if (match.category !== undefined) match.category = castIdFilter(match.category);
-  match.user = new Types.ObjectId(uid);
-  return match;
+  return { ...buildFilter(query, castIdFilter), user: new Types.ObjectId(uid) };
 }
 
 export async function listTransactions(req: Request, res: Response) {
@@ -145,17 +162,18 @@ export async function transactionsSummary(req: Request, res: Response) {
 }
 
 /**
- * Grand-total balance across all accounts as of an instant (`?asOf=<ISO>`,
- * exclusive), or right now when omitted. The Transactions page uses this to
- * anchor the per-day "end-of-day balance": for the current/all-time view the
- * present total works, but for a past month it needs the total as it stood at
- * the end of that month — which this returns.
+ * Balances as of an instant (`?asOf=<ISO>`, exclusive), or right now when
+ * omitted: the grand total plus a per-account breakdown. The Transactions page
+ * uses these to anchor the per-day "end-of-day balance" — it needs one anchor
+ * per account so a day that touched two accounts can show where each one
+ * landed, and it needs them as of the window's end so a past month reads the
+ * balances as they stood then rather than today's.
  */
 export async function ledgerBalance(req: Request, res: Response) {
   const asOfRaw = req.query.asOf ? new Date(String(req.query.asOf)) : undefined;
   const asOf = asOfRaw && !Number.isNaN(asOfRaw.getTime()) ? asOfRaw : undefined;
-  const balance = await balanceAsOf(userId(req), asOf);
-  res.json({ balance });
+  const { total, byAccount } = await balancesAsOf(userId(req), asOf);
+  res.json({ balance: total, byAccount });
 }
 
 /** Distinct tags the user has applied across their transactions, with usage counts

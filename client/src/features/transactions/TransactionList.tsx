@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { dateGroupLabel, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
+import { dayEndBalances, type DayBalance, type LedgerSnapshot } from "@/lib/dayBalances";
 import type { Transaction } from "@/lib/types";
 import { TransactionRow } from "./TransactionRow";
 import { Separator } from "@/components/ui/separator";
@@ -10,21 +11,23 @@ import { Separator } from "@/components/ui/separator";
 interface TransactionListProps {
   transactions: Transaction[];
   /**
-   * The current total balance across all accounts. When provided, each day shows
-   * an "end-of-day balance" footer: we anchor at this present-day total (which
-   * already reflects every transaction) and walk the newest-first list backwards,
-   * subtracting each day's net. Transfers move money between accounts so they net
-   * to zero on the total, which is why income − expense is the day's balance delta.
-   *
-   * Only pass this for the full, unfiltered ledger — any account/category/type/
-   * tag/search filter makes the visible rows a subset that no longer reconciles
-   * with the account balances, so the caller omits it then.
+   * Turns on the per-day "end of day" footer, which lists every account the day
+   * touched with that account's own closing balance (see dayEndBalances). Omit
+   * it to hide the footer — the caller does that whenever a category/type/tag/
+   * search filter makes the visible rows a subset that can't reconcile.
    */
-  endingBalance?: number;
+  dayBalances?: {
+    /** Per-account + total balances as of the window's end, the walk-back anchor. */
+    snapshot: LedgerSnapshot;
+    /** Limit the lines to these accounts (set under an account filter). */
+    restrictTo?: readonly string[];
+    /** Whether a portfolio total row can be trusted (false under any filter). */
+    includeTotal: boolean;
+  };
 }
 
 /** Transactions grouped by day with a per-day net total header. */
-export function TransactionList({ transactions, endingBalance }: TransactionListProps) {
+export function TransactionList({ transactions, dayBalances }: TransactionListProps) {
   const { t } = useTranslation("transactions");
   const groups = useMemo(() => {
     type Group = {
@@ -48,18 +51,15 @@ export function TransactionList({ transactions, endingBalance }: TransactionList
     return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [transactions]);
 
-  // Balance at the end of each day, keyed by dayKey. Walk from the newest day
-  // (whose end-of-day balance is the current total) back through history.
+  // Per-account closing balances for each day, keyed by dayKey.
   const endOfDay = useMemo(() => {
-    if (endingBalance == null) return null;
-    const out = new Map<string, number>();
-    let bal = endingBalance;
-    for (const [key, g] of groups) {
-      out.set(key, bal);
-      bal -= g.income - g.expense; // step back to the prior day's closing balance
-    }
-    return out;
-  }, [groups, endingBalance]);
+    if (!dayBalances) return null;
+    return dayEndBalances(
+      groups.map(([key, g]) => ({ key, items: g.items })),
+      dayBalances.snapshot,
+      { restrictTo: dayBalances.restrictTo, includeTotal: dayBalances.includeTotal }
+    );
+  }, [groups, dayBalances]);
 
   return (
     <div className="space-y-7">
@@ -106,23 +106,73 @@ export function TransactionList({ transactions, endingBalance }: TransactionList
                 <TransactionRow key={t._id} txn={t} showTime />
               ))}
             </div>
-            {endOfDay && (
-              <div className="mt-2 flex items-center justify-between border-t border-dashed border-border/60 px-1 pt-2">
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  {t("group.endOfDayBalance")}
-                </span>
-                <span
-                  className={`tnum text-xs font-semibold ${
-                    (endOfDay.get(key) ?? 0) < 0 ? "text-expense" : "text-foreground"
-                  }`}
-                >
-                  {formatMoney(endOfDay.get(key) ?? 0)}
-                </span>
-              </div>
-            )}
+            <DayBalanceFooter day={endOfDay?.get(key)} />
           </motion.div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Where the day left each account it touched, plus the portfolio total when the
+ * view reconciles. Per-account rather than one blended figure so that spending
+ * from two accounts reads as two closing balances, and so a credit shows both
+ * legs — the bank the money left and the receivable it became. Renders nothing
+ * when the caller didn't ask for balances.
+ */
+function DayBalanceFooter({ day }: { day?: DayBalance }) {
+  const { t } = useTranslation("transactions");
+  if (!day || (!day.accounts.length && day.total == null)) return null;
+
+  return (
+    <div className="mt-2 border-t border-dashed border-border/60 px-1 pt-2">
+      <p className="text-[11px] font-medium text-muted-foreground">{t("group.endOfDay")}</p>
+      <div className="mt-1 space-y-0.5">
+        {day.accounts.map((a) => (
+          <div key={a.accountId} className="flex items-center justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.color ? "" : "bg-muted-foreground/40"}`}
+                style={a.color ? { backgroundColor: a.color } : undefined}
+              />
+              <span className="truncate text-[11px] text-muted-foreground">
+                {a.name || t("group.unnamedAccount")}
+              </span>
+              {a.delta !== 0 && (
+                <span
+                  className={`tnum shrink-0 text-[10px] ${a.delta > 0 ? "text-income" : "text-expense"}`}
+                >
+                  {formatMoney(a.delta, { signed: true })}
+                </span>
+              )}
+            </span>
+            <span
+              className={`tnum shrink-0 text-xs font-semibold ${
+                a.balance < 0 ? "text-expense" : "text-foreground"
+              }`}
+            >
+              {formatMoney(a.balance)}
+            </span>
+          </div>
+        ))}
+      </div>
+      {day.total != null && (
+        <div
+          className={`flex items-center justify-between gap-2 ${
+            day.accounts.length ? "mt-1.5 border-t border-border/40 pt-1.5" : "mt-1"
+          }`}
+        >
+          <span className="text-[11px] font-medium text-muted-foreground">{t("group.total")}</span>
+          <span
+            className={`tnum text-xs font-semibold ${
+              day.total < 0 ? "text-expense" : "text-foreground"
+            }`}
+          >
+            {formatMoney(day.total)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

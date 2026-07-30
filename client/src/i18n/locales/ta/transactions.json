@@ -110,7 +110,9 @@
     "transfers_one": "{{count}} பரிமாற்றம்",
     "transfers_other": "{{count}} பரிமாற்றங்கள்",
     "net": "நிகர",
-    "endOfDayBalance": "நாள் இறுதி இருப்பு"
+    "endOfDay": "நாள் இறுதியில்",
+    "total": "அனைத்து கணக்குகள்",
+    "unnamedAccount": "கணக்கு"
   },
   "summaryRail": {
     "report": "அறிக்கை",

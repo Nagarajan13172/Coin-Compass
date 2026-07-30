@@ -168,16 +168,20 @@ export default function TransactionsPage() {
   const total = data?.pages[0]?.total ?? 0;
 
   // A filter that narrows the ledger to a subset (account/category/type/tag/search)
-  // makes a running total meaningless — so the per-day end-of-day balance and the
-  // period summary rail only appear on the whole-ledger period views.
-  const hasNarrowingFilters =
-    type !== ALL ||
-    accountIds.length > 0 ||
-    selectedTags.length > 0 ||
-    category !== ALL ||
-    oneoffOnly ||
-    !!debounced;
-  const showRunningBalance = !!accounts && !hasNarrowingFilters;
+  // makes a whole-ledger running total meaningless — so the period summary rail
+  // only appears on the unfiltered period views.
+  //
+  // The per-day end-of-day balances are gated more finely. A type/category/tag/
+  // one-off/search filter hides rows that still moved the accounts, so nothing
+  // reconciles and the footer goes away. An ACCOUNT filter doesn't have that
+  // problem: the server matches both transfer legs, so every movement of the
+  // selected accounts is on screen and their own balances walk back exactly. We
+  // keep the footer there, scoped to those accounts — the portfolio total is the
+  // only part that can't survive, since other accounts' rows are missing.
+  const hasNonAccountFilters =
+    type !== ALL || selectedTags.length > 0 || category !== ALL || oneoffOnly || !!debounced;
+  const hasNarrowingFilters = hasNonAccountFilters || accountIds.length > 0;
+  const showDayBalances = !!accounts && !hasNonAccountFilters;
 
   // When a narrowing filter is on, the whole-ledger rail can't apply — so we show
   // in/out/net for the filtered slice instead. Fetched server-side (the list is
@@ -187,11 +191,23 @@ export default function TransactionsPage() {
     hasNarrowingFilters
   );
 
-  // Anchor for the per-day end-of-day balance: the grand total as of the window's
-  // end (exclusive `to`), or the present total for an open-ended "all time" view.
-  // Using the window's own `to` keeps a *past* month correct — it reads the total
-  // as it stood then, not today's balance.
-  const { data: ledgerBalance } = useLedgerBalance(range.to, showRunningBalance);
+  // Anchors for the per-day end-of-day balances: every account's balance (plus the
+  // grand total) as of the window's end (exclusive `to`), or the present state for
+  // an open-ended "all time" view. Using the window's own `to` keeps a *past* month
+  // correct — it reads the balances as they stood then, not today's.
+  const { data: ledgerSnapshot } = useLedgerBalance(range.to, showDayBalances);
+
+  const dayBalances = useMemo(
+    () =>
+      showDayBalances && ledgerSnapshot
+        ? {
+            snapshot: ledgerSnapshot,
+            restrictTo: accountIds.length ? accountIds : undefined,
+            includeTotal: accountIds.length === 0,
+          }
+        : undefined,
+    [showDayBalances, ledgerSnapshot, accountIds]
+  );
 
   // infinite scroll sentinel
   const sentinel = useRef<HTMLDivElement>(null);
@@ -488,10 +504,7 @@ export default function TransactionsPage() {
             </div>
           ) : items.length ? (
             <>
-              <TransactionList
-                transactions={items}
-                endingBalance={showRunningBalance ? ledgerBalance : undefined}
-              />
+              <TransactionList transactions={items} dayBalances={dayBalances} />
               <div ref={sentinel} className="h-10" />
               {isFetchingNextPage && (
                 <p className="py-4 text-center text-sm text-muted-foreground">{t("loadingMore")}</p>

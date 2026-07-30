@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { invalidateMoney } from "@/lib/queryClient";
+import type { LedgerSnapshot } from "@/lib/dayBalances";
 import type { Transaction, TransactionPage } from "@/lib/types";
 
 export interface TxnFilters {
@@ -87,19 +88,23 @@ function cleanFilters(f: TxnFilters) {
 }
 
 /**
- * Grand-total balance across all accounts as of an instant (`asOf`, exclusive),
- * or right now when omitted. Anchors the Transactions page's per-day end-of-day
- * balance so it's correct even when viewing a past month. Keyed under
- * "transactions" so a mutation (invalidateMoney) refreshes it automatically.
+ * Balances as of an instant (`asOf`, exclusive), or right now when omitted: the
+ * grand total plus a per-account breakdown. Anchors the Transactions page's
+ * per-day end-of-day balances — one anchor per account, so a day can show where
+ * each account it touched landed — and stays correct when viewing a past month.
+ * Keyed under "transactions" so a mutation (invalidateMoney) refreshes it.
  */
 export function useLedgerBalance(asOf?: string, enabled = true) {
   return useQuery({
     queryKey: ["transactions", "balance", asOf ?? null],
     enabled,
-    queryFn: async () =>
-      (await api.get<{ balance: number }>("/transactions/balance", {
-        params: asOf ? { asOf } : {},
-      })).data.balance,
+    queryFn: async (): Promise<LedgerSnapshot> => {
+      const { data } = await api.get<{ balance: number; byAccount?: Record<string, number> }>(
+        "/transactions/balance",
+        { params: asOf ? { asOf } : {} }
+      );
+      return { total: data.balance, byAccount: data.byAccount ?? {} };
+    },
   });
 }
 

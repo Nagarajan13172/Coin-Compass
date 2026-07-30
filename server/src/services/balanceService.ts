@@ -71,39 +71,71 @@ export async function computeAllBalances(userId: string): Promise<Map<string, Ac
   return map;
 }
 
+export interface LedgerSnapshot {
+  /**
+   * Closing balance per account id. Transfers count here (they're what moves
+   * money between a real account and the "Money Lent" receivable), so lending
+   * ₹20k shows the bank down 20k and the receivable up 20k.
+   */
+  byAccount: Record<string, number>;
+  /**
+   * Grand total across every account — the sum of `byAccount`. Transfers cancel
+   * across the two legs, so this reduces to Σ initialBalance + income − expense.
+   * (Deleting an account cascades to every transaction naming it on either leg,
+   * so no half-transfer can survive to unbalance the sum.)
+   */
+  total: number;
+}
+
 /**
- * Total balance across ALL of a user's accounts as of an instant (exclusive):
- * every account's initial balance plus income minus expense for transactions
- * dated before `asOf`. Transfers move money between two of the user's own
- * accounts, so they cancel in the whole-portfolio total and are ignored — which
- * makes this consistent with the sum of `computeAllBalances` (whose transferIn /
- * transferOut totals also cancel). With no `asOf` it's the current grand total.
+ * Every account's balance as of an instant (`asOf`, exclusive), plus the grand
+ * total — each account's initial balance, then income in, expense out, and both
+ * transfer legs applied for transactions dated before `asOf`. With no `asOf`
+ * it's the present state, and `byAccount` then matches `computeAllBalances`.
  *
- * This is the anchor the Transactions page walks back from to show each day's
- * end-of-day balance, and it stays correct for a past month (where the present
- * account balances would be the wrong anchor).
+ * These are the anchors the Transactions page walks back from to show each day's
+ * per-account end-of-day balance, and they stay correct for a past month (where
+ * the present balances would be the wrong anchor).
  */
-export async function balanceAsOf(userId: string, asOf?: Date): Promise<number> {
+export async function balancesAsOf(userId: string, asOf?: Date): Promise<LedgerSnapshot> {
   const user = new Types.ObjectId(userId);
   const accounts = await Account.find({ user }).select("initialBalance").lean();
-  const initial = accounts.reduce((sum, a) => sum + (a.initialBalance ?? 0), 0);
+  const byAccount: Record<string, number> = {};
+  for (const a of accounts) byAccount[String(a._id)] = a.initialBalance ?? 0;
 
-  const match: Record<string, unknown> = { user, type: { $in: ["income", "expense"] } };
-  if (asOf) match.date = { $lt: asOf };
+  const dateMatch = asOf ? { date: { $lt: asOf } } : {};
 
-  // Soft-deleted rows are excluded automatically by the aggregate pre-hook.
-  const agg = await Transaction.aggregate<{ _id: "income" | "expense"; total: number }>([
-    { $match: match },
-    { $group: { _id: "$type", total: { $sum: "$amount" } } },
+  // Money leaving or landing in the account named by `account`. Soft-deleted rows
+  // are excluded automatically by the aggregate pre-hook.
+  const fromAgg = await Transaction.aggregate<{
+    _id: { account: Types.ObjectId; type: string };
+    total: number;
+  }>([
+    { $match: { user, ...dateMatch } },
+    { $group: { _id: { account: "$account", type: "$type" }, total: { $sum: "$amount" } } },
   ]);
 
-  let income = 0;
-  let expense = 0;
-  for (const row of agg) {
-    if (row._id === "income") income = row.total;
-    else if (row._id === "expense") expense = row.total;
+  for (const row of fromAgg) {
+    const key = String(row._id.account);
+    if (!(key in byAccount)) continue;
+    // An expense and a transfer's outgoing leg both leave the account.
+    if (row._id.type === "income") byAccount[key] += row.total;
+    else byAccount[key] -= row.total;
   }
-  return initial + income - expense;
+
+  // Transfers IN, grouped by destination account.
+  const toAgg = await Transaction.aggregate<{ _id: Types.ObjectId; total: number }>([
+    { $match: { user, type: "transfer", toAccount: { $ne: null }, ...dateMatch } },
+    { $group: { _id: "$toAccount", total: { $sum: "$amount" } } },
+  ]);
+
+  for (const row of toAgg) {
+    const key = String(row._id);
+    if (key in byAccount) byAccount[key] += row.total;
+  }
+
+  const total = Object.values(byAccount).reduce((sum, n) => sum + n, 0);
+  return { byAccount, total };
 }
 
 /** Total net worth across accounts that are flagged includeInTotal. */
