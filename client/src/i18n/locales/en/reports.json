@@ -14,6 +14,12 @@
     "year": "year"
   },
   "net": "Net",
+  "grouping": {
+    "group": "Groups",
+    "flat": "All"
+  },
+  "expandGroup": "Show the categories in {{name}}",
+  "collapseGroup": "Hide the categories in {{name}}",
   "avgDailySpend": "Avg daily spend",
   "avgDailyHint": "Total spent ÷ days elapsed in this period, so a partial month isn't divided by a full 30 days.",
   "overDays_one": "over {{count}} day",

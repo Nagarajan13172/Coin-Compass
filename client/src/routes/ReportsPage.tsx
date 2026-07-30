@@ -21,6 +21,7 @@ import { bucketRange, periodRange, shiftPeriod, periodLabel } from "@/lib/dates"
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/i18nLabels";
 import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/ui";
 import type { PeriodKey } from "@/lib/types";
 
 export default function ReportsPage() {
@@ -29,6 +30,8 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState<PeriodKey>("month");
   const [refDate, setRefDate] = useState(new Date());
   const [donutType, setDonutType] = useState<"expense" | "income">("expense");
+  const grouping = useUIStore((s) => s.categoryGrouping);
+  const setGrouping = useUIStore((s) => s.setCategoryGrouping);
 
   const range = useMemo(() => {
     const { start, end } = periodRange(period, refDate);
@@ -254,12 +257,20 @@ export default function ReportsPage() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>{t("byCategory")}</CardTitle>
-            <Tabs value={donutType} onValueChange={(v) => setDonutType(v as "expense" | "income")}>
-              <TabsList className="h-8">
-                <TabsTrigger value="expense" className="text-xs">{t("txnType.expense", { ns: "common" })}</TabsTrigger>
-                <TabsTrigger value="income" className="text-xs">{t("txnType.income", { ns: "common" })}</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex flex-wrap items-center gap-2">
+              <Tabs value={grouping} onValueChange={(v) => setGrouping(v as "group" | "flat")}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="group" className="text-xs">{t("grouping.group")}</TabsTrigger>
+                  <TabsTrigger value="flat" className="text-xs">{t("grouping.flat")}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Tabs value={donutType} onValueChange={(v) => setDonutType(v as "expense" | "income")}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="expense" className="text-xs">{t("txnType.expense", { ns: "common" })}</TabsTrigger>
+                  <TabsTrigger value="income" className="text-xs">{t("txnType.income", { ns: "common" })}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </CardHeader>
           <CardContent>
             {byCategory.isLoading ? (
@@ -271,6 +282,7 @@ export default function ReportsPage() {
                 totals={{ income: summary.data?.income ?? 0, expense: summary.data?.expense ?? 0 }}
                 showBars
                 wideLegend
+                grouped={grouping === "group"}
                 centerLabel={donutType === "expense" ? t("centerLabel.spent") : t("centerLabel.earned")}
                 onSelect={(categoryId) => openTxns({ type: donutType, category: categoryId ?? undefined })}
               />

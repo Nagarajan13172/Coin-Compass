@@ -5,6 +5,9 @@ import { applyLanguage, DEFAULT_LANGUAGE, type LanguageCode } from "@/i18n";
 
 type Theme = "light" | "dark" | "system";
 
+/** How the by-category donut/legend rolls up: by category group, or flat. */
+export type CategoryGrouping = "group" | "flat";
+
 /** Seed values for a brand-new transaction sheet. */
 export interface TxnPrefill {
   account?: string | null;
@@ -35,6 +38,10 @@ interface UIState {
   // global period (dashboard / reports)
   period: PeriodKey;
   setPeriod: (p: PeriodKey) => void;
+
+  // by-category charts: fold rows into category groups, or list every category
+  categoryGrouping: CategoryGrouping;
+  setCategoryGrouping: (g: CategoryGrouping) => void;
 
   // sidebar
   sidebarCollapsed: boolean;
@@ -90,6 +97,9 @@ export const useUIStore = create<UIState>()(
       period: "month",
       setPeriod: (p) => set({ period: p }),
 
+      categoryGrouping: "group",
+      setCategoryGrouping: (g) => set({ categoryGrouping: g }),
+
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
@@ -114,6 +124,7 @@ export const useUIStore = create<UIState>()(
       partialize: (s) => ({
         theme: s.theme,
         period: s.period,
+        categoryGrouping: s.categoryGrouping,
         sidebarCollapsed: s.sidebarCollapsed,
         language: s.language,
       }),

@@ -77,6 +77,9 @@ export const categorySchema = z.object({
   icon: z.string().default("tag"),
   color: z.string().default("#64748B"),
   parent: optionalObjectId,
+  // Reporting rollup bucket; null clears it. Not an enum — the client offers a
+  // preset list but a custom group is allowed to pass through.
+  group: z.string().max(40).nullable().optional(),
   order: z.number().default(0),
   oneoffDefault: z.boolean().default(false),
 });

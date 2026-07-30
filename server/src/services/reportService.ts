@@ -88,6 +88,10 @@ export async function getByCategory(
         name: { $ifNull: ["$category.name", "Uncategorized"] },
         color: { $ifNull: ["$category.color", "#94A3B8"] },
         icon: { $ifNull: ["$category.icon", "tag"] },
+        // Rollup bucket for the grouped donut view; null for ungrouped and for
+        // uncategorized rows. Rows stay at leaf granularity — the client folds
+        // them, so every existing consumer of this shape is unaffected.
+        group: { $ifNull: ["$category.group", null] },
         total: 1,
         count: 1,
       },

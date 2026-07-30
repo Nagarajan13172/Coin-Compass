@@ -39,6 +39,8 @@ export default function DashboardPage() {
   const period = useUIStore((s) => s.period);
   const setPeriod = useUIStore((s) => s.setPeriod);
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
+  const grouping = useUIStore((s) => s.categoryGrouping);
+  const setGrouping = useUIStore((s) => s.setCategoryGrouping);
   const { data, isLoading } = useDashboard(period);
   const { data: goals } = useGoals();
   const { data: creditSummary } = useCreditSummary();
@@ -306,18 +308,29 @@ export default function DashboardPage() {
             <Card className="lg:col-span-2">
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>{t("spending.title")}</CardTitle>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/reports">{t("spending.viewInReports")}</Link>
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Tabs value={grouping} onValueChange={(v) => setGrouping(v as "group" | "flat")}>
+                    <TabsList className="h-8">
+                      <TabsTrigger value="group" className="text-xs">{t("grouping.group", { ns: "reports" })}</TabsTrigger>
+                      <TabsTrigger value="flat" className="text-xs">{t("grouping.flat", { ns: "reports" })}</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to="/reports">{t("spending.viewInReports")}</Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {data.byCategory.length ? (
                   <CategoryDonut
-                    data={data.byCategory}
+                    // Grouped view needs every row to total its groups correctly;
+                    // the flat view keeps the dashboard's top-6 summary.
+                    data={grouping === "group" ? data.byCategory : data.byCategory.slice(0, 6)}
                     total={data.summary.expense}
                     totals={{ income: data.summary.income, expense: data.summary.expense }}
                     onSelect={openCategory}
                     wideLegend
+                    grouped={grouping === "group"}
                   />
                 ) : (
                   <EmptyState

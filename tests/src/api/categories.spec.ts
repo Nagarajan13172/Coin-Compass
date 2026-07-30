@@ -35,6 +35,37 @@ describe("Categories — CRUD", () => {
     expect(res.data).toMatchObject({ name: "New", color: "#ff0000" });
   });
 
+  // `group` is the reporting rollup bucket — it must round-trip, be clearable,
+  // and default to null so an ungrouped category is distinguishable from a
+  // grouped one rather than silently sharing a bucket.
+  it("round-trips the report group, and defaults it to null", async () => {
+    const u = await createVerifiedUser();
+    const withGroup = (await u.session.http.post("/categories", { name: "Chai", type: "expense", group: "food" })).data;
+    expect(withGroup.group).toBe("food");
+
+    const without = (await u.session.http.post("/categories", { name: "Loose", type: "expense" })).data;
+    expect(without.group).toBeNull();
+  });
+
+  it("changes and clears a category's report group", async () => {
+    const u = await createVerifiedUser();
+    const c = (await u.session.http.post("/categories", { name: "Bus", type: "expense", group: "food" })).data;
+
+    const moved = await u.session.http.patch(`/categories/${c._id}`, { group: "transport" });
+    expect(moved.data.group).toBe("transport");
+
+    const cleared = await u.session.http.patch(`/categories/${c._id}`, { group: null });
+    expect(cleared.data.group).toBeNull();
+  });
+
+  it("seeds default categories already grouped", async () => {
+    const u = await createVerifiedUser();
+    const expense = await list(u, "expense");
+    expect(expense.find((c) => c.name === "Food & Dining").group).toBe("food");
+    expect(expense.find((c) => c.name === "Personal Loan").group).toBe("debt_transfers");
+    expect(expense.every((c) => typeof c.group === "string" && c.group.length > 0)).toBe(true);
+  });
+
   it("deletes an unused category", async () => {
     const u = await createVerifiedUser();
     const c = (await u.session.http.post("/categories", { name: "Temp", type: "expense" })).data;
@@ -52,6 +83,16 @@ describe("Categories — validation & rules", () => {
   it("rejects a blank name with 400", async () => {
     const u = await createVerifiedUser();
     expect((await u.session.http.post("/categories", { name: "", type: "income" })).status).toBe(400);
+  });
+
+  it("rejects an over-long report group with 400", async () => {
+    const u = await createVerifiedUser();
+    const res = await u.session.http.post("/categories", {
+      name: "Long",
+      type: "expense",
+      group: "x".repeat(41),
+    });
+    expect(res.status).toBe(400);
   });
 
   it("refuses to delete a category in use unless forced, then clears it on the transactions", async () => {

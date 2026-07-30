@@ -11,13 +11,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ColorPicker } from "@/components/common/ColorPicker";
 import { IconPicker } from "@/components/common/IconPicker";
 import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { useCreateCategory, useUpdateCategory } from "@/hooks/useCategories";
+import { groupLabel, groupsForType } from "@/lib/categoryGroups";
 import type { Category, CategoryType } from "@/lib/types";
 import { useTranslation } from "react-i18next";
+
+/** Sentinel for "no group" — Radix Select can't hold an empty-string value. */
+const NO_GROUP = "__none__";
 
 interface Props {
   open: boolean;
@@ -38,6 +49,9 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType, 
   const [icon, setIcon] = useState("tag");
   const [color, setColor] = useState("#64748B");
   const [oneoffDefault, setOneoffDefault] = useState(false);
+  const [group, setGroup] = useState<string>(NO_GROUP);
+
+  const type = category?.type ?? defaultType;
 
   useEffect(() => {
     if (!open) return;
@@ -45,11 +59,19 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType, 
     setIcon(category?.icon ?? "tag");
     setColor(category?.color ?? "#64748B");
     setOneoffDefault(category?.oneoffDefault ?? false);
+    setGroup(category?.group || NO_GROUP);
   }, [open, category]);
 
   async function submit() {
     if (!name.trim()) return toast.error(t("category.errors.name"));
-    const payload = { name: name.trim(), icon, color, oneoffDefault, type: category?.type ?? defaultType };
+    const payload = {
+      name: name.trim(),
+      icon,
+      color,
+      oneoffDefault,
+      group: group === NO_GROUP ? null : group,
+      type,
+    };
     try {
       if (isEdit && category) {
         await update.mutateAsync({ id: category._id, ...payload });
@@ -67,7 +89,9 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* Same scroll treatment as the other form dialogs — with the group picker
+          added, the icon grid pushes the footer past a laptop viewport. */}
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? t("category.editTitle") : t("category.newTitle")}</DialogTitle>
         </DialogHeader>
@@ -78,6 +102,30 @@ export function CategoryFormDialog({ open, onOpenChange, category, defaultType, 
               <Label htmlFor="cat-name">{t("labels.name", { ns: "common" })}</Label>
               <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("category.namePlaceholder")} />
             </div>
+          </div>
+          {/* Reporting rollup only — the category stays independently selectable
+              everywhere; this just decides which bucket it lands in on the charts. */}
+          <div className="space-y-1.5">
+            <Label>{t("category.group")}</Label>
+            <Select value={group} onValueChange={setGroup}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_GROUP}>{t("category.groupNone")}</SelectItem>
+                {groupsForType(type).map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {groupLabel(g)}
+                  </SelectItem>
+                ))}
+                {/* A group the backfill or an older build set that isn't in the
+                    preset list — keep it selectable so saving doesn't silently drop it. */}
+                {group !== NO_GROUP && !groupsForType(type).includes(group) && (
+                  <SelectItem value={group}>{groupLabel(group)}</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t("category.groupHelp")}</p>
           </div>
           <div className="space-y-1.5">
             <Label>{t("labels.color", { ns: "common" })}</Label>

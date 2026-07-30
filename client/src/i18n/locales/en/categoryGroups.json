@@ -1,0 +1,19 @@
+{
+  "ungrouped": "Ungrouped",
+  "other": "Other",
+
+  "food": "Food",
+  "transport": "Transport",
+  "home": "Home",
+  "bills": "Bills & Subscriptions",
+  "health": "Health",
+  "education": "Education",
+  "lifestyle": "Lifestyle",
+  "family_giving": "Family & Giving",
+  "savings": "Savings & Deposits",
+  "debt_transfers": "Loans & Transfers",
+
+  "earnings": "Earnings",
+  "returns": "Returns & Interest",
+  "inflows": "Other Inflows"
+}
