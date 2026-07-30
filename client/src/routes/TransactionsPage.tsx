@@ -301,13 +301,25 @@ export default function TransactionsPage() {
         ? accountName(accountIds[0])
         : t("filters.accountsCount", { count: accountIds.length });
 
-  const showTagFilter = (tagOptions?.length ?? 0) > 0;
+  // This dropdown holds the tag list AND the one-off toggle, so it's always
+  // rendered — gating it on "has the user tagged anything?" (as it once was) would
+  // leave a tag-less user with no way to reach one-off at all.
+  const hasTags = (tagOptions?.length ?? 0) > 0;
+  // One-off is not a tag, but it IS a selection in here, so it has to count toward
+  // the trigger label — otherwise the button reads "All tags" while a filter is on.
+  const tagFilterCount = selectedTags.length + (oneoffOnly ? 1 : 0);
   const tagTriggerLabel =
-    selectedTags.length === 0
-      ? t("filters.allTags")
-      : selectedTags.length === 1
-        ? `#${selectedTags[0]}`
-        : t("filters.tagsCount", { count: selectedTags.length });
+    tagFilterCount === 0
+      ? t("filters.allTagsAndOneoff")
+      : tagFilterCount === 1
+        ? oneoffOnly
+          ? t("filters.oneoff")
+          : `#${selectedTags[0]}`
+        : oneoffOnly
+          // Tags + one-off together: "N tags" would be a miscount, since one of
+          // them isn't a tag. Only the all-tags case keeps the "tags" wording.
+          ? t("filters.selectedCount", { count: tagFilterCount })
+          : t("filters.tagsCount", { count: tagFilterCount });
 
   return (
     <div className={cn("mx-auto transition-[max-width]", showRail ? "max-w-6xl" : "max-w-3xl")}>
@@ -351,12 +363,7 @@ export default function TransactionsPage() {
             />
           </div>
         </div>
-        <div
-          className={cn(
-            "grid grid-cols-2 gap-2",
-            showTagFilter ? "sm:grid-cols-4" : "sm:grid-cols-3"
-          )}
-        >
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Select value={type} onValueChange={setType}>
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -423,40 +430,51 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
 
-          {/* multi-select tags — only shown once the user has tagged anything */}
-          {showTagFilter && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between font-normal">
-                  <span className="truncate">{tagTriggerLabel}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-72 w-56 overflow-y-auto">
-                <DropdownMenuLabel>{t("filters.filterByTag")}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {tagOptions?.map((tg) => (
-                  <DropdownMenuCheckboxItem
-                    key={tg.tag}
-                    checked={selectedTags.includes(tg.tag)}
-                    onCheckedChange={() => toggleTag(tg.tag)}
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <span className="flex-1 truncate">{tg.tag}</span>
-                    <span className="ml-2 shrink-0 tnum text-xs text-muted-foreground">{tg.count}</span>
-                  </DropdownMenuCheckboxItem>
-                ))}
-                {selectedTags.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setSelectedTags([])}>
-                      {t("filters.clearTags")}
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {/* One-off + multi-select tags. One-off is a boolean flag rather than a
+              tag, so it sits in its own section above the list — close at hand
+              without pretending to be a string the user could type. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between font-normal">
+                <span className="truncate">{tagTriggerLabel}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-72 w-56 overflow-y-auto">
+              <DropdownMenuCheckboxItem
+                checked={oneoffOnly}
+                onCheckedChange={setOneoffOnly}
+                onSelect={(e) => e.preventDefault()}
+              >
+                <span className="flex-1 truncate">{t("filters.oneoff")}</span>
+              </DropdownMenuCheckboxItem>
+              {hasTags && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>{t("filters.filterByTag")}</DropdownMenuLabel>
+                  {tagOptions?.map((tg) => (
+                    <DropdownMenuCheckboxItem
+                      key={tg.tag}
+                      checked={selectedTags.includes(tg.tag)}
+                      onCheckedChange={() => toggleTag(tg.tag)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <span className="flex-1 truncate">{tg.tag}</span>
+                      <span className="ml-2 shrink-0 tnum text-xs text-muted-foreground">{tg.count}</span>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </>
+              )}
+              {selectedTags.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSelectedTags([])}>
+                    {t("filters.clearTags")}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
