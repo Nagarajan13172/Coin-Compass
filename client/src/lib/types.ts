@@ -455,6 +455,10 @@ export interface AccountDatum {
   color: string;
   income: number;
   expense: number;
+  /** Transfers from another of your accounts into this one. */
+  transferIn: number;
+  /** Transfers out of this one into another of your accounts. */
+  transferOut: number;
 }
 
 export interface InsightsMetric {

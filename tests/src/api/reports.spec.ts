@@ -134,6 +134,56 @@ describe("Reports — consumption vs raw expense", () => {
   });
 });
 
+/**
+ * A transfer is money genuinely crossing an account boundary, so the per-account
+ * view must count both of its legs. It used to group only by the SOURCE account
+ * and then discard transfer rows entirely, so an account funded purely by
+ * transfers rendered as a row of zeroes and every other account's in/out
+ * silently omitted the money it had moved.
+ */
+describe("Reports — by account includes transfers", () => {
+  it("counts both legs of a transfer against the right accounts", async () => {
+    const u = await createVerifiedUser();
+    const a = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const b = (await u.session.http.post("/accounts", { name: "Lent" })).data;
+
+    await u.session.http.post("/transactions", { type: "income", amount: 10000, account: a._id });
+    await u.session.http.post("/transactions", { type: "expense", amount: 2000, account: a._id });
+    await u.session.http.post("/transactions", {
+      type: "transfer",
+      amount: 3000,
+      account: a._id,
+      toAccount: b._id,
+    });
+
+    const rows = (await u.session.http.get(`/reports/by-account${ALL}`)).data as any[];
+    const main = rows.find((r) => r.name === "Main");
+    const lent = rows.find((r) => r.name === "Lent");
+
+    expect(main).toMatchObject({ income: 10000, expense: 2000, transferOut: 3000, transferIn: 0 });
+    // The destination must appear even though it has no income/expense at all.
+    expect(lent).toMatchObject({ income: 0, expense: 0, transferIn: 3000, transferOut: 0 });
+  });
+
+  it("gives a transfers-only account real figures instead of a row of zeroes", async () => {
+    const u = await createVerifiedUser();
+    const a = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const b = (await u.session.http.post("/accounts", { name: "Lent" })).data;
+    const move = (from: string, to: string, amount: number) =>
+      u.session.http.post("/transactions", { type: "transfer", amount, account: from, toAccount: to });
+
+    await move(a._id, b._id, 5000);
+    await move(b._id, a._id, 1800);
+
+    const rows = (await u.session.http.get(`/reports/by-account${ALL}`)).data as any[];
+    const lent = rows.find((r) => r.name === "Lent");
+    expect(lent.transferIn).toBe(5000);
+    expect(lent.transferOut).toBe(1800);
+    // Net movement must equal the receivable actually outstanding.
+    expect(lent.transferIn - lent.transferOut).toBe(3200);
+  });
+});
+
 describe("Reports — email", () => {
   it("sends a report email to the signed-in user on demand", async () => {
     const u = await createVerifiedUser();

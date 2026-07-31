@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
 import { Category } from "../models/Category";
+import { Account } from "../models/Account";
 import { computeNetWorth } from "./balanceService";
 
 interface RangeArgs {
@@ -193,30 +194,58 @@ export async function getTrend(
 /** Per-account income/expense totals for a date range. */
 export async function getByAccount(userId: string, { start, end }: RangeArgs) {
   const user = new Types.ObjectId(userId);
-  const rows = await Transaction.aggregate([
-    { $match: { user, date: { $gte: start, $lt: end } } },
-    { $group: { _id: { account: "$account", type: "$type" }, total: { $sum: "$amount" } } },
-    {
-      $lookup: {
-        from: "accounts",
-        localField: "_id.account",
-        foreignField: "_id",
-        as: "account",
-      },
-    },
-    { $unwind: "$account" },
-    {
-      $group: {
-        _id: "$_id.account",
-        name: { $first: "$account.name" },
-        color: { $first: "$account.color" },
-        income: { $sum: { $cond: [{ $eq: ["$_id.type", "income"] }, "$total", 0] } },
-        expense: { $sum: { $cond: [{ $eq: ["$_id.type", "expense"] }, "$total", 0] } },
-      },
-    },
-    { $sort: { expense: -1 } },
+  const range = { $gte: start, $lt: end };
+
+  // A transfer is money genuinely entering or leaving an account, so a per-account
+  // view has to count it — unlike the portfolio totals in getSummary, where the two
+  // legs cancel. It needs BOTH legs: `account` is the source, `toAccount` the
+  // destination. Grouping only by `account` (as this used to) meant an account whose
+  // activity is entirely transfers — a receivable like "Money Lent" — rendered as a
+  // row of zeroes, and every other account's in/out silently omitted its transfers.
+  // Same two-pass shape as computeAllBalances in balanceService.
+  const [outgoing, incoming, accounts] = await Promise.all([
+    Transaction.aggregate<{ _id: { account: Types.ObjectId; type: string }; total: number }>([
+      { $match: { user, date: range } },
+      { $group: { _id: { account: "$account", type: "$type" }, total: { $sum: "$amount" } } },
+    ]),
+    Transaction.aggregate<{ _id: Types.ObjectId; total: number }>([
+      { $match: { user, date: range, type: "transfer", toAccount: { $ne: null } } },
+      { $group: { _id: "$toAccount", total: { $sum: "$amount" } } },
+    ]),
+    Account.find({ user }).select("name color").lean(),
   ]);
-  return rows;
+
+  const byId = new Map(accounts.map((a) => [String(a._id), a]));
+  const rows = new Map<
+    string,
+    { _id: string; name: string; color?: string; income: number; expense: number; transferIn: number; transferOut: number }
+  >();
+  const row = (id: string) => {
+    let r = rows.get(id);
+    if (!r) {
+      const acc = byId.get(id);
+      // Skip movement on an account that no longer exists rather than inventing a row.
+      if (!acc) return null;
+      r = { _id: id, name: acc.name, color: acc.color, income: 0, expense: 0, transferIn: 0, transferOut: 0 };
+      rows.set(id, r);
+    }
+    return r;
+  };
+
+  for (const o of outgoing) {
+    const r = row(String(o._id.account));
+    if (!r) continue;
+    if (o._id.type === "income") r.income += o.total;
+    else if (o._id.type === "expense") r.expense += o.total;
+    else if (o._id.type === "transfer") r.transferOut += o.total;
+  }
+  for (const i of incoming) {
+    const r = row(String(i._id));
+    if (r) r.transferIn += i.total;
+  }
+
+  // Busiest account first, measured on everything that left it.
+  return [...rows.values()].sort((a, b) => b.expense + b.transferOut - (a.expense + a.transferOut));
 }
 
 /** Spent amount for a category within a range (used by budget progress). */

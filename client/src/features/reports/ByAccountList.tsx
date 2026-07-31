@@ -8,15 +8,26 @@ interface ByAccountListProps {
   onSelect?: (accountId: string) => void;
 }
 
-/** Per-account income vs expense with proportional bars and a net figure. */
+/**
+ * Per-account money in vs out, with proportional bars and a net figure.
+ *
+ * "In" and "out" mean everything that crossed the account boundary, transfers
+ * included — an account funded purely by transfers (a receivable like "Money
+ * Lent") would otherwise show nothing at all, and every other account's totals
+ * would omit the money it moved.
+ */
 export function ByAccountList({ data, onSelect }: ByAccountListProps) {
   const { t } = useTranslation("reports");
-  const max = data.reduce((m, d) => Math.max(m, d.income, d.expense), 0) || 1;
+  const inOf = (a: AccountDatum) => a.income + a.transferIn;
+  const outOf = (a: AccountDatum) => a.expense + a.transferOut;
+  const max = data.reduce((m, d) => Math.max(m, inOf(d), outOf(d)), 0) || 1;
 
   return (
     <ul className="flex flex-col divide-y">
       {data.map((a) => {
-        const net = a.income - a.expense;
+        const moneyIn = inOf(a);
+        const moneyOut = outOf(a);
+        const net = moneyIn - moneyOut;
         return (
           <li key={a._id}>
             <button
@@ -42,8 +53,8 @@ export function ByAccountList({ data, onSelect }: ByAccountListProps) {
               </div>
 
               <div className="flex flex-col gap-1">
-                <Bar label={t("inLabel")} value={a.income} max={max} tone="income" />
-                <Bar label={t("outLabel")} value={a.expense} max={max} tone="expense" />
+                <Bar label={t("inLabel")} value={moneyIn} max={max} tone="income" />
+                <Bar label={t("outLabel")} value={moneyOut} max={max} tone="expense" />
               </div>
             </button>
           </li>
