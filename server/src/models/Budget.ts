@@ -9,7 +9,6 @@ const budgetSchema = new Schema(
     amount: { type: Number, required: true, min: 0 },
     period: { type: String, enum: BUDGET_PERIODS, default: "monthly" },
     startDate: { type: Date, default: Date.now },
-    rollover: { type: Boolean, default: false },
     currency: { type: String, default: "INR" },
   },
   { timestamps: true }

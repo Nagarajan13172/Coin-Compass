@@ -143,7 +143,6 @@ export const budgetSchema = z.object({
   amount: z.number().positive(),
   period: z.enum(["weekly", "monthly", "yearly"]).default("monthly"),
   startDate: z.coerce.date().default(() => new Date()),
-  rollover: z.boolean().default(false),
   currency: z.string().default("INR"),
 });
 export const budgetUpdateSchema = budgetSchema.partial();

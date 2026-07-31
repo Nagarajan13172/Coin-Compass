@@ -1,10 +1,30 @@
 import { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
+import { Category } from "../models/Category";
 import { computeNetWorth } from "./balanceService";
 
 interface RangeArgs {
   start: Date;
   end: Date;
+}
+
+/**
+ * Category groups whose outflow is NOT consumption: money moved into savings, and
+ * loan principal repaid. Both leave the current account but neither makes you
+ * poorer — a deposit is still yours, and repaying principal converts debt into
+ * equity. Counting them as spending is what made the savings-rate metric report
+ * ~13% for a month that was really closer to 30%.
+ *
+ * Keep in sync with GROUP_META in client/src/lib/categoryGroups.ts.
+ */
+export const NON_CONSUMPTION_GROUPS = ["savings", "debt_transfers"];
+
+/** Ids of this user's categories whose spend is not consumption. */
+async function nonConsumptionCategoryIds(user: Types.ObjectId): Promise<Types.ObjectId[]> {
+  const rows = await Category.find({ user, group: { $in: NON_CONSUMPTION_GROUPS } })
+    .select("_id")
+    .lean();
+  return rows.map((r) => r._id as Types.ObjectId);
 }
 
 /** Income / expense / net for a date range, plus current net worth. */
@@ -46,6 +66,28 @@ export async function getSummary(userId: string, { start, end }: RangeArgs) {
     }
   }
 
+  // Split the expense total into what you actually consumed vs what merely moved
+  // (savings deposits, loan principal). Computed here so the dashboard, the
+  // transactions rail and the insights endpoint all share one definition instead
+  // of each deriving its own savings rate from the raw expense figure.
+  const excluded = await nonConsumptionCategoryIds(user);
+  let nonConsumption = 0;
+  if (excluded.length) {
+    const rows = await Transaction.aggregate<{ total: number }>([
+      {
+        $match: {
+          user,
+          date: { $gte: start, $lt: end },
+          type: "expense",
+          category: { $in: excluded },
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    nonConsumption = rows[0]?.total ?? 0;
+  }
+  const consumption = expense - nonConsumption;
+
   const { netWorth, byCurrency } = await computeNetWorth(userId);
 
   return {
@@ -56,6 +98,10 @@ export async function getSummary(userId: string, { start, end }: RangeArgs) {
     expenseCount,
     oneoffIncome,
     oneoffExpense,
+    /** Expense minus savings deposits and debt principal — the true cost of living. */
+    consumption,
+    /** The part of `expense` that stayed yours: deposits + principal repaid. */
+    nonConsumption,
     netWorth,
     byCurrency,
     range: { start, end },
@@ -180,12 +226,23 @@ export async function getSpentForCategory(
   start: Date,
   end: Date
 ): Promise<number> {
+  const user = new Types.ObjectId(userId);
   const match: Record<string, unknown> = {
-    user: new Types.ObjectId(userId),
+    user,
     date: { $gte: start, $lt: end },
     type: "expense",
   };
-  if (categoryId) match.category = new Types.ObjectId(categoryId);
+  if (categoryId) {
+    match.category = new Types.ObjectId(categoryId);
+  } else {
+    // An OVERALL budget (null category) is a cap on what you consume, so it must
+    // not count deposits or loan principal. Including them meant the only way to
+    // stay under was to set the cap above your entire outflow, which made the
+    // overall budget useless. A budget aimed AT one of those categories still
+    // measures it normally — the exclusion is specific to the overall case.
+    const excluded = await nonConsumptionCategoryIds(user);
+    if (excluded.length) match.category = { $nin: excluded };
+  }
 
   const agg = await Transaction.aggregate<{ total: number }>([
     { $match: match },

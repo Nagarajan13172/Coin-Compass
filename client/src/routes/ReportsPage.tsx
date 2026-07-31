@@ -22,6 +22,7 @@ import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/i18nLabels";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui";
+import { savingsRate } from "@/lib/savings";
 import type { PeriodKey } from "@/lib/types";
 
 export default function ReportsPage() {
@@ -75,7 +76,7 @@ export default function ReportsPage() {
       prevExpense,
       days,
       avgDaily: expense / days,
-      savingsRate: income > 0 ? Math.round((net / income) * 100) : null,
+      savingsRate: savingsRate(summary.data),
       top: [...(expenseCats.data ?? [])].sort((a, b) => b.total - a.total)[0] ?? null,
       momPct: prevExpense > 0 ? Math.round(((expense - prevExpense) / prevExpense) * 100) : null,
     };

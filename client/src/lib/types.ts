@@ -131,7 +131,6 @@ export interface Budget {
   amount: number;
   period: BudgetPeriod;
   startDate: string;
-  rollover: boolean;
   currency: string;
   spent: number;
   remaining: number;
@@ -410,6 +409,10 @@ export interface Summary {
   /** Portion of income / expense flagged irregular / one-off. */
   oneoffIncome: number;
   oneoffExpense: number;
+  /** Expense minus savings deposits and debt principal — the true cost of living. */
+  consumption: number;
+  /** The part of `expense` that stayed yours: deposits + principal repaid. */
+  nonConsumption: number;
   netWorth: number;
   byCurrency: Record<string, number>;
   range: { start: string; end: string };

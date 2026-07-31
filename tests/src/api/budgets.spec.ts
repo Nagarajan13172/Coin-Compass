@@ -5,6 +5,51 @@ import { newSession } from "../harness/http";
 const expenseCategoryId = async (u: TestUser) =>
   (await u.session.http.get("/categories?type=expense")).data[0]._id as string;
 
+/**
+ * An OVERALL budget (null category) caps what you consume. It used to sum every
+ * expense including deposits and loan EMIs, so the only way to stay under was to
+ * set it above your entire outflow — which made it useless. A budget aimed AT one
+ * of those categories must still measure it normally.
+ */
+describe("Budgets — overall budget excludes savings and debt", () => {
+  it("ignores deposits and loan repayment in an overall budget's spend", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const cats = (await u.session.http.get("/categories?type=expense")).data as any[];
+    const food = cats.find((c) => c.name === "Food & Dining");
+    const loan = cats.find((c) => c.name === "Personal Loan");
+    const post = cats.find((c) => c.name === "Post-Office");
+
+    const mk = (category: string, amount: number) =>
+      u.session.http.post("/transactions", { type: "expense", amount, account: acc._id, category });
+    await mk(food._id, 1200);
+    await mk(loan._id, 9000);
+    await mk(post._id, 3000);
+
+    const res = await u.session.http.post("/budgets", { amount: 5000 }); // no category = overall
+    expect(res.status).toBe(201);
+    expect(res.data.spent).toBe(1200); // not 13,200
+    expect(res.data.over).toBe(false);
+  });
+
+  it("still measures a budget set directly on a debt category", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const cats = (await u.session.http.get("/categories?type=expense")).data as any[];
+    const loan = cats.find((c) => c.name === "Personal Loan");
+    await u.session.http.post("/transactions", {
+      type: "expense",
+      amount: 9000,
+      account: acc._id,
+      category: loan._id,
+    });
+
+    const res = await u.session.http.post("/budgets", { category: loan._id, amount: 5000 });
+    expect(res.data.spent).toBe(9000);
+    expect(res.data.over).toBe(true);
+  });
+});
+
 describe("Budgets — CRUD", () => {
   it("creates a budget (201) with computed progress fields", async () => {
     const u = await createVerifiedUser();

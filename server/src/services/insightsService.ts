@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Transaction } from "../models/Transaction";
-import { getByCategory } from "./reportService";
+import { getByCategory, NON_CONSUMPTION_GROUPS } from "./reportService";
+import { Category } from "../models/Category";
 import { resolvePeriod, startOfDay, addDays, type Period } from "../utils/dateRange";
 
 const DAY = 86_400_000;
@@ -67,7 +68,7 @@ function metric(current: number, previous: number): InsightsMetric {
 }
 
 /** Income + expense totals for a range (leaner than getSummary — no net-worth work). */
-async function incomeExpense(user: Types.ObjectId, start: Date, end: Date) {
+async function incomeExpense(user: Types.ObjectId, start: Date, end: Date, excluded: Types.ObjectId[]) {
   const agg = await Transaction.aggregate<{ _id: string; total: number }>([
     { $match: { user, date: { $gte: start, $lt: end }, type: { $in: ["income", "expense"] } } },
     { $group: { _id: "$type", total: { $sum: "$amount" } } },
@@ -78,7 +79,20 @@ async function incomeExpense(user: Types.ObjectId, start: Date, end: Date) {
     if (r._id === "income") income = r.total;
     else expense = r.total;
   }
-  return { income, expense };
+
+  // Savings deposits and loan principal leave the account but stay yours, so the
+  // savings rate has to measure consumption, not raw outflow. Same definition as
+  // getSummary — see NON_CONSUMPTION_GROUPS in reportService.
+  let nonConsumption = 0;
+  if (excluded.length) {
+    const rows = await Transaction.aggregate<{ total: number }>([
+      { $match: { user, date: { $gte: start, $lt: end }, type: "expense", category: { $in: excluded } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    nonConsumption = rows[0]?.total ?? 0;
+  }
+
+  return { income, expense, consumption: expense - nonConsumption };
 }
 
 async function expenseUpTo(user: Types.ObjectId, start: Date, end: Date) {
@@ -174,9 +188,14 @@ export async function computeInsights(userId: string, period: Period, ref: Date)
   // the previous month/period may be shorter than the current one).
   const prevCutoff = new Date(Math.min(addDays(previous.start, daysElapsed).getTime(), previous.end.getTime()));
 
+  // Resolved once and shared by both period queries.
+  const excluded = (
+    await Category.find({ user, group: { $in: NON_CONSUMPTION_GROUPS } }).select("_id").lean()
+  ).map((c) => c._id as Types.ObjectId);
+
   const [curTotals, prevTotals, curCats, prevCats, topExpenses, previousToDate] = await Promise.all([
-    incomeExpense(user, current.start, current.end),
-    incomeExpense(user, previous.start, previous.end),
+    incomeExpense(user, current.start, current.end, excluded),
+    incomeExpense(user, previous.start, previous.end, excluded),
     getByCategory(userId, { start: current.start, end: current.end, type: "expense" }),
     getByCategory(userId, { start: previous.start, end: previous.end, type: "expense" }),
     getTopExpenses(user, current.start, current.end),
@@ -187,9 +206,10 @@ export async function computeInsights(userId: string, period: Period, ref: Date)
   const income = metric(curTotals.income, prevTotals.income);
   const net = metric(curTotals.income - curTotals.expense, prevTotals.income - prevTotals.expense);
 
+  // Against consumption, not raw expense — see incomeExpense above.
   const savingsRate = {
-    current: curTotals.income > 0 ? Math.round(((curTotals.income - curTotals.expense) / curTotals.income) * 100) : null,
-    previous: prevTotals.income > 0 ? Math.round(((prevTotals.income - prevTotals.expense) / prevTotals.income) * 100) : null,
+    current: curTotals.income > 0 ? Math.round(((curTotals.income - curTotals.consumption) / curTotals.income) * 100) : null,
+    previous: prevTotals.income > 0 ? Math.round(((prevTotals.income - prevTotals.consumption) / prevTotals.income) * 100) : null,
   };
 
   const avgPerDay = curTotals.expense / daysElapsed;

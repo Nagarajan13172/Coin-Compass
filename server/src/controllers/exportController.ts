@@ -2,15 +2,16 @@ import type { Request, Response } from "express";
 import { exportTransactionsCsv } from "../services/csvService";
 import { Settings } from "../models/Settings";
 import { userId } from "../middleware/auth";
+import { exclusiveEnd } from "../utils/dateRange";
 
 export async function exportCsv(req: Request, res: Response) {
   const uid = userId(req);
   const start = req.query.from ? new Date(String(req.query.from)) : new Date(0);
-  // `to` is an inclusive day → end at the start of the next day so the final day's
-  // transactions aren't silently excluded from the export.
-  const end = req.query.to
-    ? new Date(new Date(String(req.query.to)).getTime() + 86400000)
-    : new Date(Date.now() + 86400000);
+  // ExportMenu already converts the picker's inclusive day into an exclusive ISO
+  // instant, so `to` arrives ready to use — this previously added a second day on
+  // top, silently pulling an extra day into every export. exclusiveEnd only
+  // extends a bare "YYYY-MM-DD". Shared with the report endpoints.
+  const end = req.query.to ? exclusiveEnd(String(req.query.to)) : new Date(Date.now() + 86_400_000);
   const settings = await Settings.findOne({ user: uid }).select("baseCurrency").lean();
   const currency = (settings?.baseCurrency ?? "INR").toUpperCase();
   const csv = await exportTransactionsCsv(uid, start, end);

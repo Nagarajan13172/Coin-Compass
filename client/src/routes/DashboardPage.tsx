@@ -27,6 +27,7 @@ import { useCanSeeWealth, useMe } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { PostRecurringDialog } from "@/features/recurring/PostRecurringDialog";
 import { useUIStore } from "@/stores/ui";
+import { savingsRate } from "@/lib/savings";
 import { getIcon } from "@/lib/icons";
 import { formatMoney } from "@/lib/format";
 import { bucketRange, formatPeriodRange, dateFnsLocale } from "@/lib/dates";
@@ -60,14 +61,15 @@ export default function DashboardPage() {
     return first ? t(`greeting.${part}Named`, { name: first }) : t(`greeting.${part}`);
   }, [me, t]);
 
-  // Share of income kept this period (income − expense ÷ income), for the Net tile.
+  // Share of income kept this period, for the Net tile. Excludes deposits and
+  // loan principal — see lib/savings.ts.
   const summary = data?.summary;
-  const savingsRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : null;
+  const rate = savingsRate(summary);
   const savingsRateLabel =
-    savingsRate == null
+    rate == null
       ? t("savingsRate.none")
-      : savingsRate >= 0
-        ? t("savingsRate.saved", { percent: savingsRate })
+      : rate >= 0
+        ? t("savingsRate.saved", { percent: rate })
         : t("savingsRate.over");
 
   // Quick insights strip. Avg/day divides by days *elapsed* so an in-progress

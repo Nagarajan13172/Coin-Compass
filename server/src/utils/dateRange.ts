@@ -44,6 +44,29 @@ export function addYears(d: Date, n: number): Date {
   return x;
 }
 
+/** A `to` query param that names a whole calendar day rather than an instant. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Turn a `to` query param into the EXCLUSIVE end of a [start, end) range.
+ *
+ * Two callers send two different things, and conflating them silently widened
+ * every report by a day:
+ *   - a bare day ("2026-06-30") means "include all of the 30th", so the
+ *     exclusive end is the start of the next day;
+ *   - a full ISO instant (endOfMonth() → "2026-06-30T18:29:59.999Z") is ALREADY
+ *     the end of the range and must be used as-is.
+ *
+ * Adding 24h unconditionally made "last month" run to 2 July, which is why the
+ * period-over-period comparison reported the 1st of the current month as if it
+ * belonged to the previous one.
+ */
+export function exclusiveEnd(to: string): Date {
+  const raw = new Date(to);
+  if (Number.isNaN(raw.getTime())) return new Date();
+  return DATE_ONLY.test(to.trim()) ? new Date(raw.getTime() + 86_400_000) : raw;
+}
+
 /** Resolve a named period (anchored on `ref`) into a concrete [start, end) range. */
 export function resolvePeriod(
   period: Period,

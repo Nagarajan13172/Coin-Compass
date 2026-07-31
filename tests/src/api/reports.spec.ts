@@ -69,6 +69,71 @@ describe("Reports — breakdowns", () => {
   });
 });
 
+/**
+ * `to` means two different things depending on the caller: the export picker
+ * sends a bare day (include all of it), the Reports page sends the period's
+ * exclusive ISO end. The server used to add 24h to both, which stretched every
+ * window a day and made "last month" swallow the 1st of the current month.
+ */
+describe("Reports — range boundaries", () => {
+  it("treats an ISO instant as the exclusive end, not a day to extend", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const mk = (date: string, amount: number) =>
+      u.session.http.post("/transactions", { type: "expense", amount, account: acc._id, date });
+
+    await mk("2026-06-15T00:00:00.000Z", 500); // inside June
+    await mk("2026-07-01T00:00:00.000Z", 900); // the day that used to leak in
+
+    const res = await u.session.http.get(
+      "/reports/summary?from=2026-06-01T00:00:00.000Z&to=2026-07-01T00:00:00.000Z"
+    );
+    expect(res.data.expense).toBe(500);
+  });
+
+  it("still includes the whole final day when `to` is a bare date", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    await u.session.http.post("/transactions", {
+      type: "expense",
+      amount: 700,
+      account: acc._id,
+      date: "2026-06-30T00:00:00.000Z",
+    });
+
+    const res = await u.session.http.get("/reports/summary?from=2026-06-01&to=2026-06-30");
+    expect(res.data.expense).toBe(700);
+  });
+});
+
+/**
+ * Deposits and loan principal leave the account but stay yours. Counting them as
+ * spending understated the savings rate badly (13% for a month that was ~57%).
+ */
+describe("Reports — consumption vs raw expense", () => {
+  it("splits expense into consumption and non-consumption by category group", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main" })).data;
+    const cats = (await u.session.http.get("/categories?type=expense")).data as any[];
+    const food = cats.find((c) => c.name === "Food & Dining");
+    const loan = cats.find((c) => c.name === "Personal Loan"); // group: debt_transfers
+    const post = cats.find((c) => c.name === "Post-Office"); // group: savings
+
+    const mk = (category: string, amount: number) =>
+      u.session.http.post("/transactions", { type: "expense", amount, account: acc._id, category });
+    await mk(food._id, 1000);
+    await mk(loan._id, 5000);
+    await mk(post._id, 2000);
+
+    const res = await u.session.http.get(`/reports/summary${ALL}`);
+    expect(res.data.expense).toBe(8000);
+    expect(res.data.nonConsumption).toBe(7000); // loan + deposit
+    expect(res.data.consumption).toBe(1000); // only the food
+    // The two parts must always re-add to the raw total.
+    expect(res.data.consumption + res.data.nonConsumption).toBe(res.data.expense);
+  });
+});
+
 describe("Reports — email", () => {
   it("sends a report email to the signed-in user on demand", async () => {
     const u = await createVerifiedUser();

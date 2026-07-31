@@ -8,7 +8,7 @@ import {
 import { computeInsights } from "../services/insightsService";
 import { sendReportTo, type ReportKind } from "../services/reportEmailService";
 import { User } from "../models/User";
-import { resolvePeriod, type Period } from "../utils/dateRange";
+import { resolvePeriod, exclusiveEnd, type Period } from "../utils/dateRange";
 import { userId, canSeeWealth } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -17,9 +17,9 @@ function rangeFromQuery(query: Request["query"]) {
   if (query.from || query.to) {
     return {
       start: query.from ? new Date(String(query.from)) : new Date(0),
-      // Ranges are [start, end); `to` names an inclusive day, so end is the start
-      // of the NEXT day — otherwise every transaction dated on `to` is dropped.
-      end: query.to ? new Date(new Date(String(query.to)).getTime() + 86_400_000) : new Date(),
+      // Ranges are [start, end). `to` may be a bare day (include all of it) or an
+      // ISO instant that is already the end — exclusiveEnd tells them apart.
+      end: query.to ? exclusiveEnd(String(query.to)) : new Date(),
     };
   }
   const period = (String(query.period ?? "month") as Period) || "month";

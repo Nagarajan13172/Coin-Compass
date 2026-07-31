@@ -9,6 +9,7 @@ import { useSummary, useByCategory } from "@/hooks/useReports";
 import { useTransactionList } from "@/hooks/useTransactions";
 import { formatMoney } from "@/lib/format";
 import { categoryLabel } from "@/lib/i18nLabels";
+import { savingsRate } from "@/lib/savings";
 import type { RefLite, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -48,13 +49,14 @@ export function MonthSummaryRail({
 }) {
   const { t } = useTranslation("transactions");
 
-  const params = useMemo(() => {
-    const from = range.from ?? new Date(0).toISOString();
-    const to = range.to
-      ? new Date(new Date(range.to).getTime() - 86_400_000).toISOString()
-      : undefined;
-    return { from, to };
-  }, [range.from, range.to]);
+  // `range.to` is already the exclusive end of the period. It used to be shifted
+  // back a day here to cancel out the server unconditionally adding one; the
+  // server now respects an ISO instant as-is (see exclusiveEnd), so passing it
+  // through untouched is what keeps this rail in step with the Reports page.
+  const params = useMemo(
+    () => ({ from: range.from ?? new Date(0).toISOString(), to: range.to }),
+    [range.from, range.to]
+  );
 
   const { data: summary, isLoading } = useSummary(params);
   const { data: byCategory } = useByCategory({ ...params, type: "expense" });
@@ -70,8 +72,7 @@ export function MonthSummaryRail({
     hasOneoff
   );
 
-  const savingsRate =
-    summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : null;
+  const rate = savingsRate(summary);
   const topCategories = (byCategory ?? []).slice(0, 4);
   const txnCount = (summary?.incomeCount ?? 0) + (summary?.expenseCount ?? 0);
   const hasActivity = txnCount > 0;
@@ -116,10 +117,10 @@ export function MonthSummaryRail({
                   {(summary?.net ?? 0) >= 0 ? "+" : "−"}
                   {formatMoney(Math.abs(summary?.net ?? 0))}
                 </p>
-                {savingsRate != null && (
+                {rate != null && (
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {savingsRate >= 0
-                      ? t("summaryRail.saved", { percent: savingsRate })
+                    {rate >= 0
+                      ? t("summaryRail.saved", { percent: rate })
                       : t("summaryRail.overspent")}
                   </p>
                 )}
