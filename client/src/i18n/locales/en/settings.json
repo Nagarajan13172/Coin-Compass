@@ -40,14 +40,6 @@
       "light": "Light",
       "dark": "Dark",
       "system": "System"
-    },
-    "firstDayLabel": "First day of week",
-    "firstDayHelp": "Used by the Calendar and weekly reports.",
-    "firstDayUpdated": "First day of week updated",
-    "weekdays": {
-      "monday": "Monday",
-      "sunday": "Sunday",
-      "saturday": "Saturday"
     }
   },
   "reports": {

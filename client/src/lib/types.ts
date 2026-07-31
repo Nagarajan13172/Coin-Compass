@@ -392,8 +392,6 @@ export interface Settings {
   theme: "light" | "dark" | "system";
   locale: string;
   language: "en" | "ta";
-  firstDayOfWeek: number;
-  monthStartDay: number;
   currencies: CurrencyConfig[];
   pinEnabled: boolean;
   emailReports: boolean;

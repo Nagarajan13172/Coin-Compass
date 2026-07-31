@@ -448,7 +448,12 @@ describe("Known gaps — documented, pending decision", () => {
   it.skip("[GAP B9] re-importing the same file must not silently double every transaction", () => {});
   it.skip("[GAP B10] net worth should account for outstanding credits (IOUs)", () => {});
   it.skip("[GAP B15] concurrent 'run due' + cron must post each occurrence exactly once", () => {});
-  it.skip("[GAP B21] budgets must honor firstDayOfWeek / monthStartDay period anchoring", () => {});
+  // [GAP B21] retired: firstDayOfWeek and monthStartDay were removed. Both were
+  // stored and validated but read nowhere — the week-start dropdown saved happily
+  // and changed nothing, because the Calendar and every resolvePeriod caller are
+  // hardcoded to Monday. Re-open this if a pay-cycle ("month starts on payday")
+  // is ever built; that work has to thread per-user settings through
+  // resolvePeriod, at which point week-start anchoring comes along nearly free.
   it.skip("[GAP B25] editing a reflected credit must not overwrite a user-set category", () => {});
   it.skip("[GAP B26] a TOTP code must not be replayable within its 30s window", () => {});
 });

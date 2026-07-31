@@ -144,11 +144,6 @@ export default function SettingsPage() {
     toast.success(ts("preferences.currencyUpdated"));
   }
 
-  async function changeFirstDay(v: string) {
-    await updateSettings.mutateAsync({ firstDayOfWeek: Number(v) });
-    toast.success(ts("preferences.firstDayUpdated"));
-  }
-
   async function changeLanguage(lang: string) {
     if (!isSupportedLanguage(lang)) return;
     setLanguage(lang); // apply instantly on this device…
@@ -438,22 +433,6 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>{ts("preferences.firstDayLabel")}</Label>
-              <Select value={String(settings?.firstDayOfWeek ?? 1)} onValueChange={changeFirstDay}>
-                <SelectTrigger className="w-full sm:w-72">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">{ts("preferences.weekdays.monday")}</SelectItem>
-                  <SelectItem value="0">{ts("preferences.weekdays.sunday")}</SelectItem>
-                  <SelectItem value="6">{ts("preferences.weekdays.saturday")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {ts("preferences.firstDayHelp")}
-              </p>
-            </div>
           </CardContent>
         </Card>
 
