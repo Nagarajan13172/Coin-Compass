@@ -29,7 +29,20 @@
     "percentUsed": "{{percent}}% used",
     "amountOver": "{{amount}} over",
     "amountLeft": "{{amount}} left",
-    "amountSpent": "{{amount}} spent"
+    "amountSpent": "{{amount}} spent",
+    "overview": {
+      "title": "Budget overview",
+      "usedPercent": "{{percent}}% used",
+      "planned": "Planned",
+      "spent": "Spent",
+      "left": "Left",
+      "over": "Over by",
+      "saveHint": "Stay within every budget and you keep {{amount}} this period.",
+      "overHint": "You're {{amount}} past the total you planned.",
+      "overCount_one": "{{count}} budget over",
+      "overCount_other": "{{count}} budgets over",
+      "mixedPeriods": "totals span different periods"
+    }
   },
   "budgetForm": {
     "editTitle": "Edit budget",

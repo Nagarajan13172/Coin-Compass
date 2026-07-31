@@ -29,7 +29,20 @@
     "percentUsed": "{{percent}}% பயன்படுத்தப்பட்டது",
     "amountOver": "{{amount}} அதிகம்",
     "amountLeft": "{{amount}} மீதம்",
-    "amountSpent": "{{amount}} செலவழிக்கப்பட்டது"
+    "amountSpent": "{{amount}} செலவழிக்கப்பட்டது",
+    "overview": {
+      "title": "பட்ஜெட் கண்ணோட்டம்",
+      "usedPercent": "{{percent}}% பயன்படுத்தப்பட்டது",
+      "planned": "திட்டமிட்டது",
+      "spent": "செலவானது",
+      "left": "மீதம்",
+      "over": "அதிகமாக",
+      "saveHint": "எல்லா பட்ஜெட்டுக்குள்ளும் இருந்தால் இந்தக் காலத்தில் {{amount}} மிச்சம்.",
+      "overHint": "நீங்கள் திட்டமிட்ட மொத்தத்தை விட {{amount}} அதிகம்.",
+      "overCount_one": "{{count}} பட்ஜெட் வரம்பு மீறியது",
+      "overCount_other": "{{count}} பட்ஜெட்டுகள் வரம்பு மீறியன",
+      "mixedPeriods": "வெவ்வேறு காலங்களின் கூட்டுத்தொகை"
+    }
   },
   "budgetForm": {
     "editTitle": "பட்ஜெட்டைத் திருத்து",

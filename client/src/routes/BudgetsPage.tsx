@@ -24,9 +24,12 @@ import { periodRange } from "@/lib/dates";
 import { categoryLabel, enumLabel } from "@/lib/i18nLabels";
 import {
   BUDGET_PERIOD_ORDER,
+  NEAR_LIMIT_PCT,
   budgetPeriodToTxnPeriod,
   budgetStatus,
+  budgetTotals,
 } from "@/lib/budgets";
+import { cn } from "@/lib/utils";
 import { useBudgets, useDeleteBudget } from "@/hooks/useBudgets";
 import { useByCategory } from "@/hooks/useReports";
 import { BudgetFormDialog } from "@/features/budgets/BudgetFormDialog";
@@ -64,6 +67,10 @@ export default function BudgetsPage() {
     () => (budgets ?? []).filter((b) => effectiveScope === "all" || b.period === effectiveScope),
     [budgets, effectiveScope]
   );
+
+  // Planned vs spent across everything on screen — answers "how much of this
+  // month's allowance is still unspent" without adding up nine cards by hand.
+  const totals = useMemo(() => budgetTotals(visible), [visible]);
 
   // "Unbudgeted spending" — expense categories with spend this month but no budget yet.
   const monthRange = useMemo(() => {
@@ -143,6 +150,54 @@ export default function BudgetsPage() {
               {t("budgets.tracksAcrossAccounts")}
             </p>
           </div>
+
+          {totals.planned > 0 && (
+            <Card className="mb-4">
+              <CardContent className="p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <p className="text-sm font-semibold">{t("budgets.overview.title")}</p>
+                  <p className="tnum text-xs text-muted-foreground">
+                    {t("budgets.overview.usedPercent", { percent: totals.percent })}
+                  </p>
+                </div>
+
+                <Progress
+                  value={Math.min(100, totals.percent)}
+                  indicatorClassName={totals.left < 0 ? "bg-expense" : totals.percent >= NEAR_LIMIT_PCT ? "bg-amber-500" : "bg-income"}
+                  className="my-3 h-2"
+                />
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("budgets.overview.planned")}</p>
+                    <p className="tnum text-lg font-bold">{formatMoney(totals.planned)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("budgets.overview.spent")}</p>
+                    <p className="tnum text-lg font-bold">{formatMoney(totals.spent)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {t(totals.left < 0 ? "budgets.overview.over" : "budgets.overview.left")}
+                    </p>
+                    <p className={cn("tnum text-lg font-bold", totals.left < 0 ? "text-expense" : "text-income")}>
+                      {formatMoney(Math.abs(totals.left))}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {totals.left >= 0
+                    ? t("budgets.overview.saveHint", { amount: formatMoney(totals.left) })
+                    : t("budgets.overview.overHint", { amount: formatMoney(-totals.left) })}
+                  {totals.overCount > 0 &&
+                    ` · ${t("budgets.overview.overCount", { count: totals.overCount })}`}
+                  {/* Summing a weekly cap with a monthly one isn't apples to apples. */}
+                  {totals.mixedPeriods && ` · ${t("budgets.overview.mixedPeriods")}`}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((b, i) => {

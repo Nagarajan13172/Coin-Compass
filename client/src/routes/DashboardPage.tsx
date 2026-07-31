@@ -543,7 +543,9 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
                 size="md"
               />
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 truncate text-sm font-medium">
+                {/* A div, not a p: Badge renders a div, and a div is not valid
+                    inside a paragraph — React warns about the nesting on every render. */}
+                <div className="flex items-center gap-2 truncate text-sm font-medium">
                   <span className="truncate">{title}</span>
                   <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
                     {freqLabel(r, t)}
@@ -553,7 +555,7 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
                       <Landmark className="h-2.5 w-2.5" /> {r.loan.name}
                     </Badge>
                   )}
-                </p>
+                </div>
                 <p className={`truncate text-xs font-medium ${countdownTone}`}>
                   {countdown} · {format(next, "dd MMM", { locale: dateFnsLocale() })}
                 </p>
