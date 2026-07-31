@@ -31,25 +31,24 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Sidebar navigation, grouped into labelled sections. Labels are translation keys. */
+/**
+ * Sidebar navigation, grouped into labelled sections. Labels are translation keys.
+ *
+ * Ordered by how often a destination is actually reached for, heaviest first.
+ * Transactions leads the top group because it is the only page written to on most
+ * days; Planning sits second because a budget you don't pass is a budget that
+ * changes nothing. Read-only analysis (Insights) and the notification list — which
+ * already has a bell in the header — sit last so they don't outrank pages that
+ * carry balances.
+ */
 export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "groups.overview",
     items: [
       { to: "/", labelKey: "items.dashboard", icon: LayoutDashboard },
-      { to: "/reports", labelKey: "items.reports", icon: PieChart },
-      { to: "/insights", labelKey: "items.insights", icon: Lightbulb },
-      { to: "/calendar", labelKey: "items.calendar", icon: CalendarDays },
-      { to: "/notifications", labelKey: "items.notifications", icon: Bell },
-    ],
-  },
-  {
-    labelKey: "groups.money",
-    items: [
       { to: "/transactions", labelKey: "items.transactions", icon: ArrowRightLeft },
-      { to: "/accounts", labelKey: "items.accounts", icon: Wallet },
-      { to: "/recurring", labelKey: "items.recurring", icon: Repeat },
-      { to: "/categories", labelKey: "items.categories", icon: Shapes },
+      { to: "/reports", labelKey: "items.reports", icon: PieChart },
+      { to: "/calendar", labelKey: "items.calendar", icon: CalendarDays },
     ],
   },
   {
@@ -60,12 +59,27 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    labelKey: "groups.money",
+    items: [
+      { to: "/accounts", labelKey: "items.accounts", icon: Wallet },
+      { to: "/credits", labelKey: "items.credits", icon: HeartHandshake },
+      { to: "/recurring", labelKey: "items.recurring", icon: Repeat },
+      { to: "/categories", labelKey: "items.categories", icon: Shapes },
+    ],
+  },
+  {
     labelKey: "groups.wealth",
     items: [
       { to: "/net-worth", labelKey: "items.netWorth", icon: Landmark },
       { to: "/loans", labelKey: "items.loans", icon: HandCoins },
-      { to: "/credits", labelKey: "items.credits", icon: HeartHandshake },
       { to: "/gold", labelKey: "items.gold", icon: Coins },
+    ],
+  },
+  {
+    labelKey: "groups.more",
+    items: [
+      { to: "/insights", labelKey: "items.insights", icon: Lightbulb },
+      { to: "/notifications", labelKey: "items.notifications", icon: Bell },
     ],
   },
 ];
