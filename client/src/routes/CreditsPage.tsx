@@ -11,6 +11,7 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  Receipt,
   Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -32,13 +33,20 @@ import { useCreditSummary, useDeleteCredit } from "@/hooks/useCredits";
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { dateFnsLocale } from "@/lib/dates";
-import { partitionCredits, type SettledPerson } from "@/lib/credits";
+import { partitionCredits, directionTone, type SettledPerson } from "@/lib/credits";
 import { cn } from "@/lib/utils";
 import type { Credit, CreditPersonSummary } from "@/lib/types";
 import { CreditFormDialog, type CreditPrefill } from "@/features/credits/CreditFormDialog";
+import { SplitsSection } from "@/features/splits/SplitsSection";
+import { SplitFormDialog } from "@/features/splits/SplitFormDialog";
 
 function initials(name: string) {
   return name.trim().slice(0, 2).toUpperCase();
+}
+
+function refId(v: { _id: string } | string | null | undefined): string {
+  if (!v) return "";
+  return typeof v === "string" ? v : v._id;
 }
 
 /**
@@ -62,6 +70,7 @@ function dayLabel(d: string) {
 
 export default function CreditsPage() {
   const { t } = useTranslation("credits");
+  const { t: tSplits } = useTranslation("splits");
   const { data: people, isLoading } = useCreditSummary();
   const del = useDeleteCredit();
   const [open, setOpen] = useState(false);
@@ -70,6 +79,10 @@ export default function CreditsPage() {
   // re-seeds its fields whenever this reference changes.
   const [prefill, setPrefill] = useState<CreditPrefill | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Credit | null>(null);
+  // Splits live here rather than in the transaction sheet: a shared bill happens a
+  // handful of times a month against 100+ ordinary entries, and it settles through
+  // the per-person balances on this very page.
+  const [splitOpen, setSplitOpen] = useState(false);
 
   const totals = useMemo(() => {
     const owedToYou = (people ?? []).reduce((s, p) => s + Math.max(0, p.net), 0);
@@ -91,6 +104,9 @@ export default function CreditsPage() {
     setEditing(null);
     setPrefill({
       person: p.person,
+      // Carry the record through so settling lands on their existing ledger even
+      // if the display name has since been changed.
+      personId: p.personId,
       direction: p.net > 0 ? "received" : "given",
       amount: Math.abs(p.net),
       // Send it back to whichever account the money last moved through.
@@ -98,9 +114,32 @@ export default function CreditsPage() {
     });
     setOpen(true);
   }
+  /**
+   * Settle ONE lend: a repayment for exactly what's left on that entry, aimed at
+   * it via `settles` so it clears that row rather than the person's oldest debt.
+   */
+  function openSettleEntry(p: CreditPersonSummary, c: Credit) {
+    setEditing(null);
+    setPrefill({
+      person: p.person,
+      personId: p.personId,
+      // Clearing a lend is money coming back; clearing a borrow is you paying out.
+      direction: c.direction === "borrowed" ? "repaid" : "received",
+      amount: c.outstanding ?? c.amount,
+      account: refId(c.account) || reflectedAccountId(p),
+      settles: c._id,
+    });
+    setOpen(true);
+  }
   function openEdit(c: Credit) {
     setEditing(c);
     setPrefill(undefined);
+    setOpen(true);
+  }
+  /** Settle one participant's share of a shared bill, from the Splits section. */
+  function openSettlePrefill(p: CreditPrefill) {
+    setEditing(null);
+    setPrefill(p);
     setOpen(true);
   }
   async function confirmDelete(c: Credit) {
@@ -119,9 +158,14 @@ export default function CreditsPage() {
         title={t("page.title")}
         description={t("page.description")}
         actions={
-          <Button onClick={() => openNew()}>
-            <Plus /> {t("page.addCredit")}
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setSplitOpen(true)}>
+              <Receipt /> {tSplits("form.title")}
+            </Button>
+            <Button onClick={() => openNew()}>
+              <Plus /> {t("page.addCredit")}
+            </Button>
+          </>
         }
       />
 
@@ -150,6 +194,7 @@ export default function CreditsPage() {
                   summary={p}
                   onAdd={() => openNew(p.person)}
                   onSettle={() => openSettle(p)}
+                  onSettleEntry={(c) => openSettleEntry(p, c)}
                   onEdit={openEdit}
                   onDelete={setDeleteTarget}
                 />
@@ -163,6 +208,10 @@ export default function CreditsPage() {
               {t("settled.allSettled")}
             </p>
           )}
+
+          {/* Shared bills sit with the per-person balances they generate, so
+              settling a split is one tap from where you check who owes you. */}
+          <SplitsSection onSettle={openSettlePrefill} />
 
           {settled.length > 0 && (
             <SettledSection
@@ -187,6 +236,7 @@ export default function CreditsPage() {
       )}
 
       <CreditFormDialog open={open} onOpenChange={setOpen} credit={editing} prefill={prefill} />
+      <SplitFormDialog open={splitOpen} onOpenChange={setSplitOpen} />
 
       {deleteTarget && (
         <ConfirmDeleteDialog
@@ -239,19 +289,23 @@ function PersonCard({
   summary,
   onAdd,
   onSettle,
+  onSettleEntry,
   onEdit,
   onDelete,
 }: {
   summary: CreditPersonSummary;
-  onAdd: () => void;
+  /** Settle the person's whole balance in one go. */
   onSettle: () => void;
+  /** Settle just one lend of theirs. */
+  onSettleEntry: (c: Credit) => void;
+  onAdd: () => void;
   onEdit: (c: Credit) => void;
   onDelete: (c: Credit) => void;
 }) {
   const { t } = useTranslation("credits");
   const { person, net, entries } = summary;
   return (
-    <Card>
+    <Card data-testid="person-card" data-person={person}>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border">
@@ -291,7 +345,13 @@ function PersonCard({
       </CardHeader>
       <CardContent className="space-y-1.5 pt-0">
         {entries.map((c) => (
-          <EntryRow key={c._id} credit={c} onEdit={() => onEdit(c)} onDelete={() => onDelete(c)} />
+          <EntryRow
+            key={c._id}
+            credit={c}
+            onEdit={() => onEdit(c)}
+            onDelete={() => onDelete(c)}
+            onSettle={() => onSettleEntry(c)}
+          />
         ))}
       </CardContent>
     </Card>
@@ -394,7 +454,14 @@ function SettledRow({
       {open && (
         <div className="space-y-1.5 border-t px-2 py-2">
           {entries.map((c) => (
-            <EntryRow key={c._id} credit={c} onEdit={() => onEdit(c)} onDelete={() => onDelete(c)} />
+            <EntryRow
+            key={c._id}
+            credit={c}
+            onEdit={() => onEdit(c)}
+            onDelete={() => onDelete(c)}
+            // Everyone here is already square, so there is nothing left to settle.
+            onSettle={() => {}}
+          />
           ))}
         </div>
       )}
@@ -402,16 +469,34 @@ function SettledRow({
   );
 }
 
-function EntryRow({ credit: c, onEdit, onDelete }: { credit: Credit; onEdit: () => void; onDelete: () => void }) {
+function EntryRow({
+  credit: c,
+  onEdit,
+  onDelete,
+  onSettle,
+}: {
+  credit: Credit;
+  onEdit: () => void;
+  onDelete: () => void;
+  onSettle: () => void;
+}) {
   const { t } = useTranslation("credits");
   const accountName = typeof c.account === "string" ? "" : c.account?.name;
+  const tone = directionTone(c.direction);
+  // A "debt" row is one that can still be outstanding: money you lent them, or
+  // money you borrowed. The payments against those are already-moved money.
+  const isLend = c.direction === "given" || c.direction === "borrowed";
+  const left = c.outstanding ?? null;
+  const settled = isLend && c.settled === true;
+  const partly = isLend && left != null && left > 0 && left < c.amount;
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50">
+    <div
+      data-testid="credit-entry"
+      data-direction={c.direction}
+      className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50"
+    >
       <span
-        className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          c.direction === "given" ? "bg-expense/10 text-expense" : "bg-income/10 text-income"
-        )}
+        className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", tone.bubble)}
         title={c.reflected ? t("entry.reflected") : t("entry.notReflected")}
       >
         {c.reflected ? <Link2 className="h-3.5 w-3.5" /> : <Link2Off className="h-3.5 w-3.5" />}
@@ -427,10 +512,18 @@ function EntryRow({ credit: c, onEdit, onDelete }: { credit: Credit; onEdit: () 
         <p className="truncate text-xs text-muted-foreground">
           {dayLabel(c.date)}
           {c.note && ` · ${c.note}`}
+          {/* How much of THIS lend is still owed, so each row can be settled on
+              its own rather than only the person's whole balance. */}
+          {partly && ` · ${t("entry.leftOnThis", { amount: formatMoney(left!) })}`}
         </p>
       </div>
-      <span className={cn("tnum shrink-0 font-semibold", c.direction === "given" ? "text-expense" : "text-income")}>
-        {c.direction === "given" ? "−" : "+"}
+      {settled && (
+        <Badge variant="income" className="shrink-0 gap-1">
+          <Check className="h-3 w-3" /> {t("entry.settled")}
+        </Badge>
+      )}
+      <span data-amount className={cn("tnum shrink-0 font-semibold", tone.amount)}>
+        {tone.sign}
         {formatMoney(c.amount)}
       </span>
       <DropdownMenu>
@@ -440,6 +533,13 @@ function EntryRow({ credit: c, onEdit, onDelete }: { credit: Credit; onEdit: () 
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {/* Settling one entry records a repayment aimed at THIS lend, so it
+              clears this row rather than the oldest one. */}
+          {isLend && !settled && (
+            <DropdownMenuItem onClick={onSettle}>
+              <Check /> {t("entry.settleThis")}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onEdit}>
             <Pencil /> {t("actions.edit", { ns: "common" })}
           </DropdownMenuItem>

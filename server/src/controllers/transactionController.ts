@@ -6,6 +6,7 @@ import { balancesAsOf } from "../services/balanceService";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
 import { applyGoalContribution, reverseGoalContribution } from "../services/goalService";
 import { unlinkCreditTransaction, deleteCreditForTransaction } from "../services/creditService";
+import { splitIdForTransaction, unlinkSplitForTransaction } from "../services/splitService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -15,7 +16,10 @@ const POPULATE = [
   { path: "category", select: "name color icon type" },
   { path: "loan", select: "name" },
   { path: "goal", select: "name color icon" },
-  { path: "credit", select: "person direction" },
+  // `split` on the credit too: a participant's transfer leg reaches its shared bill
+  // through the credit, and the ledger needs it to collapse the bill into one row.
+  { path: "credit", select: "person direction split" },
+  { path: "split", select: "description totalAmount yourShare" },
 ];
 
 /** Accept a single value or a comma-separated list ("a,b" → { $in: ["a","b"] }). */
@@ -236,6 +240,8 @@ export async function updateTransaction(req: Request, res: Response) {
   const prevGoal = txn.goal;
   const prevGoalContribution = txn.goalContribution ?? 0;
   const prevCredit = txn.credit;
+  // Resolved before the patch is applied, and via the credit for participant legs.
+  const prevSplit = await splitIdForTransaction(uid, txn);
   Object.assign(txn, data);
 
   // Guard the transfer invariants on the *effective* transaction — the update
@@ -279,6 +285,14 @@ export async function updateTransaction(req: Request, res: Response) {
     txn.credit = null;
     await unlinkCreditTransaction(uid, prevCredit, txn._id);
   }
+
+  // Editing one leg of a shared bill breaks the guarantee that all the shares add
+  // back up to the total, so the split's grouping is dissolved. Every transaction
+  // and credit survives as a standalone record — only the header goes.
+  if (prevSplit) {
+    txn.split = null;
+    await unlinkSplitForTransaction(uid, prevSplit);
+  }
   await txn.save();
 
   const populated = await txn.populate(POPULATE);
@@ -289,6 +303,13 @@ export async function deleteTransaction(req: Request, res: Response) {
   const uid = userId(req);
   const txn = await Transaction.findOne({ _id: req.params.id, user: uid });
   if (!txn) throw new HttpError(404, "Transaction not found");
+
+  // Removing one leg of a shared bill leaves the remaining shares no longer adding
+  // up to the total, so the split's grouping dissolves first (no money moves — see
+  // unlinkSplitForTransaction). Deleting the WHOLE bill is DELETE /splits/:id,
+  // which is what the collapsed split row in the ledger calls.
+  const splitId = await splitIdForTransaction(uid, txn);
+  if (splitId) await unlinkSplitForTransaction(uid, splitId);
 
   // Loan/goal/credit-linked transactions carry stored side effects (a loan's outstanding,
   // a goal's saved total, a paired Credit entry) that can't be cleanly reconstructed on

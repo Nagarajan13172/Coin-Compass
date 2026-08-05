@@ -31,6 +31,11 @@ const transactionSchema = new Schema(
     // An informal credit (money to/from a person): set when this transaction was
     // created from — or linked to — a Credit entry. See creditService.
     credit: { type: Schema.Types.ObjectId, ref: "Credit", default: null },
+    // A shared bill (see Split / splitService): set on the expense leg carrying
+    // YOUR share. The participants' legs are credit-linked transfers that reach
+    // this split through their Credit.split, so the ledger can collapse the
+    // whole bill into one row.
+    split: { type: Schema.Types.ObjectId, ref: "Split", default: null },
     // A savings-goal contribution: when set, this transaction's amount was added to
     // the goal's saved total. `goalContribution` records how much was applied, so an
     // edit/delete can reverse exactly what was applied (mirrors loan/loanPrincipal).

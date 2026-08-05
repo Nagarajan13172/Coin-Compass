@@ -4,8 +4,10 @@ import { motion } from "motion/react";
 import { dateGroupLabel, dayKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { dayEndBalances, type DayBalance, type LedgerSnapshot } from "@/lib/dayBalances";
+import { groupBySplit } from "@/lib/splits";
 import type { Transaction } from "@/lib/types";
 import { TransactionRow } from "./TransactionRow";
+import { SplitRow } from "@/features/splits/SplitRow";
 import { Separator } from "@/components/ui/separator";
 
 interface TransactionListProps {
@@ -101,10 +103,16 @@ export function TransactionList({ transactions, dayBalances }: TransactionListPr
               )}
             </div>
             <Separator className="mb-1.5" />
+            {/* Every leg of a shared bill collapses into one SplitRow, so a
+                six-way dinner doesn't bury the rest of the day. */}
             <div className="space-y-0.5">
-              {group.items.map((t) => (
-                <TransactionRow key={t._id} txn={t} showTime />
-              ))}
+              {groupBySplit(group.items).map((entry) =>
+                entry.kind === "split" ? (
+                  <SplitRow key={entry.splitId} splitId={entry.splitId} legs={entry.legs} />
+                ) : (
+                  <TransactionRow key={entry.txn._id} txn={entry.txn} showTime />
+                )
+              )}
             </div>
             <DayBalanceFooter day={endOfDay?.get(key)} />
           </motion.div>

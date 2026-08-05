@@ -15,6 +15,9 @@
     "credit": "credit entry",
     "budget": "budget",
     "recurring": "recurring transaction",
-    "template": "template"
+    "template": "template",
+    "split": "shared bill",
+    "person": "person",
+    "group": "group"
   }
 }

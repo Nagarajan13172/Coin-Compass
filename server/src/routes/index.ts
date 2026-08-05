@@ -18,6 +18,8 @@ import * as goals from "../controllers/goalController";
 import * as holdings from "../controllers/holdingController";
 import * as loans from "../controllers/loanController";
 import * as credits from "../controllers/creditController";
+import * as splits from "../controllers/splitController";
+import * as people from "../controllers/personController";
 import * as networth from "../controllers/networthController";
 import * as recurring from "../controllers/recurringController";
 import * as notifications from "../controllers/notificationController";
@@ -154,12 +156,31 @@ router.post("/loans/:id/preclose", asyncHandler(loans.precloseLoan));
 router.patch("/loans/:id", asyncHandler(loans.updateLoan));
 router.delete("/loans/:id", asyncHandler(loans.deleteLoan));
 
+// People: the friends/family/colleagues credits and splits are recorded against.
+router.get("/people", asyncHandler(people.listPeopleHandler));
+router.post("/people", asyncHandler(people.createPersonHandler));
+router.patch("/people/:id", asyncHandler(people.updatePersonHandler));
+router.delete("/people/:id", asyncHandler(people.deletePersonHandler));
+// Groups must be declared BEFORE /people/:id, or "groups" is read as an id.
+router.get("/people/groups", asyncHandler(people.listGroupsHandler));
+router.post("/people/groups", asyncHandler(people.createGroupHandler));
+router.patch("/people/groups/:id", asyncHandler(people.updateGroupHandler));
+router.delete("/people/groups/:id", asyncHandler(people.deleteGroupHandler));
+router.post("/people/:id/merge", asyncHandler(people.mergePersonHandler));
+
 // Credits: informal IOUs with friends/family, optionally linked to a real transaction.
 router.get("/credits", asyncHandler(credits.listCreditsHandler));
 router.get("/credits/summary", asyncHandler(credits.creditSummary));
 router.post("/credits", asyncHandler(credits.createCreditHandler));
 router.patch("/credits/:id", asyncHandler(credits.updateCreditHandler));
 router.delete("/credits/:id", asyncHandler(credits.deleteCreditHandler));
+
+// Splits: a shared bill you paid, fanned out into one credit per participant.
+router.get("/splits", asyncHandler(splits.listSplitsHandler));
+router.get("/splits/:id", asyncHandler(splits.getSplitHandler));
+router.post("/splits", asyncHandler(splits.createSplitHandler));
+router.patch("/splits/:id", asyncHandler(splits.updateSplitHandler));
+router.delete("/splits/:id", asyncHandler(splits.deleteSplitHandler));
 
 // Net-worth trend: one snapshot per day, accumulated as the user visits.
 router.get("/networth/history", asyncHandler(networth.netWorthHistory));

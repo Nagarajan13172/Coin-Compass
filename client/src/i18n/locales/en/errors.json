@@ -52,5 +52,16 @@
   "NOT_FOUND": "Not found",
   "VALIDATION_FAILED": "Validation failed",
   "INTERNAL": "Internal server error",
-  "UNKNOWN": "Something went wrong"
+  "UNKNOWN": "Something went wrong",
+  "SPLIT_NOT_FOUND": "Shared bill not found",
+  "SPLIT_SHARES_MISMATCH": "The shares must add up to the total",
+  "SPLIT_SHARES_NEGATIVE": "Shares cannot be negative",
+  "SPLIT_TOTAL_INVALID": "Enter a bill amount greater than 0",
+  "SPLIT_NO_PARTICIPANTS": "Add at least one person to split with",
+  "PERSON_NOT_FOUND": "Person not found",
+  "PERSON_NAME_REQUIRED": "Enter a name",
+  "PERSON_EXISTS": "Someone with this name already exists",
+  "PERSON_IN_USE": "{{name}} still has {{count}} entries. Delete anyway to keep them.",
+  "PERSON_MERGE_SAME": "Pick two different people to merge",
+  "GROUP_EXISTS": "A group with this name already exists"
 }

@@ -108,8 +108,12 @@ export interface Transaction {
   goal?: RefLite | string | null;
   /** How much of this transaction was applied to the goal (for exact reversal). */
   goalContribution?: number;
-  /** When set, this transaction is the reflected side of a Credit entry (money to/from a person). */
-  credit?: { _id: string; person: string; direction: CreditDirection } | string | null;
+  /** When set, this transaction is the reflected side of a Credit entry (money to/from a person).
+   *  `split` on the credit means the credit is one person's share of a shared bill. */
+  credit?: { _id: string; person: string; direction: CreditDirection; split?: string | null } | string | null;
+  /** Set on the expense leg carrying YOUR share of a shared bill. Participants'
+   *  legs reach the split through `credit.split` instead — see splitIdOf(). */
+  split?: { _id: string; description: string; totalAmount: number; yourShare: number } | string | null;
   /** Set when the transaction is in the "Recently deleted" trash (soft-deleted). */
   deletedAt?: string | null;
   createdAt?: string;
@@ -244,7 +248,36 @@ export interface Loan {
   updatedAt?: string;
 }
 
-export type CreditDirection = "given" | "received";
+/**
+ * Which way money moved, across both sides of an informal debt:
+ *   given / received — the asset side ("Money Lent"): they owe you
+ *   borrowed / repaid — the liability side ("Money Owed"): you owe them
+ */
+export const CREDIT_DIRECTIONS = ["given", "received", "borrowed", "repaid"] as const;
+export type CreditDirection = (typeof CREDIT_DIRECTIONS)[number];
+
+/** Whether a direction belongs to the "Money Lent" side rather than "Money Owed". */
+export function isReceivableSide(d: CreditDirection): boolean {
+  return d === "given" || d === "received";
+}
+
+export const PERSON_RELATIONS = ["family", "friend", "colleague", "other"] as const;
+export type PersonRelation = (typeof PERSON_RELATIONS)[number];
+
+/**
+ * Someone you lend to, borrow from, or split bills with — a record with an id,
+ * so renaming them updates every past entry and two spellings of one name can't
+ * drift into two balances.
+ */
+export interface Person {
+  _id: string;
+  name: string;
+  /** Normalised name used for matching — see personKey on the server. */
+  key: string;
+  relation: PersonRelation;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 /** Payment channels — how the money moved (the app/instrument), a record label
  *  distinct from the account whose balance actually changes. */
@@ -266,18 +299,91 @@ export interface Credit {
   method: string;
   /** The account whose balance moves — only set when reflected. */
   account?: RefLite | string | null;
+  /** On `borrowed`: the expense category, set when they paid for something you
+   *  consumed rather than handing you cash. */
+  category?: RefLite | string | null;
   note: string;
   reflected: boolean;
   transaction?: string | null;
+  /** The Person this entry belongs to. Null on entries predating the People
+   *  registry, or whose person was force-deleted — `person` is the fallback. */
+  personRef?: string | null;
+  /** Set when this credit is one person's share of a shared bill (see Split). */
+  split?: string | null;
+  /** On a repayment: the individual lend it settles. Null = a general payment
+   *  that pays down the person's open lends oldest-first. */
+  settles?: string | null;
+  /** How much of THIS lend is still owed — served by /credits/summary, which
+   *  allocates repayments across a person's entries. Null on repayments, which
+   *  are money already moved rather than something outstanding. */
+  outstanding?: number | null;
+  /** Whether this lend is fully repaid. Null on repayments. */
+  settled?: boolean | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** One participant of a shared bill: what they owed for it, and what they still
+ *  owe overall (their share minus anything they've since paid back). */
+export interface SplitParticipant {
+  person: string;
+  /** The Person record behind this share, when it's linked to one. */
+  personId?: string | null;
+  /** This person's share of THIS bill. */
+  amount: number;
+  /** The Credit id backing the share. */
+  credit: string;
+  /** Their net across all entries — 0 once they've settled up. */
+  outstanding: number;
+}
+
+/**
+ * A bill you paid that several people shared. Only `yourShare` is ever your own
+ * spending; the rest is a receivable that settles through the Credits flow.
+ */
+export interface Split {
+  _id: string;
+  description: string;
+  totalAmount: number;
+  yourShare: number;
+  date: string;
+  account?: RefLite | string | null;
+  category?: RefLite | string | null;
+  method: string;
+  note: string;
+  /** Set when a FRIEND paid this bill — you owe them your share, and nobody owes you. */
+  paidBy?: string;
+  /** The expense leg for your share; null when you paid purely for others. */
+  expenseTransaction?: string | null;
+  participants: SplitParticipant[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * A named set of people you regularly split with. Purely a shortcut over People:
+ * picking a group adds its members as ordinary participants, and no balance is
+ * ever held against a group.
+ */
+export interface PersonGroup {
+  _id: string;
+  name: string;
+  members: Person[];
   createdAt?: string;
   updatedAt?: string;
 }
 
 /** One person's running ledger: net > 0 means they owe you, net < 0 means you owe them. */
 export interface CreditPersonSummary {
+  /** The Person's current name where there is one, so a rename shows everywhere. */
   person: string;
+  /** Null only for entries not yet linked to a Person record. */
+  personId: string | null;
+  relation: PersonRelation | null;
   given: number;
   received: number;
+  borrowed: number;
+  repaid: number;
   net: number;
   entries: Credit[];
 }

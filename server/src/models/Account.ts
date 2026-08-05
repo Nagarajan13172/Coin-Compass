@@ -1,8 +1,20 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-// "receivable" is an auto-managed asset bucket (currently "Money Lent"), not a
-// spendable account the user creates — money owed TO the user by other people.
-export const ACCOUNT_TYPES = ["cash", "bank", "card", "wallet", "upi", "savings", "receivable"] as const;
+// "receivable" and "payable" are auto-managed buckets, not spendable accounts the
+// user creates:
+//   receivable — "Money Lent",  money owed TO you by other people (an asset)
+//   payable    — "Money Owed",  money YOU owe other people (a liability; its
+//                balance runs negative, which is what drags net worth down)
+export const ACCOUNT_TYPES = [
+  "cash",
+  "bank",
+  "card",
+  "wallet",
+  "upi",
+  "savings",
+  "receivable",
+  "payable",
+] as const;
 
 const accountSchema = new Schema(
   {

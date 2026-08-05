@@ -55,7 +55,14 @@ export function categoryLabel(name: string | null | undefined): string {
   return key ? i18n.t(key, { ns: "categories", defaultValue: name }) : name;
 }
 
-export type EnumKind = "account" | "loan" | "holdingClass" | "holding" | "method" | "frequency";
+export type EnumKind =
+  | "account"
+  | "loan"
+  | "holdingClass"
+  | "holding"
+  | "method"
+  | "frequency"
+  | "relation";
 
 function slug(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");

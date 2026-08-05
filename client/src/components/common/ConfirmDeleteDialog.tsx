@@ -20,6 +20,9 @@ export type DeleteItemKey =
   | "loan"
   | "holding"
   | "credit"
+  | "split"
+  | "person"
+  | "group"
   | "budget"
   | "recurring"
   | "template";

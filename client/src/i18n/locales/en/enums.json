@@ -5,7 +5,9 @@
     "card": "Card",
     "wallet": "Wallet",
     "upi": "UPI",
-    "savings": "Savings"
+    "savings": "Savings",
+    "receivable": "Money Lent",
+    "payable": "Money Owed"
   },
   "loan": {
     "home": "Home",
@@ -49,5 +51,17 @@
     "weekly": "Weekly",
     "monthly": "Monthly",
     "yearly": "Yearly"
+  },
+  "relation": {
+    "family": "Family",
+    "friend": "Friend",
+    "colleague": "Colleague",
+    "other": "Other"
+  },
+  "direction": {
+    "given": "You gave",
+    "received": "You received",
+    "borrowed": "You borrowed",
+    "repaid": "You repaid"
   }
 }

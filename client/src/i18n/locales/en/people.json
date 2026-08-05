@@ -1,0 +1,69 @@
+{
+  "section": {
+    "title": "People",
+    "description": "The friends, family and colleagues your credits and shared bills are recorded against. Renaming someone here updates every past entry.",
+    "add": "Add person",
+    "empty": "No people yet. They're added automatically the first time you record a credit or split a bill.",
+    "owesYou": "owes you {{amount}}",
+    "youOwe": "you owe {{amount}}",
+    "editAria": "Edit {{name}}",
+    "deleteAria": "Delete {{name}}",
+    "mergeAria": "Merge {{name}} into someone else",
+    "dupeTitle": "These might be the same person",
+    "dupeLine": "\"{{a}}\" and \"{{b}}\" — merge them if so, to combine their balances"
+  },
+  "form": {
+    "addTitle": "Add person",
+    "editTitle": "Edit person",
+    "name": "Name",
+    "namePlaceholder": "e.g. Ravi Kumar",
+    "nameRequired": "Enter a name",
+    "relation": "Relation",
+    "renameHelp": "Renaming updates this person on every entry they appear in."
+  },
+  "merge": {
+    "title": "Merge {{name}}",
+    "help": "Every entry for {{name}} moves to the person you pick, and {{name}} is removed. No amount changes — only who owes it.",
+    "into": "Merge into",
+    "pickTarget": "Pick the person to keep",
+    "confirm": "Merge",
+    "done": "Merged — {{count}} entry moved to {{name}}",
+    "done_other": "Merged — {{count}} entries moved to {{name}}"
+  },
+  "picker": {
+    "placeholder": "Select or type a name",
+    "searchPlaceholder": "Search or type a new name",
+    "addNamed": "Add \"{{name}}\"",
+    "empty": "No one found"
+  },
+  "toast": {
+    "added": "Person added",
+    "updated": "Person updated",
+    "deleted": "{{name}} deleted",
+    "saveFailed": "Failed to save"
+  },
+  "delete": {
+    "inUse": "This person still has entries."
+  },
+  "groups": {
+    "title": "Groups",
+    "description": "Sets of people you split with regularly. Picking a group in a split adds everyone at once — you can still add anyone extra.",
+    "add": "Add group",
+    "addTitle": "Add group",
+    "editTitle": "Edit group",
+    "name": "Group name",
+    "namePlaceholder": "e.g. Flatmates",
+    "nameRequired": "Enter a group name",
+    "members": "Members",
+    "addMember": "Add someone to the group",
+    "membersHelp": "Pick from your people, or type a new name to create them.",
+    "removeMember": "Remove {{name}}",
+    "noMembers": "No members yet",
+    "empty": "No groups yet. Create one for the people you split with often.",
+    "editAria": "Edit group {{name}}",
+    "deleteAria": "Delete group {{name}}",
+    "added": "Group added",
+    "updated": "Group updated",
+    "deleted": "{{name}} deleted"
+  }
+}

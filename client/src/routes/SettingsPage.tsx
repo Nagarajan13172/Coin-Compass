@@ -68,6 +68,8 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useGoals } from "@/hooks/useGoals";
 import { useLoans } from "@/hooks/useLoans";
+import { PeopleSection } from "@/features/people/PeopleSection";
+import { GroupsSection } from "@/features/people/GroupsSection";
 import type { ImportResult } from "@/lib/types";
 
 const APP_VERSION = "1.0.0";
@@ -435,6 +437,12 @@ export default function SettingsPage() {
 
           </CardContent>
         </Card>
+
+        {/* People — who credits and shared bills are recorded against */}
+        <PeopleSection />
+
+        {/* Groups — a shortcut for the sets of people you split with regularly */}
+        <GroupsSection />
 
         {/* Email reports */}
         <Card>

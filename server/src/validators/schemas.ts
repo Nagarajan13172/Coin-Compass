@@ -266,9 +266,38 @@ export const CREDIT_METHODS = [
   "Debit Card", "Credit Card", "Cheque", "Bank Transfer", "Other",
 ] as const;
 
+export const PERSON_RELATIONS = ["family", "friend", "colleague", "other"] as const;
+
+export const personSchema = z.object({
+  name: z.string().min(1, "Enter a name").max(80),
+  relation: z.enum(PERSON_RELATIONS).default("other"),
+});
+export const personUpdateSchema = personSchema.partial();
+export const personMergeSchema = z.object({ into: objectId });
+
+/** A group's members: existing people by id, or new ones by name (find-or-create). */
+const groupMember = z.object({
+  personId: optionalObjectId,
+  name: z.string().max(80).optional(),
+});
+export const personGroupSchema = z.object({
+  name: z.string().min(1, "Enter a name").max(80),
+  members: z.array(groupMember).default([]),
+});
+export const personGroupUpdateSchema = personGroupSchema.partial();
+
 export const creditSchema = z.object({
   person: z.string().min(1, "Enter a name").max(80),
-  direction: z.enum(["given", "received"]),
+  // Optional: sent when the person was picked from the list rather than typed.
+  // Without it the name find-or-creates a Person — see personService.
+  personId: optionalObjectId,
+  // On a repayment: the individual lend being settled. Omit to settle generally,
+  // which pays down their open lends oldest-first (see allocateOutstanding).
+  settles: optionalObjectId,
+  direction: z.enum(["given", "received", "borrowed", "repaid"]),
+  // On `borrowed`: names the expense category when they paid for something you
+  // consumed (rather than handing you cash). See creditService.
+  category: optionalObjectId,
   amount: z.number().positive("Amount must be greater than 0"),
   date: z.coerce.date().default(() => new Date()),
   method: z.enum(CREDIT_METHODS).optional(),
@@ -278,6 +307,39 @@ export const creditSchema = z.object({
   reflected: z.boolean().default(false),
 });
 export const creditUpdateSchema = creditSchema.partial();
+
+/**
+ * A shared bill. `yourShare` + every participant's amount must equal
+ * `totalAmount` — enforced in splitService.validateShares rather than here, so
+ * the conservation rule lives in one testable place alongside the ledger legs
+ * it protects.
+ */
+export const splitSchema = z.object({
+  description: z.string().min(1, "Enter what the bill was for").max(120),
+  totalAmount: z.number().positive("Amount must be greater than 0"),
+  yourShare: z.number().min(0, "Your share cannot be negative"),
+  date: z.coerce.date().default(() => new Date()),
+  // Optional: not needed when someone else paid — nothing left your accounts.
+  // The service requires it for a bill you paid.
+  account: optionalObjectId,
+  category: optionalObjectId,
+  method: z.enum(CREDIT_METHODS).optional(),
+  note: z.string().max(280).default(""),
+  // Set when a FRIEND paid the bill. You then owe them your share, and the
+  // participants list is irrelevant — you don't track what they owe the payer.
+  paidBy: z.string().max(80).optional(),
+  paidById: optionalObjectId,
+  participants: z
+    .array(
+      z.object({
+        person: z.string().min(1, "Enter a name").max(80),
+        personId: optionalObjectId,
+        amount: z.number().min(0, "A share cannot be negative"),
+      })
+    )
+    .default([]),
+});
+
 export const loanPaySchema = z.object({
   amount: z.number().positive(),
   chargePct: z.number().min(0).max(100).optional(),

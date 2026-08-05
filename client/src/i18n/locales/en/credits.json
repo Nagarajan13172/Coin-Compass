@@ -32,13 +32,18 @@
   },
   "direction": {
     "given": "You gave",
-    "received": "You received"
+    "received": "You received",
+    "borrowed": "You borrowed",
+    "repaid": "You repaid"
   },
   "entry": {
     "reflected": "Reflected in accounts",
     "notReflected": "Not reflected — Credits page only",
     "via": "via {{method}}",
-    "actions": "Credit entry actions"
+    "actions": "Credit entry actions",
+    "settleThis": "Settle up this entry",
+    "settled": "Settled",
+    "leftOnThis": "{{amount}} left on this"
   },
   "delete": {
     "confirm": "Delete this credit entry with {{person}}?",
@@ -62,7 +67,8 @@
     "selectAccount": "Select an account to reflect this in your balances",
     "updated": "Credit updated",
     "added": "Credit added",
-    "saveFailed": "Failed to save"
+    "saveFailed": "Failed to save",
+    "selectCategory": "Pick a category"
   },
   "gold": {
     "title": "Gold & Silver",
@@ -108,5 +114,18 @@
     "disclaimer": "Rates are scraped daily from GRT Jewellers (grtjewels.com). Chennai shows their published counter rate; other cities are estimated from it with a local premium (duty, GST & margin) and exclude making charges. Refreshed automatically once a day, or on demand with the refresh button above (max once every 15 minutes).",
     "refreshed": "Rates refreshed",
     "refreshFailed": "Couldn't refresh rates"
+  },
+  "directionHelp": {
+    "given": "You lent them money — they owe you.",
+    "received": "They paid you back.",
+    "borrowed": "They lent to you, or paid for something you got — you owe them.",
+    "repaid": "You paid them back."
+  },
+  "borrowKind": {
+    "label": "What did you get?",
+    "cash": "Cash",
+    "cashHelp": "They handed you money. Your balance goes up, and so does what you owe.",
+    "thing": "They paid for something",
+    "thingHelp": "A meal, a ticket, your share of a bill. It becomes a real expense in this category, funded by what you owe them."
   }
 }

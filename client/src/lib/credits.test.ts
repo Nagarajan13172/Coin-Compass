@@ -30,8 +30,12 @@ const person = (
   entries: Credit[] = []
 ): CreditPersonSummary => ({
   person: name,
+  personId: name.toLowerCase(),
+  relation: "other",
   given,
   received,
+  borrowed: 0,
+  repaid: 0,
   net: given - received,
   entries,
 });
