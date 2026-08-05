@@ -297,6 +297,48 @@ describe("Splits — someone else paid the bill", () => {
   });
 });
 
+/**
+ * Settling a balance must use the direction that CLEARS it. Using `given` to
+ * settle money you owe zeroes the person's net by accident while leaving BOTH
+ * buckets holding a phantom balance — the ledger looks square and the accounts
+ * don't.
+ */
+describe("Settling a balance clears the right bucket", () => {
+  it("repaying what you owe empties Money Owed and never touches Money Lent", async () => {
+    const u = await createVerifiedUser();
+    const b = await bank(u);
+    await borrowCash(u, 5000, b._id);
+
+    await repay(u, 5000, b._id); // the direction "Settle up" prefills when net < 0
+
+    const acc = await accounts(u);
+    expect(acc["Money Owed"].balance).toBe(0);
+    expect(acc["Money Lent"]).toBeUndefined(); // no phantom receivable invented
+    expect(acc["Bank"].balance).toBe(INITIAL);
+    expect((await credits(u)).find((r: any) => r.person === "Ravi").net).toBe(0);
+  });
+
+  it("using the WRONG direction is what a phantom balance looks like", async () => {
+    // Pinning the failure mode so the fix can't silently regress: lending them
+    // 5,000 to "settle" a 5,000 debt nets to zero but leaves both sides holding it.
+    const u = await createVerifiedUser();
+    const b = await bank(u);
+    await borrowCash(u, 5000, b._id);
+    await u.session.http.post("/credits", {
+      person: "Ravi",
+      direction: "given",
+      amount: 5000,
+      account: b._id,
+      reflected: true,
+    });
+
+    const acc = await accounts(u);
+    expect((await credits(u)).find((r: any) => r.person === "Ravi").net).toBe(0); // looks square…
+    expect(acc["Money Lent"].balance).toBe(5000); // …but isn't
+    expect(acc["Money Owed"].balance).toBe(-5000);
+  });
+});
+
 describe("Both sides with the same person", () => {
   it("a lend and an equal borrow settle out to zero", async () => {
     const u = await createVerifiedUser();

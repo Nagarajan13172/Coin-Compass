@@ -99,7 +99,15 @@ export default function CreditsPage() {
     setPrefill(person ? { person } : undefined);
     setOpen(true);
   }
-  /** Close a balance out: the exact outstanding amount, in the opposite direction. */
+  /**
+   * Close a balance out: the exact outstanding amount, in the direction that
+   * CLEARS it.
+   *
+   * When you owe them the answer is `repaid`, not `given`. `given` would mean
+   * "you lent them money" — posting a fresh receivable instead of settling the
+   * debt, leaving Money Lent and Money Owed each holding a phantom balance even
+   * though the person's net happened to reach zero.
+   */
   function openSettle(p: CreditPersonSummary) {
     setEditing(null);
     setPrefill({
@@ -107,7 +115,7 @@ export default function CreditsPage() {
       // Carry the record through so settling lands on their existing ledger even
       // if the display name has since been changed.
       personId: p.personId,
-      direction: p.net > 0 ? "received" : "given",
+      direction: p.net > 0 ? "received" : "repaid",
       amount: Math.abs(p.net),
       // Send it back to whichever account the money last moved through.
       account: reflectedAccountId(p),
