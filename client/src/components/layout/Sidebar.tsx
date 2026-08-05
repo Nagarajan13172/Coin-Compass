@@ -13,7 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useState, type ReactElement } from "react";
 import { NAV_GROUPS, SETTINGS_ITEM, WEALTH_ONLY_PATHS, type NavItem } from "./nav";
 import { useUIStore } from "@/stores/ui";
 import { useMe, useLogout, useCanSeeWealth } from "@/hooks/useAuth";
@@ -25,6 +26,7 @@ export function Sidebar() {
   const toggle = useUIStore((s) => s.toggleSidebar);
   const openTxnSheet = useUIStore((s) => s.openTxnSheet);
   const canSeeWealth = useCanSeeWealth();
+  const addLabel = t("actions.addTransaction", { ns: "common" });
   // In the everyday (user) view the Net Worth destination is hidden entirely.
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
@@ -41,14 +43,16 @@ export function Sidebar() {
       {/* Header / top nav — brand + collapse toggle */}
       <div className="flex h-16 items-center gap-2 px-3">
         {collapsed ? (
-          <button
-            onClick={toggle}
-            aria-label={t("expandSidebar")}
-            className="group mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <Compass className="h-5 w-5 group-hover:hidden" />
-            <PanelLeft className="hidden h-5 w-5 group-hover:block" />
-          </button>
+          <CollapsedTooltip label={t("expandSidebar")} collapsed>
+            <button
+              onClick={toggle}
+              aria-label={t("expandSidebar")}
+              className="group mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Compass className="h-5 w-5 group-hover:hidden" />
+              <PanelLeft className="hidden h-5 w-5 group-hover:block" />
+            </button>
+          </CollapsedTooltip>
         ) : (
           <>
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -70,13 +74,16 @@ export function Sidebar() {
 
       {/* Quick add */}
       <div className="px-3 pb-1">
-        <Button
-          className={cn("w-full", collapsed && "px-0")}
-          onClick={() => openTxnSheet({ type: "expense" })}
-        >
-          <Plus />
-          {!collapsed && t("actions.addTransaction", { ns: "common" })}
-        </Button>
+        <CollapsedTooltip label={addLabel} collapsed={collapsed}>
+          <Button
+            className={cn("w-full", collapsed && "px-0")}
+            aria-label={collapsed ? addLabel : undefined}
+            onClick={() => openTxnSheet({ type: "expense" })}
+          >
+            <Plus />
+            {!collapsed && addLabel}
+          </Button>
+        </CollapsedTooltip>
       </div>
 
       {/* Grouped navigation */}
@@ -106,37 +113,63 @@ export function Sidebar() {
   );
 }
 
+/**
+ * Wraps an icon-only control in a tooltip while the sidebar is collapsed. Expanded,
+ * the label is already on screen, so the tooltip would just be noise.
+ */
+function CollapsedTooltip({
+  label,
+  collapsed,
+  children,
+}: {
+  label: string;
+  collapsed: boolean;
+  children: ReactElement;
+}) {
+  if (!collapsed) return children;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const { t } = useTranslation("nav");
   const label = t(item.labelKey);
   return (
-    <NavLink
-      to={item.to}
-      end={item.to === "/"}
-      title={collapsed ? label : undefined}
-      className={({ isActive }) =>
-        cn(
-          "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-          isActive
-            ? "bg-primary/10 text-primary"
-            : "text-muted-foreground hover:bg-accent hover:text-foreground",
-          collapsed && "justify-center px-0"
-        )
-      }
-    >
-      {({ isActive }) => (
-        <>
-          {isActive && (
-            <motion.span
-              layoutId="sidebar-active"
-              className="absolute left-0 h-6 w-1 rounded-r-full bg-primary"
-            />
-          )}
-          <item.icon className="h-5 w-5 shrink-0" />
-          {!collapsed && <span className="truncate">{label}</span>}
-        </>
-      )}
-    </NavLink>
+    <CollapsedTooltip label={label} collapsed={collapsed}>
+      <NavLink
+        to={item.to}
+        end={item.to === "/"}
+        aria-label={collapsed ? label : undefined}
+        className={({ isActive }) =>
+          cn(
+            "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            isActive
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            collapsed && "justify-center px-0"
+          )
+        }
+      >
+        {({ isActive }) => (
+          <>
+            {isActive && (
+              <motion.span
+                layoutId="sidebar-active"
+                className="absolute left-0 h-6 w-1 rounded-r-full bg-primary"
+              />
+            )}
+            <item.icon className="h-5 w-5 shrink-0" />
+            {!collapsed && <span className="truncate">{label}</span>}
+          </>
+        )}
+      </NavLink>
+    </CollapsedTooltip>
   );
 }
 

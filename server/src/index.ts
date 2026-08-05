@@ -72,13 +72,19 @@ async function bootstrap() {
   );
 
   // Refresh gold/silver rates by scraping GRT: on boot (backfills today if
-  // missing), then twice a day at 06:30 and 13:30 IST. The midday run is a cheap
-  // retry — refreshMetalPrices is idempotent, so it only does work if the morning
-  // scrape failed, which keeps a single transient GRT/network blip from losing a
-  // whole (unrecoverable) day. No-op when METALS_ENABLED=false.
-  const refreshMetalsAndAlert = async (label: string): Promise<void> => {
+  // missing), then at 11:00 and 15:00 IST. 11:00 is deliberately late enough that
+  // GRT has published the new day's rate — it keeps serving the previous day's
+  // until then, so the old 06:30 scrape stored a stale value, and because the
+  // first GRT capture of a day wins (refreshMetalPrices is idempotent) that stale
+  // rate stayed locked in all day. Both runs therefore force a re-scrape so the
+  // later one wins: 11:00 overrides anything an early boot run stored, and 15:00
+  // picks up an intraday revision. Forcing is safe — a failed scrape leaves the
+  // existing snapshot in place — so either run on its own still lands the day, and
+  // one transient GRT/network blip can't lose a whole (unrecoverable) day.
+  // No-op when METALS_ENABLED=false.
+  const refreshMetalsAndAlert = async (label: string, force = false): Promise<void> => {
     try {
-      await refreshMetalPrices();
+      await refreshMetalPrices({ force });
       // Now that today's live rate is captured, recover any days missed while the
       // server was offline (a common local-dev case) by interpolating between the
       // stored snapshots — GRT has no historical endpoint, so this is the only way
@@ -102,8 +108,10 @@ async function bootstrap() {
     }
   };
   await refreshMetalsAndAlert("boot");
-  for (const time of ["30 6 * * *", "30 13 * * *"]) {
-    cron.schedule(time, () => void refreshMetalsAndAlert(`cron ${time}`), { timezone: "Asia/Kolkata" });
+  for (const time of ["0 11 * * *", "0 15 * * *"]) {
+    cron.schedule(time, () => void refreshMetalsAndAlert(`cron ${time}`, true), {
+      timezone: "Asia/Kolkata",
+    });
   }
 
   // Email summary reports on the 1st (last month) and 15th (month-to-date) at 08:00
