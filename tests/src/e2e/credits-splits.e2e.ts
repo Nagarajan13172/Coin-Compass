@@ -240,6 +240,42 @@ test.describe("Settle up", () => {
   });
 });
 
+test.describe("Shared bills — settling a share", () => {
+  test("settling one person strikes their row out and leaves the others", async ({ page }) => {
+    await signIn(page);
+    await addAccount(page, "Bank", "50000");
+
+    await page.goto("/credits");
+    await page.getByRole("button", { name: /split a bill/i }).click();
+    await page.getByLabel(/what was it for/i).fill("Movie Ticket");
+    await page.getByLabel(/bill total/i).fill("1300");
+    await page.getByRole("button", { name: /add person/i }).click();
+    for (const [i, name] of ["Hari", "Anish"].entries()) {
+      await pickPerson(page, page.getByRole("combobox", { name: `Name of person ${i + 1}` }), name);
+    }
+    await page.getByRole("button", { name: /entertainment/i }).click();
+    await page.getByRole("button", { name: /save bill/i }).click();
+    await page.waitForTimeout(1000);
+
+    // Scoped to the bill's own card — the person cards above have their own
+    // "Settle up" buttons, so a page-wide count means nothing here.
+    const bill = page.locator("text=Movie Ticket").locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]");
+    await expect(bill.getByRole("button", { name: /settle up/i })).toHaveCount(2);
+    await expect(bill.locator(".line-through")).toHaveCount(0); // nobody settled yet
+
+    // Settle Hari's share from the Shared bills list.
+    await bill.getByRole("button", { name: /settle up/i }).first().click();
+    await page.getByRole("button", { name: /^add$/i }).click();
+    await page.waitForTimeout(1200);
+
+    // His row is struck through and marked Settled; Anish still has a button.
+    const struck = page.locator(".line-through");
+    await expect(struck.first()).toBeVisible();
+    await expect(bill.getByText(/settled/i).first()).toBeVisible();
+    await expect(bill.getByRole("button", { name: /settle up/i })).toHaveCount(1);
+  });
+});
+
 test.describe("People", () => {
   test("people added through a credit show up in Settings", async ({ page }) => {
     await signIn(page);

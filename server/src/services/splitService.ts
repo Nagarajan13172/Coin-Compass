@@ -4,7 +4,13 @@ import { Split } from "../models/Split";
 import { Credit } from "../models/Credit";
 import { Person } from "../models/Person";
 import { HttpError } from "../middleware/errorHandler";
-import { createCredit, deleteCredit, ledgerKey } from "./creditService";
+import {
+  createCredit,
+  deleteCredit,
+  ledgerKey,
+  allocateOutstanding,
+  type AllocatableEntry,
+} from "./creditService";
 
 /**
  * Half a paisa — the tolerance for "these shares add up". Mirrors the client's
@@ -300,32 +306,50 @@ export async function unlinkSplitForTransaction(uid: unknown, splitId: unknown):
 export async function getSplitParticipants(uid: unknown, splitId: unknown) {
   const [credits, all, people] = await Promise.all([
     Credit.find({ user: uid, split: splitId }).select("person personRef amount date").lean(),
-    Credit.find({ user: uid }).select("person personRef direction amount").lean(),
+    Credit.find({ user: uid }).select("person personRef direction amount date settles").lean(),
     Person.find({ user: uid }).select("key name").lean(),
   ]);
 
   const index = new Map(people.map((p) => [p.key, String(p._id)]));
   const nameById = new Map(people.map((p) => [String(p._id), p.name]));
 
-  // What each person still owes is their NET across every entry — the split's
-  // credit plus any settlement they've since paid — so a part-paid share reads
-  // correctly. Keyed by ledger identity, the way getCreditSummary groups.
-  const netByPerson = new Map<string, number>();
+  /*
+   * What's still owed on THIS bill's share — not the person's overall balance.
+   *
+   * Those are different numbers the moment someone appears on two bills, and
+   * conflating them was a real bug: a share that had been settled kept showing a
+   * figure borrowed from an unrelated bill, so the row never cleared and the
+   * "owed to you" total was overstated.
+   *
+   * Repayments are allocated per person (a payment only pays down that person's
+   * debts), then each share reads its own remainder out of the result.
+   */
+  const byPerson = new Map<string, typeof all>();
   for (const c of all) {
     const key = ledgerKey(c, index);
-    netByPerson.set(key, (netByPerson.get(key) ?? 0) + (c.direction === "given" ? c.amount : -c.amount));
+    const bucket = byPerson.get(key);
+    if (bucket) bucket.push(c);
+    else byPerson.set(key, [c]);
+  }
+  const leftByCredit = new Map<string, number>();
+  for (const entries of byPerson.values()) {
+    for (const [id, left] of allocateOutstanding(entries as AllocatableEntry[])) {
+      leftByCredit.set(id, left);
+    }
   }
 
   return credits.map((c) => {
     const key = ledgerKey(c, index);
     const id = key.startsWith("id:") ? key.slice(3) : null;
+    const outstanding = leftByCredit.get(String(c._id)) ?? 0;
     return {
       // The Person's current name, so a rename reaches past splits too.
       person: (id && nameById.get(id)) || c.person,
       personId: id,
       amount: c.amount,
       credit: String(c._id),
-      outstanding: netByPerson.get(key) ?? 0,
+      outstanding,
+      settled: outstanding < SPLIT_EPSILON,
     };
   });
 }

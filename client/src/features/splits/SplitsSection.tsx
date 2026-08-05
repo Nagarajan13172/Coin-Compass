@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
 import { fmtDate } from "@/lib/dates";
-import { unsettledParticipants, splitOutstanding, isSplitSettled } from "@/lib/splits";
+import {
+  unsettledParticipants,
+  splitOutstanding,
+  isSplitSettled,
+  isParticipantSettled,
+} from "@/lib/splits";
+import { cn } from "@/lib/utils";
 import { useSplits } from "@/hooks/useSplits";
 import type { Split, SplitParticipant } from "@/lib/types";
 import type { CreditPrefill } from "@/features/credits/CreditFormDialog";
@@ -71,7 +77,7 @@ function BillRow({ split, onSettle }: { split: Split; onSettle: (p: CreditPrefil
       person: p.person,
       personId: p.personId ?? null,
       direction: "received",
-      amount: Math.min(p.outstanding, p.amount),
+      amount: p.outstanding,
       account: accountId,
       settles: p.credit,
     });
@@ -99,26 +105,53 @@ function BillRow({ split, onSettle }: { split: Split; onSettle: (p: CreditPrefil
         </div>
       </div>
 
-      {unsettled.length === 0 ? (
+      {unsettled.length === 0 && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-income">
           <Check className="h-3.5 w-3.5" />
           {t("section.everyoneSettled")}
         </p>
-      ) : (
+      )}
+
+      {/* Everyone stays listed. A settled share is struck through rather than
+          removed, so the bill still shows who was on it — and, crucially, so
+          settling gives visible feedback instead of leaving the row unchanged. */}
+      {split.participants.length > 0 && (
         <div className="mt-2 space-y-1 border-t pt-2">
-          {unsettled.map((p) => (
-            <div key={p.credit} className="flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate text-sm">{p.person}</span>
-              <span className="flex shrink-0 items-center gap-2">
-                <span className="text-sm font-medium tabular-nums">
-                  {formatMoney(Math.min(p.outstanding, p.amount))}
+          {split.participants.map((p) => {
+            const done = isParticipantSettled(p);
+            return (
+              <div key={p.credit} className="flex items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    "min-w-0 truncate text-sm",
+                    done && "text-muted-foreground line-through"
+                  )}
+                >
+                  {p.person}
                 </span>
-                <Button size="sm" variant="outline" onClick={() => settle(p)}>
-                  {t("section.settleUp")}
-                </Button>
-              </span>
-            </div>
-          ))}
+                <span className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={cn(
+                      "text-sm tabular-nums",
+                      done ? "text-muted-foreground line-through" : "font-medium"
+                    )}
+                  >
+                    {formatMoney(done ? p.amount : p.outstanding)}
+                  </span>
+                  {done ? (
+                    <span className="flex items-center gap-1 text-xs text-income">
+                      <Check className="h-3.5 w-3.5" />
+                      {t("section.settled")}
+                    </span>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => settle(p)}>
+                      {t("section.settleUp")}
+                    </Button>
+                  )}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

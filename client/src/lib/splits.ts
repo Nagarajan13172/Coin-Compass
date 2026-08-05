@@ -107,16 +107,25 @@ export function groupBySplit(txns: Transaction[]): LedgerEntry[] {
   return entries;
 }
 
-/** People on a bill who still owe something, most owed first. */
-export function unsettledParticipants(split: Split): SplitParticipant[] {
-  return split.participants
-    .filter((p) => p.outstanding > SPLIT_EPSILON)
-    .sort((a, b) => b.outstanding - a.outstanding);
+/** Whether this person has fully paid their share of the bill. */
+export function isParticipantSettled(p: SplitParticipant): boolean {
+  return p.settled ?? p.outstanding <= SPLIT_EPSILON;
 }
 
-/** Total still owed to you across a bill's participants. */
+/** People on a bill who still owe something, most owed first. */
+export function unsettledParticipants(split: Split): SplitParticipant[] {
+  return split.participants.filter((p) => !isParticipantSettled(p)).sort((a, b) => b.outstanding - a.outstanding);
+}
+
+/**
+ * Total still owed to you on this bill.
+ *
+ * No capping against the share: `outstanding` is already per-bill, so clamping
+ * it would only paper over a wrong number. It used to be the person's overall
+ * net, which made a settled row keep showing another bill's figure.
+ */
 export function splitOutstanding(split: Split): number {
-  return unsettledParticipants(split).reduce((sum, p) => sum + Math.min(p.outstanding, p.amount), 0);
+  return unsettledParticipants(split).reduce((sum, p) => sum + p.outstanding, 0);
 }
 
 /** A bill is settled when nobody on it still owes you anything. */

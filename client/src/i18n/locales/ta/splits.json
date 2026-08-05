@@ -36,7 +36,8 @@
     "billTotal": "பில் {{amount}}",
     "yourShare": "உங்கள் பங்கு",
     "everyoneSettled": "அனைவரும் தீர்த்துவிட்டனர்",
-    "settleUp": "தீர்த்துக்கொள்"
+    "settleUp": "தீர்த்துக்கொள்",
+    "settled": "தீர்ந்தது"
   },
   "toast": {
     "deleted": "பகிர்ந்த பில் நீக்கப்பட்டது",

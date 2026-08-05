@@ -20,8 +20,13 @@ export function useCreditSummary() {
 
 // A credit can create/update/delete a real transaction (see `reflected`), so
 // every mutation also invalidates everything a transaction change can affect.
+//
+// `splits` is in here because settling a share is just a credit: without it the
+// Shared bills list kept showing a share as unpaid after it had been settled,
+// while the person's own card updated correctly — the two disagreed on screen.
 function invalidate() {
   queryClient.invalidateQueries({ queryKey: ["credits"] });
+  queryClient.invalidateQueries({ queryKey: ["splits"] });
   invalidateMoney();
 }
 

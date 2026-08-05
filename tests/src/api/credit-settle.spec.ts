@@ -158,6 +158,123 @@ describe("Settle up — the two levels always agree", () => {
   });
 });
 
+/**
+ * A share's outstanding is PER BILL. Reporting the person's overall balance
+ * instead was a real bug: someone on two bills showed the other bill's figure on
+ * this one, a settled share never cleared, and the "owed to you" total was
+ * overstated.
+ */
+describe("Settle up — a share reports only ITS own bill", () => {
+  const bill = (u: TestUser, account: string, description: string, share: number, people: string[]) =>
+    u.session.http.post("/splits", {
+      description,
+      totalAmount: share * (people.length + 1),
+      yourShare: share,
+      account,
+      participants: people.map((person) => ({ person, amount: share })),
+    });
+
+  it("a person on two bills shows each bill's own share", async () => {
+    const u = await createVerifiedUser();
+    const acc = await bank(u);
+    await bill(u, acc._id, "Movie", 260, ["Hari", "Anish"]);
+    await bill(u, acc._id, "KFC", 500, ["Hari", "Anish"]);
+
+    const splits = (await u.session.http.get("/splits")).data;
+    const movie = splits.find((s: any) => s.description === "Movie");
+    const kfc = splits.find((s: any) => s.description === "KFC");
+
+    // Anish appears on both, but each row reports that bill's share — never the
+    // other one's, and never the 760 he owes in total.
+    expect(movie.participants.find((p: any) => p.person === "Anish").outstanding).toBe(260);
+    expect(kfc.participants.find((p: any) => p.person === "Anish").outstanding).toBe(500);
+  });
+
+  it("settling one bill's share clears that row and leaves the other bill alone", async () => {
+    const u = await createVerifiedUser();
+    const acc = await bank(u);
+    await bill(u, acc._id, "Movie", 260, ["Anish"]);
+    await bill(u, acc._id, "KFC", 500, ["Anish"]);
+
+    let splits = (await u.session.http.get("/splits")).data;
+    const kfcShare = splits.find((s: any) => s.description === "KFC").participants[0];
+
+    await u.session.http.post("/credits", {
+      person: "Anish",
+      direction: "received",
+      amount: 500,
+      settles: kfcShare.credit,
+      account: acc._id,
+      reflected: true,
+    });
+
+    splits = (await u.session.http.get("/splits")).data;
+    const kfc = splits.find((s: any) => s.description === "KFC");
+    const movie = splits.find((s: any) => s.description === "Movie");
+
+    expect(kfc.participants[0]).toMatchObject({ outstanding: 0, settled: true });
+    expect(movie.participants[0]).toMatchObject({ outstanding: 260, settled: false });
+  });
+
+  it("a fully-settled bill reports every share settled", async () => {
+    const u = await createVerifiedUser();
+    const acc = await bank(u);
+    await bill(u, acc._id, "Movie", 260, ["Hari", "Anish"]);
+    const share = (await u.session.http.get("/splits")).data[0].participants;
+
+    for (const p of share) {
+      await u.session.http.post("/credits", {
+        person: p.person,
+        direction: "received",
+        amount: p.outstanding,
+        settles: p.credit,
+        account: acc._id,
+        reflected: true,
+      });
+    }
+
+    const after = (await u.session.http.get("/splits")).data[0];
+    expect(after.participants.every((p: any) => p.settled)).toBe(true);
+    expect(after.participants.every((p: any) => p.outstanding === 0)).toBe(true);
+  });
+
+  it("a part payment leaves only the remainder on that share", async () => {
+    const u = await createVerifiedUser();
+    const acc = await bank(u);
+    await bill(u, acc._id, "KFC", 500, ["Anish"]);
+    const p = (await u.session.http.get("/splits")).data[0].participants[0];
+
+    await u.session.http.post("/credits", {
+      person: "Anish",
+      direction: "received",
+      amount: 200,
+      settles: p.credit,
+      account: acc._id,
+      reflected: true,
+    });
+
+    const after = (await u.session.http.get("/splits")).data[0].participants[0];
+    expect(after).toMatchObject({ outstanding: 300, settled: false });
+  });
+
+  it("an unrelated debt never inflates a share", async () => {
+    const u = await createVerifiedUser();
+    const acc = await bank(u);
+    // A big loan to Anish that has nothing to do with the bill.
+    await u.session.http.post("/credits", {
+      person: "Anish",
+      direction: "given",
+      amount: 9000,
+      account: acc._id,
+      reflected: true,
+    });
+    await bill(u, acc._id, "KFC", 500, ["Anish"]);
+
+    const p = (await u.session.http.get("/splits")).data[0].participants[0];
+    expect(p.outstanding).toBe(500); // his share, not the 9,500 he owes overall
+  });
+});
+
 describe("Settle up — money still moves correctly", () => {
   it("a per-entry settle is a TRANSFER back, never income", async () => {
     const u = await createVerifiedUser();

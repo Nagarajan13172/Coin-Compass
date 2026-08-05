@@ -36,7 +36,8 @@
     "billTotal": "Bill {{amount}}",
     "yourShare": "your share",
     "everyoneSettled": "Everyone has settled up",
-    "settleUp": "Settle up"
+    "settleUp": "Settle up",
+    "settled": "Settled"
   },
   "toast": {
     "deleted": "Shared bill deleted",

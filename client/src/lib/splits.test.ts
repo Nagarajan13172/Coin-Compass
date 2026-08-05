@@ -8,6 +8,7 @@ import {
   groupBySplit,
   unsettledParticipants,
   splitOutstanding,
+  isParticipantSettled,
   isSplitSettled,
   SPLIT_EPSILON,
 } from "./splits";
@@ -236,10 +237,25 @@ describe("settlement state of a bill", () => {
     expect(splitOutstanding(owing)).toBe(700);
   });
 
-  it("caps a person's contribution at their share, so an unrelated debt doesn't inflate the bill", () => {
-    // Meera owes 900 overall but only 500 of it came from this bill.
-    const s = split([{ person: "Meera", amount: 500, credit: "c1", outstanding: 900 }]);
+  it("takes `outstanding` at face value — it is already per-bill", () => {
+    // It used to be the person's OVERALL net, which had to be capped at their
+    // share. Now the server allocates per share, so no clamping is involved and
+    // a value above the share would be a bug worth seeing rather than hiding.
+    const s = split([{ person: "Meera", amount: 500, credit: "c1", outstanding: 500 }]);
     expect(splitOutstanding(s)).toBe(500);
+  });
+
+  it("honours the server's explicit settled flag over the amount", () => {
+    const done = { person: "Ravi", amount: 500, credit: "c1", outstanding: 0, settled: true };
+    const open = { person: "Meera", amount: 500, credit: "c2", outstanding: 500, settled: false };
+    expect(isParticipantSettled(done as never)).toBe(true);
+    expect(isParticipantSettled(open as never)).toBe(false);
+    expect(splitOutstanding(split([done, open] as never))).toBe(500);
+  });
+
+  it("falls back to the amount when no flag is sent", () => {
+    expect(isParticipantSettled({ person: "R", amount: 500, credit: "c", outstanding: 0 } as never)).toBe(true);
+    expect(isParticipantSettled({ person: "R", amount: 500, credit: "c", outstanding: 5 } as never)).toBe(false);
   });
 
   it("is settled once nobody owes anything", () => {

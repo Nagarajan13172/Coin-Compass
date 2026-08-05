@@ -333,8 +333,11 @@ export interface SplitParticipant {
   amount: number;
   /** The Credit id backing the share. */
   credit: string;
-  /** Their net across all entries — 0 once they've settled up. */
+  /** What they still owe ON THIS BILL — not their overall balance, which would
+   *  leak an unrelated bill's figure into this row. */
   outstanding: number;
+  /** True once this share is fully paid. */
+  settled?: boolean;
 }
 
 /**
