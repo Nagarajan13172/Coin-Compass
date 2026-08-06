@@ -18,6 +18,7 @@ import NetWorthPage from "@/routes/NetWorthPage";
 import LoansPage from "@/routes/LoansPage";
 import CreditsPage from "@/routes/CreditsPage";
 import GoldPage from "@/routes/GoldPage";
+import StocksPage from "@/routes/StocksPage";
 import ReportsPage from "@/routes/ReportsPage";
 import InsightsPage from "@/routes/InsightsPage";
 import CalendarPage from "@/routes/CalendarPage";
@@ -121,6 +122,9 @@ export function App() {
             <Route path="/goals" element={<GoalsPage />} />
             <Route element={<RequireWealth />}>
               <Route path="/net-worth" element={<NetWorthPage />} />
+              {/* Stocks show position values and feed net worth, so they sit
+                  behind the same lock (matched server-side on /api/stocks). */}
+              <Route path="/stocks" element={<StocksPage />} />
             </Route>
             <Route path="/loans" element={<LoansPage />} />
             <Route path="/credits" element={<CreditsPage />} />

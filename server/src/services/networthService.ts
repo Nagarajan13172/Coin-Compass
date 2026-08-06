@@ -4,6 +4,7 @@ import { Holding } from "../models/Holding";
 import { Loan } from "../models/Loan";
 import { NetWorthSnapshot } from "../models/NetWorthSnapshot";
 import { computeAllBalances } from "./balanceService";
+import { stocksMarketValue } from "./stockService";
 
 /** Today's date as YYYY-MM-DD in IST, so a snapshot lines up with the user's day. */
 function istDate(d = new Date()): string {
@@ -23,30 +24,51 @@ export interface NetWorthBreakdown {
   holdingsTotal: number;
   saving: number;
   investment: number;
+  /** Already inside `investment`; carried separately for the tooltip only. */
+  stocksTotal: number;
 }
 
 /**
  * Current net worth for a user: account balances (flagged includeInTotal) plus
- * holdings, minus outstanding on active loans. Mirrors the client's live
- * computation so the trend's newest point matches the summary cards exactly.
+ * holdings and the market value of stock lots, minus outstanding on active
+ * loans. Mirrors the client's live computation so the trend's newest point
+ * matches the summary cards exactly.
+ *
+ * Stocks fold into `investment` rather than arriving as a fourth term, so the
+ * assets and holdings formulas below are unchanged and every existing chart —
+ * the investment donut in particular — picks equity up without knowing about it.
+ * The demat account's own balance is only the idle cash at the broker, and the
+ * cost-basis bucket is flagged includeInTotal: false, so nothing is counted twice
+ * (see stockService).
  */
 export async function computeNetWorthBreakdown(userId: string): Promise<NetWorthBreakdown> {
   const user = new Types.ObjectId(userId);
-  const [accounts, holdings, loans, balances] = await Promise.all([
+  const [accounts, holdings, loans, balances, stocksTotal] = await Promise.all([
     Account.find({ user, includeInTotal: true, archived: false }).lean(),
     Holding.find({ user }).lean(),
     Loan.find({ user, status: "active" }).lean(),
     computeAllBalances(userId),
+    stocksMarketValue(userId),
   ]);
 
   const accountsTotal = accounts.reduce((s, a) => s + (balances.get(String(a._id))?.balance ?? 0), 0);
   const saving = holdings.filter((h) => h.class === "saving").reduce((s, h) => s + h.value, 0);
-  const investment = holdings.filter((h) => h.class === "investment").reduce((s, h) => s + h.value, 0);
+  const investment =
+    holdings.filter((h) => h.class === "investment").reduce((s, h) => s + h.value, 0) + stocksTotal;
   const holdingsTotal = saving + investment;
   const assets = accountsTotal + holdingsTotal;
   const liabilities = loans.reduce((s, l) => s + l.outstanding, 0);
 
-  return { netWorth: assets - liabilities, assets, liabilities, accountsTotal, holdingsTotal, saving, investment };
+  return {
+    netWorth: assets - liabilities,
+    assets,
+    liabilities,
+    accountsTotal,
+    holdingsTotal,
+    saving,
+    investment,
+    stocksTotal,
+  };
 }
 
 /**

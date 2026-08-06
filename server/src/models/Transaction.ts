@@ -41,6 +41,17 @@ const transactionSchema = new Schema(
     // edit/delete can reverse exactly what was applied (mirrors loan/loanPrincipal).
     goal: { type: Schema.Types.ObjectId, ref: "Goal", default: null },
     goalContribution: { type: Number, default: 0 },
+    // Stock purchase: the transfer moving cash from the demat account into the
+    // Securities bucket. Set on the transfer leg; the lot links back via
+    // StockLot.buyTransaction.
+    stockLot: { type: Schema.Types.ObjectId, ref: "StockLot", default: null },
+    // Stock sale. A sale posts TWO legs, mirroring how a loan repayment splits
+    // principal from interest: `stockCostBasis` on the transfer returning capital
+    // to the demat account, and `stockRealized` on the income/expense leg booking
+    // the gain or loss. Both name the same StockSale.
+    stockSale: { type: Schema.Types.ObjectId, ref: "StockSale", default: null },
+    stockCostBasis: { type: Number, default: 0 },
+    stockRealized: { type: Number, default: 0 },
     // Soft delete: when set, the row is in the "Recently deleted" trash — hidden
     // from every read (see hooks below) and hard-purged after the retention window.
     // Only side-effect-free transactions are soft-deleted; loan/credit-linked ones

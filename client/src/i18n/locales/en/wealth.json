@@ -17,7 +17,8 @@
     "noteNegative": "You owe more than you own — paying down loans lifts this.",
     "noteEmpty": "Add accounts, holdings or loans to see your net worth.",
     "noteDebtFree": "Debt-free — every rupee is yours.",
-    "notePositive": "Your assets comfortably cover what you owe."
+    "notePositive": "Your assets comfortably cover what you owe.",
+    "stocks": "Stocks"
   },
   "tabs": {
     "overview": "Overview",
@@ -57,7 +58,9 @@
     "actionsAria": "Asset actions",
     "emptyTitle": "No investments or savings linked yet",
     "emptyDesc": "Add deposits, funds, stocks, gold or property so your net worth reflects everything you own.",
-    "addHolding": "Add holding"
+    "addHolding": "Add holding",
+    "stocks": "Stocks",
+    "stockQty": "{{qty}} shares"
   },
   "liabilities": {
     "emptyTitle": "No liabilities",

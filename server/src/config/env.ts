@@ -74,6 +74,26 @@ export const env = {
     apiKey: process.env.GOLD_API_KEY ?? "",
     goldApiConfigured: Boolean(process.env.GOLD_API_KEY),
   },
+  // Live equity prices for the Stocks/Demat feature. Sourced from Yahoo Finance's
+  // public chart endpoint — no API key, no account — so the feature is ON by
+  // default. Set STOCKS_ENABLED=false to turn it off; the test harness does this
+  // so the suite never reaches the network.
+  //
+  // The endpoint is unofficial and carries no SLA, which is why every read goes
+  // through the StockPriceProvider seam in stockPriceService: if it ever stops
+  // working, one file changes. A failed fetch always falls back to the last
+  // stored close (flagged `stale`) rather than breaking the net-worth page.
+  stocks: {
+    enabled: process.env.STOCKS_ENABLED !== "false",
+    // "yahoo" is the real feed. "stub" prices every symbol at a fixed figure with
+    // no network access at all — it exists so the API suite can exercise the full
+    // buy/sell ledger deterministically, the way METALS_ENABLED=false keeps the
+    // metals scrape out of tests. Never set it in production.
+    provider: process.env.STOCKS_PROVIDER === "stub" ? "stub" : "yahoo",
+    // Upstream refuses batch quotes, so N held symbols cost N requests. Cap how
+    // many are in flight at once to stay a polite client.
+    maxConcurrentFetches: Number(process.env.STOCKS_MAX_CONCURRENT ?? 4),
+  },
   mail: {
     // When SMTP isn't configured, the mailer logs verification links to the console
     // instead of sending — so signup/verify works out of the box in local dev.

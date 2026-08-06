@@ -21,6 +21,10 @@ const netWorthSnapshotSchema = new Schema(
     holdingsTotal: { type: Number, default: 0 },
     saving: { type: Number, default: 0 },
     investment: { type: Number, default: 0 },
+    // Market value of open stock lots. Already counted inside `investment` (and
+    // so inside holdingsTotal/assets) — carried separately only so the tooltip
+    // can say how much of the investment total is equity.
+    stocksTotal: { type: Number, default: 0 },
     currency: { type: String, default: "INR" },
   },
   { timestamps: true }

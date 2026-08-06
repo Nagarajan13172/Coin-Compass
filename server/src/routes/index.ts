@@ -25,6 +25,7 @@ import * as recurring from "../controllers/recurringController";
 import * as notifications from "../controllers/notificationController";
 import * as reports from "../controllers/reportController";
 import * as metals from "../controllers/metalController";
+import * as stocks from "../controllers/stockController";
 import * as settings from "../controllers/settingsController";
 import { getDashboard } from "../controllers/dashboardController";
 import { exportCsv } from "../controllers/exportController";
@@ -143,6 +144,8 @@ router.delete("/goals/:id", asyncHandler(goals.deleteGoal));
 // gated by the wealth lock; loans stay visible in the everyday view.
 router.use("/holdings", asyncHandler(requireWealthAccess));
 router.use("/networth", asyncHandler(requireWealthAccess));
+// Stocks reveal net-worth figures, so they sit behind the same lock as holdings.
+router.use("/stocks", asyncHandler(requireWealthAccess));
 
 router.get("/holdings", asyncHandler(holdings.listHoldings));
 router.post("/holdings", asyncHandler(holdings.createHolding));
@@ -184,6 +187,19 @@ router.delete("/splits/:id", asyncHandler(splits.deleteSplitHandler));
 
 // Net-worth trend: one snapshot per day, accumulated as the user visits.
 router.get("/networth/history", asyncHandler(networth.netWorthHistory));
+
+// Stocks: per-user lots/sales, priced from global daily snapshots. "search",
+// "sales", "history" and "refresh" are declared before /stocks/lots/:id etc. so
+// none of them is ever read as an id.
+router.get("/stocks/portfolio", asyncHandler(stocks.portfolio));
+router.get("/stocks/search", asyncHandler(stocks.search));
+router.get("/stocks/sales", asyncHandler(stocks.sales));
+router.get("/stocks/history", asyncHandler(stocks.history));
+router.post("/stocks/refresh", asyncHandler(stocks.refresh));
+router.post("/stocks/buy", asyncHandler(stocks.buy));
+router.post("/stocks/sell", asyncHandler(stocks.sell));
+router.delete("/stocks/lots/:id", asyncHandler(stocks.removeLot));
+router.delete("/stocks/sales/:id", asyncHandler(stocks.removeSale));
 
 // Precious metals (gold/silver) — global daily rates
 router.get("/metals/latest", asyncHandler(metals.latestMetals));

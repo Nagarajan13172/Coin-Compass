@@ -15,6 +15,7 @@ import { processDueRecurring } from "./services/recurringService";
 import { runNotificationSweep } from "./services/notificationService";
 import { purgeExpiredDeletions } from "./services/trashService";
 import { refreshMetalPrices, fillMetalGaps, isTodayCaptured } from "./services/metalPriceService";
+import { refreshStockPrices } from "./services/stockPriceService";
 import { sendDueReports } from "./services/reportEmailService";
 
 async function bootstrap() {
@@ -112,6 +113,28 @@ async function bootstrap() {
     cron.schedule(time, () => void refreshMetalsAndAlert(`cron ${time}`, true), {
       timezone: "Asia/Kolkata",
     });
+  }
+
+  // Refresh equity prices for every symbol someone holds: on boot, then every 15
+  // minutes through the NSE session (09:15–15:30 IST, Mon–Fri) and once at 15:45
+  // to capture the settled close. Unlike the metals scrape there is no urgency to
+  // any single run — the upstream chart endpoint serves history, so a missed day
+  // is recoverable — but a symbol that fails simply keeps its last stored close,
+  // flagged stale, so the portfolio never values a position at zero.
+  // No-op when STOCKS_ENABLED=false or nothing is held.
+  const refreshStocks = async (label: string): Promise<void> => {
+    try {
+      const { refreshed, failed } = await refreshStockPrices();
+      if (refreshed || failed) {
+        console.log(`[stocks] ${label} run: ${refreshed} refreshed, ${failed} failed`);
+      }
+    } catch (e) {
+      console.error(`[stocks] ${label} run failed`, e);
+    }
+  };
+  await refreshStocks("boot");
+  for (const time of ["*/15 9-15 * * 1-5", "45 15 * * 1-5"]) {
+    cron.schedule(time, () => void refreshStocks(`cron ${time}`), { timezone: "Asia/Kolkata" });
   }
 
   // Email summary reports on the 1st (last month) and 15th (month-to-date) at 08:00

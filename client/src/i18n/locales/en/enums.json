@@ -7,7 +7,9 @@
     "upi": "UPI",
     "savings": "Savings",
     "receivable": "Money Lent",
-    "payable": "Money Owed"
+    "payable": "Money Owed",
+    "demat": "Demat",
+    "securities": "Stock Investments"
   },
   "loan": {
     "home": "Home",

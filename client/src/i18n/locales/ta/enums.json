@@ -7,7 +7,9 @@
     "upi": "UPI",
     "savings": "சேமிப்பு",
     "receivable": "கொடுத்த பணம்",
-    "payable": "தர வேண்டிய பணம்"
+    "payable": "தர வேண்டிய பணம்",
+    "demat": "டிமேட்",
+    "securities": "பங்கு முதலீடுகள்"
   },
   "loan": {
     "home": "வீடு",

@@ -35,6 +35,10 @@ export async function startServer(
     // feature so the suite never scrapes the live grtjewels.com site.
     METALS_ENABLED: "false",
     GOLD_API_KEY: "",
+    // Stocks stay ON, but on the stub provider: every symbol prices at a fixed
+    // ₹100 with no network access, so the buy/sell ledger can be exercised
+    // deterministically without reaching Yahoo.
+    STOCKS_PROVIDER: "stub",
     ...extraEnv,
   };
 

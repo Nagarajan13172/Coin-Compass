@@ -1,4 +1,14 @@
-import type { AccountType } from "@/lib/types";
+import type { Account, AccountType } from "@/lib/types";
+
+/**
+ * Accounts a transaction may name. Excludes the Stock Investments bucket: its
+ * balance must equal the cost basis of open lots (see stockService), and a
+ * hand-written transfer in or out would break that silently. Money Lent / Money
+ * Owed stay selectable — those are genuine balances the user may need to adjust.
+ */
+export function spendableAccounts<T extends Pick<Account, "type">>(accounts: T[] | undefined): T[] {
+  return (accounts ?? []).filter((a) => a.type !== "securities");
+}
 
 /** Human-readable label for an account's type (shown as a subtitle/badge). */
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
@@ -8,4 +18,9 @@ export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   wallet: "Wallet",
   upi: "UPI",
   savings: "Savings",
+  demat: "Demat",
+  // Auto-managed buckets the app creates; listed so the map stays exhaustive.
+  receivable: "Money Lent",
+  payable: "Money Owed",
+  securities: "Stock Investments",
 };

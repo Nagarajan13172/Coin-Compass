@@ -24,6 +24,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { formatMoney, transactionSummary } from "@/lib/format";
+import { spendableAccounts } from "@/lib/accounts";
 import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { TagInput } from "@/components/common/TagInput";
@@ -63,7 +64,9 @@ export function TransactionSheet() {
   const defaultType = useUIStore((s) => s.defaultTxnType);
   const prefill = useUIStore((s) => s.txnPrefill);
 
-  const { data: accounts } = useAccounts();
+  const { data: allAccounts } = useAccounts();
+  // The Stock Investments bucket is app-managed — see spendableAccounts.
+  const accounts = useMemo(() => spendableAccounts(allAccounts), [allAccounts]);
   const { data: loans } = useLoans();
   const createTxn = useCreateTransaction();
   const updateTxn = useUpdateTransaction();
