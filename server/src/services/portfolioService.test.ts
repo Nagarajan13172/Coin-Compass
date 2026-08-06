@@ -6,6 +6,8 @@ import {
   gainTypeFor,
   longTermFrom,
   realizedFor,
+  round2,
+  roundQty,
   valuePosition,
   type LotLike,
 } from "./portfolioService";
@@ -56,6 +58,27 @@ describe("portfolioService — the long-term capital gains boundary", () => {
     expect(daysToLongTerm(day("2025-01-01"), day("2026-01-01"))).toBe(1); // tomorrow
     expect(daysToLongTerm(day("2025-01-01"), day("2026-01-02"))).toBe(0);
     expect(daysToLongTerm(day("2025-01-01"), day("2026-06-01"))).toBe(0); // long past
+  });
+});
+
+describe("portfolioService — rounding", () => {
+  it("rounds money to paise", () => {
+    expect(round2(0.1 + 0.2)).toBe(0.3);
+    expect(round2(1020.005)).toBe(1020.01);
+  });
+
+  // Quantities get their own, far looser rounding. A split can leave a genuine
+  // fraction, and paise-scale rounding would silently destroy stock.
+  it("cleans float dust off a quantity without rounding away a real fraction", () => {
+    expect(roundQty(0.1 + 0.2)).toBe(0.3);
+    expect(roundQty(10 * 0.1)).toBe(1);
+    expect(roundQty(0.000125)).toBe(0.000125); // survives where round2 would zero it
+    expect(round2(0.000125)).toBe(0); // …which is exactly why quantities don't use it
+  });
+
+  it("keeps a third of a share through a split adjustment", () => {
+    expect(roundQty((1 / 3) * 3)).toBe(1);
+    expect(roundQty(1 / 3)).toBe(0.333333);
   });
 });
 

@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BuyStockDialog } from "@/features/stocks/BuyStockDialog";
 import { SellStockDialog } from "@/features/stocks/SellStockDialog";
+import { PendingSplitsBanner } from "@/features/stocks/PendingSplitsBanner";
 import {
   useDeleteLot,
   useDeleteSale,
@@ -92,6 +93,10 @@ export default function StocksPage() {
           </div>
         }
       />
+
+      {/* Sits above everything: until a split is applied the numbers below it
+          understate the position, so it needs to be read first. */}
+      <PendingSplitsBanner />
 
       {!hasDemat && (
         <Card className="mb-5 border-dashed">

@@ -22,6 +22,52 @@ const POPULATE = [
   { path: "split", select: "description totalAmount yourShare" },
 ];
 
+/**
+ * Ledger legs owned by a stock purchase or sale. They exist to keep demat cash
+ * and the Stock Investments bucket in step with the lots, so they are managed
+ * from the Stocks page — never edited or deleted as loose transactions here.
+ */
+function isStockLinked(txn: { stockLot?: unknown; stockSale?: unknown }): boolean {
+  return Boolean(txn.stockLot || txn.stockSale);
+}
+
+/** Refuse to touch a stock leg, naming the record that actually owns it. */
+function assertNotStockLinked(
+  txn: { stockLot?: unknown; stockSale?: unknown },
+  action: "delete" | "edit"
+): void {
+  if (!isStockLinked(txn)) return;
+  const owner = txn.stockLot ? "purchase" : "sale";
+  throw new HttpError(
+    400,
+    `This is part of a stock ${owner}. ${action === "delete" ? "Delete" : "Edit"} the ${owner} from the Stocks page instead.`,
+    txn.stockLot
+      ? action === "delete" ? "TXN_STOCK_LOT_DELETE" : "TXN_STOCK_LOT_EDIT"
+      : action === "delete" ? "TXN_STOCK_SALE_DELETE" : "TXN_STOCK_SALE_EDIT"
+  );
+}
+
+/**
+ * Allow harmless edits to a stock leg (a note, a tag) but refuse anything that
+ * would move money — the amounts are derived from the lot's cost basis and the
+ * sale's realized gain, so changing one here desynchronises it from the shares.
+ */
+function assertStockLegUnchanged(
+  txn: { stockLot?: unknown; stockSale?: unknown; amount: number; type: string; account: unknown; toAccount?: unknown },
+  patch: Record<string, unknown>
+): void {
+  if (!isStockLinked(txn)) return;
+
+  const sameId = (a: unknown, b: unknown) => b === undefined || String(a ?? "") === String(b ?? "");
+  const untouched =
+    (patch.amount === undefined || patch.amount === txn.amount) &&
+    (patch.type === undefined || patch.type === txn.type) &&
+    sameId(txn.account, patch.account) &&
+    sameId(txn.toAccount, patch.toAccount);
+
+  if (!untouched) assertNotStockLinked(txn, "edit");
+}
+
 /** Accept a single value or a comma-separated list ("a,b" → { $in: ["a","b"] }). */
 function oneOrMany(value: unknown): unknown {
   const parts = String(value)
@@ -234,6 +280,8 @@ export async function updateTransaction(req: Request, res: Response) {
   const txn = await Transaction.findOne({ _id: req.params.id, user: uid });
   if (!txn) throw new HttpError(404, "Transaction not found");
 
+  assertStockLegUnchanged(txn, data);
+
   const prevLoan = txn.loan;
   const prevPrincipal = txn.loanPrincipal ?? 0;
   const prevInterest = txn.loanInterest ?? 0;
@@ -303,6 +351,14 @@ export async function deleteTransaction(req: Request, res: Response) {
   const uid = userId(req);
   const txn = await Transaction.findOne({ _id: req.params.id, user: uid });
   if (!txn) throw new HttpError(404, "Transaction not found");
+
+  // A stock leg is derived from a purchase or sale, not the other way round.
+  // Deleting it here would leave the lot alive with its cash movement gone, and
+  // the Stock Investments bucket would quietly stop matching the cost basis of
+  // open lots. Unlike a loan payment there is nothing sensible to reverse — the
+  // shares would still exist — so this is refused rather than cascaded, and the
+  // user is pointed at the record that actually owns it.
+  assertNotStockLinked(txn, "delete");
 
   // Removing one leg of a shared bill leaves the remaining shares no longer adding
   // up to the total, so the split's grouping dissolves first (no money moves — see

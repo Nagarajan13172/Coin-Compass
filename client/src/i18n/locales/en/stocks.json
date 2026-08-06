@@ -110,5 +110,12 @@
   },
   "toast": {
     "failed": "Something went wrong"
+  },
+  "splits": {
+    "title": "{{ticker}} had a {{label}} split",
+    "description": "Effective {{date}}. Your {{before}} shares become {{after}}.",
+    "costUnchanged": "What you paid doesn’t change, so your net worth won’t move.",
+    "apply": "Apply split",
+    "applied": "{{ticker}} lots adjusted"
   }
 }

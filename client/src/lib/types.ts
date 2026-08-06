@@ -779,3 +779,22 @@ export interface StockSale {
   realizedShortTerm: number;
   realizedLongTerm: number;
 }
+
+/**
+ * A split or bonus that has happened since you bought, and isn't reflected in
+ * your lots yet. Offered for confirmation rather than applied automatically —
+ * the market price adjusts instantly, so an unapplied split reads as a sudden
+ * loss, but silently multiplying a share count is worse than a questionable
+ * number. `ratio` is how many shares each old share became.
+ */
+export interface PendingSplit {
+  symbol: string;
+  ticker: string;
+  name: string;
+  date: string;
+  ratio: number;
+  label: string;
+  lots: number;
+  qtyBefore: number;
+  qtyAfter: number;
+}

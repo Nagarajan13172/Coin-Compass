@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseChartQuote, parseSearchHits } from "./stockPriceService";
+import { parseChartHistory, parseChartQuote, parseChartSplits, parseSearchHits } from "./stockPriceService";
 
 /**
  * Fixtures are trimmed copies of real upstream responses. The awkward ones —
@@ -24,6 +24,8 @@ const NSE_META = {
   regularMarketVolume: 13417350,
   longName: "Reliance Industries Limited",
   shortName: "RELIANCE INDUSTRIES LTD",
+  // 2026-08-06 09:09 UTC → 14:39 IST, i.e. mid-session on the 6th.
+  regularMarketTime: 1786001975,
 };
 
 describe("stockPriceService.parseChartQuote", () => {
@@ -80,6 +82,132 @@ describe("stockPriceService.parseChartQuote", () => {
     const q = parseChartQuote(chart({ currency: "INR", symbol: "X.NS", regularMarketPrice: 10 }));
     expect(q).toMatchObject({ prevClose: 0, week52High: 0, volume: 0 });
     expect(Number.isNaN(q!.dayHigh)).toBe(false);
+  });
+
+  // The market date comes from the quote's own last-trade time, never from when
+  // we happened to fetch it. Upstream keeps serving the previous close over a
+  // weekend or a market holiday; dating that as "today" is what would present a
+  // stale close as a live quote.
+  it("dates the quote by its last trade, in IST", () => {
+    expect(parseChartQuote(chart(NSE_META))!.marketDate).toBe("2026-08-06");
+  });
+
+  it("uses the IST day, not UTC, at the boundary", () => {
+    // 2026-08-06 19:30 UTC is already 01:00 on the 7th in IST.
+    const late = parseChartQuote(chart({ ...NSE_META, regularMarketTime: 1786044600 }));
+    expect(late!.marketDate).toBe("2026-08-07");
+  });
+
+  it("leaves the market date blank when upstream omits the timestamp", () => {
+    const noTime = parseChartQuote(chart({ ...NSE_META, regularMarketTime: undefined }));
+    expect(noTime!.marketDate).toBe("");
+  });
+});
+
+describe("stockPriceService.parseChartHistory", () => {
+  const history = (timestamp: number[], close: (number | null)[], currency = "INR") => ({
+    chart: { result: [{ meta: { currency }, timestamp, indicators: { quote: [{ close }] } }] },
+  });
+
+  it("pairs each close with its IST date", () => {
+    // 2026-08-04 and 2026-08-05, 03:45 UTC (= 09:15 IST, the open).
+    const points = parseChartHistory(history([1785815100, 1785901500], [2400.5, 2391.3]));
+    expect(points).toEqual([
+      { date: "2026-08-04", close: 2400.5 },
+      { date: "2026-08-05", close: 2391.3 },
+    ]);
+  });
+
+  // Upstream returns parallel arrays with nulls on days a symbol didn't trade.
+  // Storing those as zero would draw the position falling off a cliff.
+  it("drops days with no close rather than storing zero", () => {
+    const points = parseChartHistory(history([1785815100, 1785901500, 1785987900], [2400, null, 2380]));
+    expect(points.map((p) => p.close)).toEqual([2400, 2380]);
+  });
+
+  it("refuses a series that isn't quoted in INR", () => {
+    expect(parseChartHistory(history([1785815100], [2400], "USD"))).toEqual([]);
+  });
+
+  it("survives junk without throwing", () => {
+    for (const junk of [null, undefined, {}, { chart: { result: [{}] } }]) {
+      expect(parseChartHistory(junk)).toEqual([]);
+    }
+  });
+});
+
+describe("stockPriceService.parseChartSplits", () => {
+  // IRCTC's real 5:1 split — one share became five, so the ratio is 5.
+  const IRCTC = {
+    chart: {
+      result: [
+        {
+          events: {
+            splits: {
+              "1635388200": {
+                date: 1635388200,
+                numerator: 5,
+                denominator: 1,
+                splitRatio: "5:1",
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  it("reads the ratio as how many shares each old share became", () => {
+    const splits = parseChartSplits(IRCTC);
+    expect(splits).toHaveLength(1);
+    expect(splits[0]).toMatchObject({ date: "2021-10-28", ratio: 5, label: "5:1" });
+  });
+
+  it("returns splits oldest-first so they can be applied in order", () => {
+    const many = {
+      chart: {
+        result: [
+          {
+            events: {
+              splits: {
+                b: { date: 1733198400, numerator: 2, denominator: 1, splitRatio: "2:1" },
+                a: { date: 1635388200, numerator: 5, denominator: 1, splitRatio: "5:1" },
+              },
+            },
+          },
+        ],
+      },
+    };
+    expect(parseChartSplits(many).map((s) => s.date)).toEqual(["2021-10-28", "2024-12-03"]);
+  });
+
+  // A wrong ratio would silently multiply someone's share count, so anything
+  // that doesn't parse cleanly is dropped rather than guessed at.
+  it("drops malformed or no-op events instead of guessing", () => {
+    const bad = {
+      chart: {
+        result: [
+          {
+            events: {
+              splits: {
+                a: { date: 1635388200, numerator: 0, denominator: 1 },
+                b: { date: 1635388201, numerator: 5, denominator: 0 },
+                c: { date: 1635388202, numerator: 1, denominator: 1 }, // a 1:1 changes nothing
+                d: { date: "nope", numerator: 2, denominator: 1 },
+                e: { numerator: 2, denominator: 1 },
+              },
+            },
+          },
+        ],
+      },
+    };
+    expect(parseChartSplits(bad)).toEqual([]);
+  });
+
+  it("returns nothing when there are no events", () => {
+    for (const junk of [null, undefined, {}, { chart: { result: [{ events: {} }] } }]) {
+      expect(parseChartSplits(junk)).toEqual([]);
+    }
   });
 });
 

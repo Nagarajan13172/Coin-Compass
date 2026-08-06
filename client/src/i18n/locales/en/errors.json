@@ -73,5 +73,10 @@
   "STOCK_LOT_NOT_FOUND": "Purchase not found",
   "STOCK_LOT_PARTLY_SOLD": "Some of this purchase has been sold. Delete those sales first.",
   "STOCK_SALE_NOT_FOUND": "Sale not found",
-  "STOCK_REFRESH_COOLDOWN": "Prices were just refreshed. Try again in {{minutes}} minute(s)."
+  "STOCK_REFRESH_COOLDOWN": "Prices were just refreshed. Try again in {{minutes}} minute(s).",
+  "TXN_STOCK_LOT_DELETE": "This is part of a stock purchase. Delete the purchase from the Stocks page instead.",
+  "TXN_STOCK_LOT_EDIT": "This is part of a stock purchase. Edit the purchase from the Stocks page instead.",
+  "TXN_STOCK_SALE_DELETE": "This is part of a stock sale. Delete the sale from the Stocks page instead.",
+  "TXN_STOCK_SALE_EDIT": "This is part of a stock sale. Edit the sale from the Stocks page instead.",
+  "STOCK_SPLIT_NOT_FOUND": "That corporate action isn’t on record"
 }

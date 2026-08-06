@@ -6,13 +6,24 @@ import type { GainType } from "../models/StockSale";
  * rule here is unit-testable in isolation (same split as planMetalGapFill in
  * metalPriceService).
  *
- * Money is rounded to paise at each boundary. Share quantities are not rounded:
- * fractional units are legitimate, and rounding them would silently lose stock.
+ * Money is rounded to paise at each boundary. Quantities get their own, far
+ * looser rounding: fractional units are legitimate — a bonus or split can leave
+ * one — so they are only cleaned of float dust, never rounded to paise-scale
+ * precision, which would silently lose stock.
  */
 
 /** Round to 2 decimals, killing binary-float dust (0.1 + 0.2 → 0.3). */
 export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Clean float dust off a share quantity without rounding away a real fraction.
+ * Six decimals is far finer than any exchange deals in, so this only ever
+ * removes representation error — 10 × 0.1 landing at 1.0000000000000002.
+ */
+export function roundQty(n: number): number {
+  return Math.round((n + Number.EPSILON) * 1e6) / 1e6;
 }
 
 /** Midnight of a date, so comparisons are calendar-day based, not time-of-day. */

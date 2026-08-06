@@ -2,6 +2,7 @@ import { env } from "../config/env";
 import { Instrument, type Exchange } from "../models/Instrument";
 import { StockPrice } from "../models/StockPrice";
 import { StockLot } from "../models/StockLot";
+import { CorporateAction } from "../models/CorporateAction";
 import { HttpError } from "../middleware/errorHandler";
 
 /**
@@ -62,6 +63,14 @@ export interface ParsedQuote {
   volume: number;
   longName: string;
   shortName: string;
+  /**
+   * IST date of the session this price is actually from, read from the quote's
+   * last-trade time — NOT the date we happened to fetch it. On a market holiday
+   * or a weekend, upstream keeps serving the previous session's close; without
+   * this, that close would be stored under today's date and shown as a live
+   * quote. Empty when upstream omitted the timestamp.
+   */
+  marketDate: string;
 }
 
 /**
@@ -95,6 +104,7 @@ export function parseChartQuote(json: unknown): ParsedQuote | null {
     volume: num(meta.regularMarketVolume),
     longName: String(meta.longName ?? ""),
     shortName: String(meta.shortName ?? ""),
+    marketDate: num(meta.regularMarketTime) ? istDate(new Date(num(meta.regularMarketTime) * 1000)) : "",
   };
 }
 
@@ -169,6 +179,9 @@ function stubQuote(symbol: string): ParsedQuote {
   return {
     symbol,
     currency: "INR",
+    // Always "today", so the stub reads as a live session and tests don't have
+    // to reason about market holidays.
+    marketDate: istDate(),
     close: STUB_CLOSE,
     prevClose: STUB_PREV_CLOSE,
     dayHigh: STUB_CLOSE,
@@ -179,6 +192,18 @@ function stubQuote(symbol: string): ParsedQuote {
     longName: `${ticker} Test Instrument`,
     shortName: ticker,
   };
+}
+
+/**
+ * Splits the stub provider reports: a fixed 2:1 on 2025-06-01, and only for
+ * tickers beginning "SPLIT". Scoping it to a magic ticker keeps every other
+ * symbol in the suite free of corporate actions, so a test opts in to the split
+ * flow by naming one rather than having to work around it.
+ */
+function stubSplits(symbol: string): ParsedSplit[] {
+  const ticker = symbol.replace(/\.(NS|BO)$/, "");
+  if (!ticker.startsWith("SPLIT")) return [];
+  return [{ date: "2025-06-01", ratio: 2, label: "2:1" }];
 }
 
 /** Live quote for one symbol. Null when upstream has nothing usable for it. */
@@ -259,11 +284,22 @@ export async function ensureInstrument(symbol: string) {
 
 // ---- Daily snapshots ----
 
-/** Upsert today's snapshot for one symbol. Returns false when nothing was stored. */
-async function captureSymbol(symbol: string, date: string): Promise<boolean> {
+/**
+ * Store one symbol's latest price under the session it actually came from.
+ * Returns false when nothing was stored.
+ *
+ * The row is dated by the quote's own last-trade time rather than by "today", so
+ * a fetch on a Sunday or a market holiday simply re-writes Friday's row instead
+ * of minting a fresh one. getLatestPrices then sees a date behind today and
+ * flags it stale — which is how a carried-forward close stops being presented as
+ * a live quote. Falls back to the caller's date only when upstream omits the
+ * timestamp entirely.
+ */
+async function captureSymbol(symbol: string, today: string): Promise<boolean> {
   const quote = await fetchQuote(symbol);
   if (!quote) return false;
 
+  const date = quote.marketDate || today;
   const prevClose = quote.prevClose || 0;
   const change = prevClose ? quote.close - prevClose : 0;
   const changePct = prevClose ? Math.round((change / prevClose) * 100 * 100) / 100 : 0;
@@ -290,6 +326,170 @@ async function captureSymbol(symbol: string, date: string): Promise<boolean> {
     { upsert: true, setDefaultsOnInsert: true }
   );
   return true;
+}
+
+/** One historical daily close. */
+export interface ParsedHistoryPoint {
+  date: string; // YYYY-MM-DD in IST
+  close: number;
+}
+
+/**
+ * Read the daily close series out of a chart response. Upstream returns parallel
+ * arrays with nulls on days a symbol didn't trade, so those are dropped rather
+ * than stored as zero — a zero close would draw the position falling off a cliff.
+ * Pure, so it can be tested against a saved payload.
+ */
+export function parseChartHistory(json: unknown): ParsedHistoryPoint[] {
+  const result = (json as any)?.chart?.result?.[0];
+  const stamps: unknown[] = result?.timestamp ?? [];
+  const closes: unknown[] = result?.indicators?.quote?.[0]?.close ?? [];
+  if (!Array.isArray(stamps) || !Array.isArray(closes)) return [];
+  if (result?.meta?.currency !== "INR") return [];
+
+  const out: ParsedHistoryPoint[] = [];
+  for (let i = 0; i < stamps.length; i++) {
+    const close = Number(closes[i]);
+    const ts = Number(stamps[i]);
+    if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(ts)) continue;
+    out.push({ date: istDate(new Date(ts * 1000)), close: Math.round(close * 100) / 100 });
+  }
+  return out;
+}
+
+/**
+ * Fill in a symbol's past daily closes, so a newly-added position has a chart
+ * immediately instead of accumulating one point a day from now on.
+ *
+ * Unlike the metals feed — where the source publishes only today's rate, and a
+ * missed day is gone for good — the chart endpoint serves years of history from
+ * the same call. There is no reason to reconstruct anything by interpolation.
+ *
+ * Insert-only (`$setOnInsert`): a live capture always wins over a backfilled row,
+ * and re-running is a no-op. Returns how many days were newly stored.
+ */
+export async function backfillStockHistory(
+  symbol: string,
+  range = "1y",
+  opts: { force?: boolean } = {}
+): Promise<number> {
+  if (!env.stocks.enabled || env.stocks.provider === "stub") return 0;
+
+  // A symbol that already has a series has been backfilled before. Without this
+  // the buy path would re-fetch a year of data on every purchase.
+  if (!opts.force && (await StockPrice.countDocuments({ symbol })) > 1) return 0;
+
+  const json = await getJson(`${CHART_URL}/${encodeURIComponent(symbol)}?interval=1d&range=${range}`);
+  const points = json ? parseChartHistory(json) : [];
+  if (!points.length) return 0;
+
+  const today = istDate();
+  let inserted = 0;
+  for (const p of points) {
+    // Never seed "today" from the history series — the live capture owns that row
+    // and carries the day's change, highs and volume.
+    if (p.date >= today) continue;
+    const res = await StockPrice.updateOne(
+      { symbol, date: p.date },
+      {
+        $setOnInsert: {
+          symbol,
+          date: p.date,
+          currency: "INR",
+          close: p.close,
+          source: `${SOURCE} · history`,
+          fetchedAt: new Date(),
+          stale: false,
+        },
+      },
+      { upsert: true }
+    );
+    if (res.upsertedCount) inserted++;
+  }
+
+  if (inserted) console.log(`[stocks] backfilled ${inserted} day(s) of history for ${symbol}`);
+  return inserted;
+}
+
+/** A split or bonus issue as reported upstream. */
+export interface ParsedSplit {
+  date: string; // YYYY-MM-DD in IST (effective date)
+  ratio: number; // shares each old share became: 5 for "5:1", 2 for a 1:1 bonus
+  label: string; // as reported, e.g. "5:1"
+}
+
+/**
+ * Read split events out of a chart response fetched with `events=split`.
+ *
+ * Upstream reports these as a numerator/denominator pair plus a "5:1" string.
+ * A 5:1 split means one share became five, so the ratio is numerator/denominator.
+ * Anything that doesn't parse to a positive finite ratio is dropped rather than
+ * guessed — a wrong ratio would silently multiply someone's share count.
+ */
+export function parseChartSplits(json: unknown): ParsedSplit[] {
+  const splits = (json as any)?.chart?.result?.[0]?.events?.splits;
+  if (!splits || typeof splits !== "object") return [];
+
+  const out: ParsedSplit[] = [];
+  for (const raw of Object.values(splits as Record<string, any>)) {
+    const ts = Number(raw?.date);
+    const num = Number(raw?.numerator);
+    const den = Number(raw?.denominator);
+    if (!Number.isFinite(ts) || !Number.isFinite(num) || !Number.isFinite(den)) continue;
+    if (!(num > 0) || !(den > 0)) continue;
+
+    const ratio = num / den;
+    if (!Number.isFinite(ratio) || ratio <= 0 || ratio === 1) continue;
+    out.push({
+      date: istDate(new Date(ts * 1000)),
+      ratio,
+      label: String(raw?.splitRatio ?? `${num}:${den}`),
+    });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Fetch and store every split upstream knows about for one symbol. Recording
+ * them is separate from applying them: nothing about a user's lots changes here.
+ * Returns how many were newly recorded.
+ */
+export async function syncSplits(symbol: string, range = "5y"): Promise<number> {
+  if (!env.stocks.enabled) return 0;
+
+  const splits =
+    env.stocks.provider === "stub"
+      ? stubSplits(symbol)
+      : parseChartSplits(
+          await getJson(`${CHART_URL}/${encodeURIComponent(symbol)}?interval=1d&range=${range}&events=split`)
+        );
+
+  let stored = 0;
+  for (const s of splits) {
+    const res = await CorporateAction.updateOne(
+      { symbol, date: s.date },
+      { $setOnInsert: { symbol, date: s.date, type: "split", ratio: s.ratio, label: s.label, source: SOURCE, fetchedAt: new Date() } },
+      { upsert: true }
+    );
+    if (res.upsertedCount) stored++;
+  }
+  if (stored) console.log(`[stocks] recorded ${stored} split(s) for ${symbol}`);
+  return stored;
+}
+
+/** Refresh splits for every held symbol. Cheap enough to run once a day. */
+export async function syncAllSplits(): Promise<number> {
+  if (!env.stocks.enabled) return 0;
+  const symbols = await heldSymbols();
+  let total = 0;
+  await mapLimit(symbols, env.stocks.maxConcurrentFetches, async (symbol) => {
+    try {
+      total += await syncSplits(symbol);
+    } catch (e) {
+      console.error(`[stocks] split sync failed for ${symbol}`, e);
+    }
+  });
+  return total;
 }
 
 /**

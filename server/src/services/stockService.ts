@@ -3,21 +3,24 @@ import { Account } from "../models/Account";
 import { Category } from "../models/Category";
 import { Transaction } from "../models/Transaction";
 import { Instrument } from "../models/Instrument";
+import { CorporateAction } from "../models/CorporateAction";
 import { StockLot } from "../models/StockLot";
 import { StockSale } from "../models/StockSale";
 import { HttpError } from "../middleware/errorHandler";
 import {
+  backfillStockHistory,
   captureSymbolNow,
   ensureInstrument,
   getLatestPrices,
+  syncSplits,
   type LatestPrice,
 } from "./stockPriceService";
 import {
   allocateFifo,
-  costBasisFor,
   daysToLongTerm,
   realizedFor,
   round2,
+  roundQty,
   valuePosition,
   type LotLike,
 } from "./portfolioService";
@@ -108,6 +111,19 @@ async function requireDemat(uid: string, dematId: string) {
   return account;
 }
 
+/**
+ * A stored date as its IST calendar day, so it compares directly against the
+ * YYYY-MM-DD effective dates corporate actions are keyed by.
+ */
+function istDay(d: Date | string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(d));
+}
+
 /** Map a stored lot onto the shape the pure FIFO/valuation helpers expect. */
 function toLotLike(lot: {
   _id: unknown;
@@ -194,8 +210,18 @@ export async function buyStock(uid: string, input: BuyInput) {
   }
 
   // Price it now so the position shows a live figure straight away rather than
-  // sitting at cost until the next scheduled refresh.
+  // sitting at cost until the next scheduled refresh, and pull in the past year
+  // so its chart isn't a single point. Both are best-effort and idempotent.
   await captureSymbolNow(instrument.symbol);
+  await backfillStockHistory(instrument.symbol).catch((e) =>
+    console.error(`[stocks] history backfill failed for ${instrument.symbol}`, e)
+  );
+  // Learn this symbol's splits now rather than at the next nightly sync — a lot
+  // backdated to before a split needs adjusting the moment it is entered, or the
+  // position reads as a loss it never took.
+  await syncSplits(instrument.symbol).catch((e) =>
+    console.error(`[stocks] split sync failed for ${instrument.symbol}`, e)
+  );
 
   return lot.toObject();
 }
@@ -265,7 +291,7 @@ export async function sellStock(uid: string, input: SellInput) {
   for (const a of allocations) {
     const lot = await StockLot.findOne({ _id: a.lot, user: uid });
     if (!lot) continue;
-    lot.qtyRemaining = round2(lot.qtyRemaining - a.qty);
+    lot.qtyRemaining = roundQty(lot.qtyRemaining - a.qty);
     if (lot.qtyRemaining <= 0) {
       lot.qtyRemaining = 0;
       lot.status = "closed";
@@ -323,7 +349,7 @@ export async function deleteSale(uid: string, saleId: string) {
   for (const a of sale.allocations) {
     const lot = await StockLot.findOne({ _id: a.lot, user: uid });
     if (!lot) continue;
-    lot.qtyRemaining = round2(lot.qtyRemaining + a.qty);
+    lot.qtyRemaining = roundQty(lot.qtyRemaining + a.qty);
     if (lot.qtyRemaining > 0) lot.status = "open";
     await lot.save();
   }
@@ -550,8 +576,97 @@ export async function listSales(uid: string) {
   }));
 }
 
-/** Cost basis of every open lot — the figure the Securities balance must match. */
-export async function openCostBasis(uid: string): Promise<number> {
+export interface PendingSplit {
+  symbol: string;
+  ticker: string;
+  name: string;
+  date: string;
+  ratio: number;
+  label: string;
+  /** Lots that would be adjusted, and what they'd become. */
+  lots: number;
+  qtyBefore: number;
+  qtyAfter: number;
+}
+
+/**
+ * Splits that have happened since the user bought, and haven't been applied to
+ * their lots yet.
+ *
+ * A split is only ever *offered*, never applied automatically. The market price
+ * reflects it immediately, so an unapplied split shows up as a sudden fake loss —
+ * but silently multiplying someone's share count is worse than showing them a
+ * number they can question. Only splits dated after a lot's purchase apply to it:
+ * buying after the ex-date already gets the adjusted price.
+ */
+export async function pendingSplits(uid: string): Promise<PendingSplit[]> {
   const lots = await StockLot.find({ user: uid, qtyRemaining: { $gt: 0 } }).lean();
-  return round2(lots.reduce((s, l) => s + costBasisFor(toLotLike(l), l.qtyRemaining), 0));
+  if (!lots.length) return [];
+
+  const symbols = [...new Set(lots.map((l) => l.symbol))];
+  const [actions, instruments] = await Promise.all([
+    CorporateAction.find({ symbol: { $in: symbols } }).sort({ date: 1 }).lean(),
+    Instrument.find({ symbol: { $in: symbols } }).lean(),
+  ]);
+  if (!actions.length) return [];
+  const meta = new Map(instruments.map((i) => [i.symbol, i]));
+
+  const out: PendingSplit[] = [];
+  for (const action of actions) {
+    const affected = lots.filter(
+      (l) =>
+        l.symbol === action.symbol &&
+        !(l.splitsApplied ?? []).includes(action.date) &&
+        // Bought strictly before the ex-date; a later purchase is already adjusted.
+        istDay(l.buyDate) < action.date
+    );
+    if (!affected.length) continue;
+
+    const qtyBefore = affected.reduce((s, l) => s + l.qtyRemaining, 0);
+    out.push({
+      symbol: action.symbol,
+      ticker: meta.get(action.symbol)?.ticker ?? action.symbol,
+      name: meta.get(action.symbol)?.longName ?? action.symbol,
+      date: action.date,
+      ratio: action.ratio,
+      label: action.label,
+      lots: affected.length,
+      qtyBefore: round2(qtyBefore),
+      qtyAfter: round2(qtyBefore * action.ratio),
+    });
+  }
+  return out;
+}
+
+/**
+ * Apply one split to every lot it affects: quantity multiplies, buy price
+ * divides. Cost basis is deliberately unchanged — a split hands you more shares,
+ * it doesn't change what you paid — so the Stock Investments bucket still matches
+ * and net worth doesn't move. The purchase date is untouched too, because a split
+ * doesn't restart the holding period for capital gains.
+ *
+ * Historical sales keep their pre-split quantities, which is what actually
+ * happened. `qty` and `qtyRemaining` scale together, so the sold portion stays
+ * consistent when expressed in post-split shares.
+ */
+export async function applySplit(uid: string, symbol: string, date: string) {
+  const action = await CorporateAction.findOne({ symbol, date });
+  if (!action) throw new HttpError(404, "That corporate action isn't on record", "STOCK_SPLIT_NOT_FOUND");
+
+  const lots = await StockLot.find({ user: uid, symbol, qtyRemaining: { $gt: 0 } });
+  let adjusted = 0;
+
+  for (const lot of lots) {
+    if ((lot.splitsApplied ?? []).includes(date)) continue;
+    if (istDay(lot.buyDate) >= date) continue;
+
+    lot.qty = roundQty(lot.qty * action.ratio);
+    lot.qtyRemaining = roundQty(lot.qtyRemaining * action.ratio);
+    lot.buyPrice = lot.buyPrice / action.ratio;
+    lot.splitsApplied = [...(lot.splitsApplied ?? []), date];
+    await lot.save();
+    adjusted++;
+  }
+
+  return { ok: true, adjusted };
 }

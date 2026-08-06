@@ -3,11 +3,13 @@ import { env } from "../config/env";
 import { userId } from "../middleware/auth";
 import { stockBuySchema, stockSellSchema } from "../validators/schemas";
 import {
+  applySplit,
   buyStock,
   deleteLot,
   deleteSale,
   getPortfolio,
   listSales,
+  pendingSplits,
   sellStock,
 } from "../services/stockService";
 import {
@@ -64,6 +66,19 @@ export async function removeSale(req: Request, res: Response) {
 /** Realized-gain history, newest first. */
 export async function sales(req: Request, res: Response) {
   res.json(await listSales(userId(req)));
+}
+
+/** Splits that have happened since purchase and aren't reflected in the lots yet. */
+export async function splits(req: Request, res: Response) {
+  if (!env.stocks.enabled) return void res.json([]);
+  res.json(await pendingSplits(userId(req)));
+}
+
+/** Apply one split, after the user has confirmed it. Never happens automatically. */
+export async function applySplitHandler(req: Request, res: Response) {
+  const symbol = String(req.body?.symbol ?? "");
+  const date = String(req.body?.date ?? "");
+  res.json(await applySplit(userId(req), symbol, date));
 }
 
 /** Daily closes for one symbol, for the position sparkline. */

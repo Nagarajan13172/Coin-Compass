@@ -15,7 +15,7 @@ import { processDueRecurring } from "./services/recurringService";
 import { runNotificationSweep } from "./services/notificationService";
 import { purgeExpiredDeletions } from "./services/trashService";
 import { refreshMetalPrices, fillMetalGaps, isTodayCaptured } from "./services/metalPriceService";
-import { refreshStockPrices } from "./services/stockPriceService";
+import { refreshStockPrices, syncAllSplits } from "./services/stockPriceService";
 import { sendDueReports } from "./services/reportEmailService";
 
 async function bootstrap() {
@@ -136,6 +136,22 @@ async function bootstrap() {
   for (const time of ["*/15 9-15 * * 1-5", "45 15 * * 1-5"]) {
     cron.schedule(time, () => void refreshStocks(`cron ${time}`), { timezone: "Asia/Kolkata" });
   }
+
+  // Record share splits and bonus issues daily, after the close. Recording is not
+  // applying: an unapplied split shows the user a sudden fake loss (the market
+  // price adjusts the instant it takes effect but stored lots do not), and the
+  // Stocks page offers it for confirmation. Multiplying someone's share count
+  // without asking would be worse than showing them a number they can question.
+  const syncSplits = async (label: string): Promise<void> => {
+    try {
+      const found = await syncAllSplits();
+      if (found) console.log(`[stocks] ${label}: recorded ${found} new corporate action(s)`);
+    } catch (e) {
+      console.error(`[stocks] ${label} split sync failed`, e);
+    }
+  };
+  await syncSplits("boot");
+  cron.schedule("30 16 * * 1-5", () => void syncSplits("cron"), { timezone: "Asia/Kolkata" });
 
   // Email summary reports on the 1st (last month) and 15th (month-to-date) at 08:00
   // IST. Also run on boot to catch a run missed while the server was down; the

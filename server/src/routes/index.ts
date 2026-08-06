@@ -195,6 +195,8 @@ router.get("/stocks/portfolio", asyncHandler(stocks.portfolio));
 router.get("/stocks/search", asyncHandler(stocks.search));
 router.get("/stocks/sales", asyncHandler(stocks.sales));
 router.get("/stocks/history", asyncHandler(stocks.history));
+router.get("/stocks/splits", asyncHandler(stocks.splits));
+router.post("/stocks/splits/apply", asyncHandler(stocks.applySplitHandler));
 router.post("/stocks/refresh", asyncHandler(stocks.refresh));
 router.post("/stocks/buy", asyncHandler(stocks.buy));
 router.post("/stocks/sell", asyncHandler(stocks.sell));

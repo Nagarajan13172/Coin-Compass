@@ -419,6 +419,190 @@ describe("Stocks — validation & isolation", () => {
   });
 });
 
+describe("Stocks — the ledger legs are not loose transactions", () => {
+  /** The transactions a purchase or sale created, from the plain ledger. */
+  async function txns(u: TestUser) {
+    const res = await u.session.http.get("/transactions");
+    return res.data.items ?? res.data;
+  }
+
+  // A stock leg exists to keep demat cash and the cost-basis bucket in step with
+  // the lots. Deleting it from the Transactions page would leave the shares alive
+  // with their cash movement gone, and the bucket would quietly stop matching.
+  it("refuses to delete a purchase's leg from the Transactions page", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, { symbol: "TCS.NS", demat: d._id, qty: 10, buyPrice: 80 });
+
+    const leg = (await txns(u)).find((t: any) => t.type === "transfer");
+    const res = await u.session.http.delete(`/transactions/${leg._id}`);
+    expect(res.status).toBe(400);
+    expect(res.data.code).toBe("TXN_STOCK_LOT_DELETE");
+
+    // …and the position and the bucket are both untouched.
+    expect((await portfolio(u)).data.positions[0].qty).toBe(10);
+    expect((await accountsByName(u))["Stock Investments"].balance).toBe(800);
+  });
+
+  it("refuses to delete a sale's legs from the Transactions page", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, { symbol: "TCS.NS", demat: d._id, qty: 10, buyPrice: 80, recordCash: false });
+    await sell(u, { symbol: "TCS.NS", demat: d._id, qty: 10, sellPrice: 120 });
+
+    for (const leg of (await txns(u)).filter((t: any) => t.stockSale)) {
+      const res = await u.session.http.delete(`/transactions/${leg._id}`);
+      expect(res.status).toBe(400);
+      expect(res.data.code).toBe("TXN_STOCK_SALE_DELETE");
+    }
+  });
+
+  it("refuses to re-price a stock leg", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, { symbol: "TCS.NS", demat: d._id, qty: 10, buyPrice: 80 });
+    const leg = (await txns(u)).find((t: any) => t.stockLot);
+
+    const res = await u.session.http.patch(`/transactions/${leg._id}`, { amount: 5 });
+    expect(res.status).toBe(400);
+    expect(res.data.code).toBe("TXN_STOCK_LOT_EDIT");
+    expect((await accountsByName(u))["Stock Investments"].balance).toBe(800);
+  });
+
+  it("still allows harmless edits like a note", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, { symbol: "TCS.NS", demat: d._id, qty: 10, buyPrice: 80 });
+    const leg = (await txns(u)).find((t: any) => t.stockLot);
+
+    const res = await u.session.http.patch(`/transactions/${leg._id}`, { note: "long-term bet" });
+    expect(res.status).toBe(200);
+    expect(res.data.note).toBe("long-term bet");
+  });
+
+  // The single reconciliation that proves nothing is double-counted: the bucket
+  // holds exactly what the open lots cost.
+  it("keeps the bucket equal to the cost basis of open lots", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, { symbol: "TCS.NS", demat: d._id, qty: 10, buyPrice: 80, fees: 15 });
+    await buy(u, { symbol: "INFY.NS", demat: d._id, qty: 4, buyPrice: 250, recordCash: false });
+    await sell(u, { symbol: "TCS.NS", demat: d._id, qty: 3, sellPrice: 120 });
+
+    const bucket = (await accountsByName(u))["Stock Investments"].balance;
+    expect(bucket).toBe((await portfolio(u)).data.totals.investedCost);
+  });
+});
+
+describe("Stocks — corporate actions", () => {
+  // The stub provider reports a fixed 2:1 split on 2025-06-01 for SPLIT* tickers.
+  const SPLIT_DATE = "2025-06-01";
+
+  it("offers a split that happened after the purchase", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, {
+      symbol: "SPLITCO.NS", demat: d._id, qty: 10, buyPrice: 200,
+      buyDate: "2025-01-10", recordCash: false,
+    });
+
+    const pending = (await u.session.http.get("/stocks/splits")).data;
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({ ticker: "SPLITCO", label: "2:1", qtyBefore: 10, qtyAfter: 20 });
+  });
+
+  // Buying after the ex-date already gets the adjusted price, so there is nothing
+  // to correct — adjusting anyway would double the position out of nowhere.
+  it("ignores a split that predates the purchase", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, {
+      symbol: "SPLITCO.NS", demat: d._id, qty: 10, buyPrice: 100,
+      buyDate: "2025-12-01", recordCash: false,
+    });
+    expect((await u.session.http.get("/stocks/splits")).data).toHaveLength(0);
+  });
+
+  it("doubles the shares, halves the buy price, and leaves cost basis alone", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, {
+      symbol: "SPLITCO.NS", demat: d._id, qty: 10, buyPrice: 200,
+      buyDate: "2025-01-10", recordCash: false,
+    });
+
+    const before = (await portfolio(u)).data.positions[0];
+    const bucketBefore = (await accountsByName(u))["Stock Investments"].balance;
+
+    const res = await u.session.http.post("/stocks/splits/apply", {
+      symbol: "SPLITCO.NS", date: SPLIT_DATE,
+    });
+    expect(res.status).toBe(200);
+    expect(res.data.adjusted).toBe(1);
+
+    const after = (await portfolio(u)).data.positions[0];
+    expect(after.qty).toBe(before.qty * 2);
+    expect(after.avgCost).toBe(before.avgCost / 2);
+    // What you paid didn't change, so neither does the bucket or net worth.
+    expect(after.investedCost).toBe(before.investedCost);
+    expect((await accountsByName(u))["Stock Investments"].balance).toBe(bucketBefore);
+  });
+
+  it("clears the prompt and cannot be applied twice", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    await buy(u, {
+      symbol: "SPLITCO.NS", demat: d._id, qty: 10, buyPrice: 200,
+      buyDate: "2025-01-10", recordCash: false,
+    });
+
+    await u.session.http.post("/stocks/splits/apply", { symbol: "SPLITCO.NS", date: SPLIT_DATE });
+    expect((await u.session.http.get("/stocks/splits")).data).toHaveLength(0);
+
+    // Re-applying adjusts nothing rather than doubling the position again.
+    const again = await u.session.http.post("/stocks/splits/apply", {
+      symbol: "SPLITCO.NS", date: SPLIT_DATE,
+    });
+    expect(again.data.adjusted).toBe(0);
+    expect((await portfolio(u)).data.positions[0].qty).toBe(20);
+  });
+
+  it("does not restart the long-term holding clock", async () => {
+    const u = await createVerifiedUser();
+    const d = await demat(u);
+    // Bought well over a year ago, so it is already long-term.
+    await buy(u, {
+      symbol: "SPLITCO.NS", demat: d._id, qty: 10, buyPrice: 200,
+      buyDate: "2024-01-10", recordCash: false,
+    });
+    await u.session.http.post("/stocks/splits/apply", { symbol: "SPLITCO.NS", date: SPLIT_DATE });
+
+    const lot = (await portfolio(u)).data.positions[0].lots[0];
+    expect(lot.longTerm).toBe(true);
+    expect(lot.daysToLongTerm).toBe(0);
+  });
+
+  it("404s an action that isn't on record", async () => {
+    const u = await createVerifiedUser();
+    const res = await u.session.http.post("/stocks/splits/apply", {
+      symbol: "TCS.NS", date: "2020-01-01",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("keeps one user's split prompt out of another's", async () => {
+    const owner = await createVerifiedUser();
+    const od = await demat(owner);
+    await buy(owner, {
+      symbol: "SPLITCO.NS", demat: od._id, qty: 10, buyPrice: 200,
+      buyDate: "2025-01-10", recordCash: false,
+    });
+
+    const stranger = await createVerifiedUser();
+    expect((await stranger.session.http.get("/stocks/splits")).data).toHaveLength(0);
+  });
+});
+
 describe("Stocks — global price cache", () => {
   // INVARIANT 10 — prices are keyed by symbol, not by user. Two holders of the
   // same stock share one row, which is what makes an un-batchable upstream

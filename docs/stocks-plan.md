@@ -216,6 +216,48 @@ feed), F&O, and intraday charts.
 
 ---
 
+## 7b. Corporate actions
+
+A split or bonus is the one event that silently breaks a stored position: the
+market price adjusts the instant it takes effect, but the lots don't. IRCTC's
+5:1 split would leave a ₹1,000 lot reading as an 80% loss overnight, and splits
+are routine on Indian exchanges.
+
+The same chart call already being made returns them — `?events=split` gives a
+numerator/denominator and a label (`5:1`), verified live against IRCTC (2021-10-28)
+and WIPRO (2024-12-03). They're recorded globally in `CorporateAction` nightly,
+and offered on the Stocks page for confirmation.
+
+**Recording is not applying.** Multiplying someone's share count without asking
+is worse than showing them a number they can question, so a split is never
+applied automatically. Applying one multiplies quantity, divides buy price, and
+leaves cost basis — and therefore the Securities bucket and net worth — untouched.
+The purchase date is untouched too: a split doesn't restart the holding period.
+Only lots bought strictly before the ex-date are affected; a later purchase
+already got the adjusted price.
+
+`StockLot.splitsApplied` records which ex-dates a lot has absorbed, so applying
+is idempotent. Historical sales keep their pre-split quantities, which is what
+actually happened — `qty` and `qtyRemaining` scale together, so the sold portion
+stays consistent when expressed in post-split shares.
+
+## 7c. Price history
+
+Unlike the metals feed — where the source publishes only today's rate, so a
+missed day is gone for good and interpolation is the only recovery — the chart
+endpoint serves years of daily closes from the same call. History is therefore
+backfilled outright on the first purchase of a symbol (and via
+`npm --prefix server run backfill:stocks` for symbols added earlier), so a new
+position has a chart immediately instead of accumulating one point a day.
+
+Rows are insert-only, so a live capture always beats a backfilled one.
+
+An earlier draft of this plan said not to reconstruct history backwards. That was
+written before per-lot tracking was chosen, and per-lot tracking is what makes it
+wrong: every buy and sale date is stored, so quantity held on any past day is
+directly computable, and prices for those days are now available. A true
+portfolio-value chart from day one is achievable and is the natural next step.
+
 ## 8. Invariants to test
 
 Spec tests, not characterization:
@@ -235,6 +277,17 @@ Spec tests, not characterization:
 10. Two users holding the same symbol trigger **one** upstream fetch.
 11. A non-INR symbol is rejected at add-time.
 12. `/stocks` and the stocks term in `/networth` both 403 when the wealth lock is on.
+13. A stock leg cannot be deleted or re-priced from the Transactions page; a note
+    edit still works.
+14. The Securities bucket equals the portfolio's open cost basis, exactly.
+15. A split doubles quantity, halves buy price, and leaves cost basis, the bucket
+    and the LTCG clock untouched.
+16. A split predating a lot's purchase is never offered for it, and applying one
+    twice adjusts nothing the second time.
+17. A quote is dated by its own last-trade time in IST, so a weekend or holiday
+    fetch re-writes the last session rather than minting a fake "today".
+18. Backfilled history never overwrites a live capture, and a day with no close
+    is dropped rather than stored as zero.
 
 ---
 

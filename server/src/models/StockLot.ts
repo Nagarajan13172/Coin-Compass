@@ -35,6 +35,13 @@ const stockLotSchema = new Schema(
      * shares bought before the user started tracking here.
      */
     buyTransaction: { type: Schema.Types.ObjectId, ref: "Transaction", default: null },
+    /**
+     * Effective dates of the splits/bonuses already reflected in `qty` and
+     * `buyPrice`. A split is applied at most once per lot, and only ever after
+     * the user confirms it — silently multiplying someone's share count is not
+     * something to do behind their back. See pendingSplits / applySplit.
+     */
+    splitsApplied: { type: [String], default: [] },
   },
   { timestamps: true }
 );

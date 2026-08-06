@@ -27,10 +27,11 @@ const stockPriceSchema = new Schema(
     source: { type: String, default: "" },
     fetchedAt: { type: Date, default: Date.now },
     /**
-     * True when this row was carried forward from an earlier day rather than
-     * captured live — a failed fetch, or a market holiday. The client greys the
-     * price and shows when it was actually from, so a Friday close is never
-     * dressed up as a live quote.
+     * Reserved for a row that did NOT come from a real session of `date`. Every
+     * current write path stores a genuine close under the session it belongs to
+     * (see captureSymbol), so this stays false — whether a price is *out of date*
+     * is derived at read time by comparing `date` with today, not stored here.
+     * Kept so a future carried-forward or interpolated row can say so.
      */
     stale: { type: Boolean, default: false },
   },

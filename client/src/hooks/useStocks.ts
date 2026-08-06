@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
-import type { InstrumentHit, Portfolio, StockSale } from "@/lib/types";
+import type { InstrumentHit, PendingSplit, Portfolio, StockSale } from "@/lib/types";
 
 export function usePortfolio() {
   return useQuery({
@@ -69,6 +69,27 @@ export function useDeleteLot() {
 export function useDeleteSale() {
   return useMutation({
     mutationFn: async (id: string) => (await api.delete(`/stocks/sales/${id}`)).data,
+    onSuccess: invalidate,
+  });
+}
+
+/** Splits that have happened since purchase and aren't reflected in the lots yet. */
+export function usePendingSplits() {
+  return useQuery({
+    queryKey: ["stocks", "splits"],
+    queryFn: async () => (await api.get<PendingSplit[]>("/stocks/splits")).data,
+  });
+}
+
+/**
+ * Apply a split the user has confirmed. Quantities and buy prices change, so the
+ * portfolio and the whole ledger view are invalidated — even though cost basis
+ * (and therefore net worth) deliberately stays put.
+ */
+export function useApplySplit() {
+  return useMutation({
+    mutationFn: async (payload: { symbol: string; date: string }) =>
+      (await api.post("/stocks/splits/apply", payload)).data,
     onSuccess: invalidate,
   });
 }
