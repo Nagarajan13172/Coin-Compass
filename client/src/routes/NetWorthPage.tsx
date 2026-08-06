@@ -37,12 +37,13 @@ import { useHoldings, useDeleteHolding } from "@/hooks/useHoldings";
 import { useLoans } from "@/hooks/useLoans";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useNetWorthHistory } from "@/hooks/useNetWorth";
+import { usePortfolio } from "@/hooks/useStocks";
 import { useByCategory, useSummary } from "@/hooks/useReports";
 import { periodRange } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { SUBTYPE_META, CHART_PALETTE, LOAN_TYPE_META, holdingGrowth } from "@/lib/networth";
-import type { Account, CategoryDatum, Holding, HoldingClass, Loan } from "@/lib/types";
+import type { Account, CategoryDatum, Holding, HoldingClass, Loan, Portfolio } from "@/lib/types";
 import { toast } from "sonner";
 
 /** Group a class's holdings into donut data by subtype. */
@@ -76,6 +77,7 @@ export default function NetWorthPage() {
   const { data: holdings, isLoading: holdingsLoading } = useHoldings();
   const { data: loans } = useLoans();
   const { data: accounts } = useAccounts();
+  const { data: portfolio } = usePortfolio();
   const history = useNetWorthHistory();
 
   const monthRange = useMemo(() => {
@@ -91,17 +93,22 @@ export default function NetWorthPage() {
   );
   const activeLoans = useMemo(() => (loans ?? []).filter((l) => l.status === "active"), [loans]);
 
+  // Stock lots are valued at market and folded into `investment`, exactly as
+  // computeNetWorthBreakdown does server-side. The two computations are separate
+  // by design (this one is instant, that one is the snapshot), so they have to be
+  // changed together or the cards and the trend's newest point drift apart.
+  const stocksTotal = portfolio?.totals.marketValue ?? 0;
+
   const totals = useMemo(() => {
     const saving = (holdings ?? []).filter((h) => h.class === "saving").reduce((s, h) => s + h.value, 0);
-    const investment = (holdings ?? [])
-      .filter((h) => h.class === "investment")
-      .reduce((s, h) => s + h.value, 0);
+    const investment =
+      (holdings ?? []).filter((h) => h.class === "investment").reduce((s, h) => s + h.value, 0) + stocksTotal;
     const accountsTotal = includedAccounts.reduce((s, a) => s + (a.balance ?? 0), 0);
     const holdingsTotal = saving + investment;
     const assets = accountsTotal + holdingsTotal;
     const liabilities = activeLoans.reduce((s, l) => s + l.outstanding, 0);
     return { saving, investment, accountsTotal, holdingsTotal, assets, liabilities, netWorth: assets - liabilities };
-  }, [holdings, includedAccounts, activeLoans]);
+  }, [holdings, includedAccounts, activeLoans, stocksTotal]);
 
   const expenditure = summary.data?.expense ?? 0;
 
@@ -118,9 +125,17 @@ export default function NetWorthPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-derive translated slice labels on language switch
   const savingData = useMemo(() => holdingsToData((holdings ?? []).filter((h) => h.class === "saving")), [holdings, i18n.language]);
   const investmentData = useMemo(
+    () => {
+      const list = (holdings ?? []).filter((h) => h.class === "investment");
+      // The stock portfolio enters the donut as one synthetic "stocks" holding.
+      // holdingsToData reads only subtype and value, and SUBTYPE_META already
+      // defines a stocks slice — so equity gets its colour and icon for free.
+      return holdingsToData(
+        stocksTotal > 0 ? [...list, { subtype: "stocks", value: stocksTotal } as Holding] : list
+      );
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-derive translated slice labels on language switch
-    () => holdingsToData((holdings ?? []).filter((h) => h.class === "investment")),
-    [holdings, i18n.language]
+    [holdings, stocksTotal, i18n.language]
   );
 
   const negative = totals.netWorth < 0;
@@ -179,6 +194,9 @@ export default function NetWorthPage() {
                 value={totals.holdingsTotal > 0 ? formatMoney(totals.holdingsTotal) : t("summary.noneYet")}
                 muted={totals.holdingsTotal === 0}
               />
+              {/* Stocks are already inside the holdings figure above; called out
+                  separately because they're the one line that moves daily. */}
+              {stocksTotal > 0 && <MiniRow label={t("summary.stocks")} value={formatMoney(stocksTotal)} />}
             </div>
           </CardContent>
         </Card>
@@ -230,7 +248,12 @@ export default function NetWorthPage() {
         </TabsContent>
 
         <TabsContent value="assets">
-          <AssetsTab holdings={holdings} accounts={includedAccounts} loading={holdingsLoading} />
+          <AssetsTab
+            holdings={holdings}
+            accounts={includedAccounts}
+            portfolio={portfolio}
+            loading={holdingsLoading}
+          />
         </TabsContent>
 
         <TabsContent value="liabilities">
@@ -393,10 +416,12 @@ function DonutCard({
 function AssetsTab({
   holdings,
   accounts,
+  portfolio,
   loading,
 }: {
   holdings: Holding[] | undefined;
   accounts: Account[];
+  portfolio: Portfolio | undefined;
   loading: boolean;
 }) {
   const { t } = useTranslation("wealth");
@@ -425,6 +450,7 @@ function AssetsTab({
   ];
   const accountsTotal = accounts.reduce((s, a) => s + (a.balance ?? 0), 0);
   const hasHoldings = Boolean(holdings && holdings.length > 0);
+  const positions = portfolio?.positions ?? [];
 
   return (
     <div>
@@ -470,6 +496,56 @@ function AssetsTab({
               <p className="px-1 text-sm text-muted-foreground">{t("assets.noAccounts")}</p>
             )}
           </div>
+
+          {/* Stocks — market-priced, so they live on their own page; this is a
+              read-only summary so the assets view is complete without it. */}
+          {positions.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">{t("assets.stocks")}</h3>
+                  <Link to="/stocks" className="text-xs font-medium text-primary hover:underline">
+                    {t("assets.manage")}
+                  </Link>
+                </div>
+                <span className="tnum text-sm text-muted-foreground">
+                  {formatMoney(portfolio?.totals.marketValue ?? 0)}
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {positions.map((p) => (
+                  <Link key={p.symbol} to="/stocks" className="block">
+                    <Card className="transition-colors hover:bg-accent">
+                      <CardContent className="flex items-center gap-3 p-4">
+                        <CategoryIcon
+                          icon={SUBTYPE_META.stocks.icon}
+                          color={SUBTYPE_META.stocks.color}
+                          size="md"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{p.ticker}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {t("assets.stockQty", { qty: p.qty })}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className="tnum block text-sm font-semibold">
+                            {formatMoney(p.marketValue)}
+                          </span>
+                          <span
+                            className={`tnum text-[11px] ${p.unrealized >= 0 ? "text-income" : "text-expense"}`}
+                          >
+                            {p.unrealized >= 0 ? "+" : "−"}
+                            {formatMoney(Math.abs(p.unrealized))}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Holdings — savings & investments */}
           {hasHoldings ? (

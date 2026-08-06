@@ -1,0 +1,121 @@
+{
+  "title": "Stocks",
+  "description": "Your demat holdings, priced from the market and counted in your net worth.",
+  "tabs": {
+    "holdings": "Holdings",
+    "sold": "Sold"
+  },
+  "summary": {
+    "value": "Portfolio value",
+    "dayChange": "Today",
+    "invested": "Invested",
+    "unrealized": "Unrealised P&L",
+    "realized": "Realised P&L",
+    "realizedSplit": "{{long}} long-term · {{short}} short-term",
+    "stale": "Prices last updated {{date}}. The market may have moved since.",
+    "unknownDate": "some time ago"
+  },
+  "refresh": {
+    "action": "Refresh",
+    "done": "Prices updated"
+  },
+  "noDemat": {
+    "title": "You don’t have a demat account yet",
+    "description": "Add one under Accounts to record the cash sitting with your broker.",
+    "action": "Go to Accounts"
+  },
+  "empty": {
+    "title": "No stocks yet",
+    "description": "Add a purchase and its live price will feed straight into your net worth."
+  },
+  "search": {
+    "placeholder": "Search a stock by name or ticker",
+    "searching": "Searching…",
+    "noResults": "No NSE or BSE stock matched that.",
+    "keepTyping": "Type at least two characters.",
+    "change": "Change"
+  },
+  "buy": {
+    "action": "Add stock",
+    "title": "Add a purchase",
+    "stock": "Stock",
+    "dematAccount": "Demat account",
+    "quantity": "Quantity",
+    "pricePerShare": "Price per share",
+    "buyDate": "Purchase date",
+    "charges": "Charges",
+    "chargesHint": "Brokerage, STT, stamp duty and GST together — as shown on your contract note.",
+    "payFromDemat": "Pay from this demat account",
+    "payFromDematHint": "Turn off for shares you already owned before tracking them here — nothing will be deducted.",
+    "totalCost": "Total cost",
+    "shortfall": "That’s {{amount}} more than this account holds. The balance will go negative until you add funds.",
+    "confirm": "Add purchase",
+    "added": "{{ticker}} added",
+    "pickStock": "Pick a stock first",
+    "pickDemat": "Pick a demat account",
+    "enterQty": "Enter a quantity",
+    "enterPrice": "Enter a price",
+    "noDematTitle": "No demat account",
+    "noDematDesc": "Create one under Accounts before adding stocks."
+  },
+  "sell": {
+    "action": "Sell",
+    "title": "Sell {{ticker}}",
+    "youHold": "You hold",
+    "sharesAt": "{{qty}} at {{price}} avg",
+    "quantity": "Quantity",
+    "pricePerShare": "Price per share",
+    "sellDate": "Sale date",
+    "sellAll": "Sell all",
+    "previewTitle": "What this sale realises",
+    "proceeds": "Proceeds",
+    "costBasis": "Cost basis",
+    "realized": "Realised P&L",
+    "longTerm": "Long-term",
+    "shortTerm": "Short-term",
+    "nearlyLongTerm": "Waiting {{days}} more day(s) would make part of this gain long-term.",
+    "fifoNote": "Sold from your {{count}} oldest lot(s) first, the way brokers report it.",
+    "confirm": "Record sale",
+    "recorded": "{{ticker}} sale recorded",
+    "enterQty": "Enter a quantity",
+    "enterPrice": "Enter a price",
+    "tooMany": "You only hold {{held}} share(s)"
+  },
+  "position": {
+    "qtyAtAvg": "{{qty}} shares · avg {{avg}}",
+    "ltp": "LTP {{price}}",
+    "allocation": "{{pct}}% of portfolio",
+    "lotsCount": "{{count}} lot(s)",
+    "ltcgIn": "Long-term in {{days}}d",
+    "ltcgTip": "Listed equity held over 12 months is taxed as long-term capital gains, usually at a lower rate.",
+    "stale": "Stale",
+    "staleTip": "Last priced {{date}} — not a live quote."
+  },
+  "lots": {
+    "line": "{{qty}} at {{price}} on {{date}}",
+    "longTerm": "Long-term",
+    "daysToLtcg": "{{days}}d to LTCG",
+    "deleteAria": "Delete this purchase",
+    "deleted": "Purchase deleted"
+  },
+  "sold": {
+    "title": "Realised gains",
+    "line": "{{qty}} at {{price}} on {{date}}",
+    "ltcg": "{{amount}} long-term",
+    "stcg": "{{amount}} short-term",
+    "deleteAria": "Delete this sale",
+    "deleted": "Sale deleted",
+    "emptyTitle": "Nothing sold yet",
+    "emptyDesc": "Once you sell, the profit or loss shows up here and in your reports."
+  },
+  "toast": {
+    "failed": "Something went wrong"
+  },
+  "splits": {
+    "title": "{{ticker}} had a {{label}} split",
+    "description": "Effective {{date}}. Your {{before}} shares become {{after}}.",
+    "costUnchanged": "What you paid doesn’t change, so your net worth won’t move.",
+    "apply": "Apply split",
+    "applied": "{{ticker}} lots adjusted"
+  }
+}

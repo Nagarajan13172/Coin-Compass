@@ -60,7 +60,9 @@ export const emailFallbackSchema = z.object({
 
 export const accountSchema = z.object({
   name: z.string().min(1).max(60),
-  type: z.enum(["cash", "bank", "card", "wallet", "upi", "savings"]).default("cash"),
+  // "receivable"/"payable"/"securities" are auto-managed and deliberately absent:
+  // the user creates a demat account by hand, but never a system bucket.
+  type: z.enum(["cash", "bank", "card", "wallet", "upi", "savings", "demat"]).default("cash"),
   initialBalance: z.number().default(0),
   currency: z.string().default("INR"),
   color: z.string().default("#2563EB"),
@@ -345,6 +347,45 @@ export const loanPaySchema = z.object({
   chargePct: z.number().min(0).max(100).optional(),
 });
 export const loanPrecloseSchema = z.object({ chargePct: z.number().min(0).max(100).default(0) });
+
+/**
+ * A stock symbol as the app stores it: an upstream-resolved NSE/BSE ticker. The
+ * suffix is required because it is what makes the symbol unambiguous — a bare
+ * "RELIANCE" matches several instruments across exchanges and currencies.
+ */
+const stockSymbol = z
+  .string()
+  .trim()
+  .min(3)
+  .max(24)
+  .regex(/^[A-Za-z0-9&_-]+\.(NS|BO)$/, "Pick a stock from the search results");
+
+/** Fees are one figure: brokerage + STT + stamp duty + GST, as the contract note shows. */
+const stockFees = z.number().min(0).max(1_000_000).default(0);
+
+export const stockBuySchema = z.object({
+  symbol: stockSymbol,
+  demat: objectId,
+  // Fractional quantities are legitimate (bonus/split adjustments), so this is
+  // not an integer — but zero would be a no-op position.
+  qty: z.number().positive("Quantity must be greater than 0"),
+  buyPrice: z.number().min(0),
+  buyDate: z.coerce.date().default(() => new Date()),
+  fees: stockFees,
+  note: z.string().max(280).default(""),
+  // False for shares bought before tracking began — see buyStock.
+  recordCash: z.boolean().default(true),
+});
+
+export const stockSellSchema = z.object({
+  symbol: stockSymbol,
+  demat: objectId,
+  qty: z.number().positive("Quantity must be greater than 0"),
+  sellPrice: z.number().min(0),
+  sellDate: z.coerce.date().default(() => new Date()),
+  fees: stockFees,
+  note: z.string().max(280).default(""),
+});
 
 export const settingsUpdateSchema = z.object({
   name: z.string().max(60).optional(),

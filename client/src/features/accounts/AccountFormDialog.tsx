@@ -26,9 +26,9 @@ import { RecordMeta } from "@/components/common/RecordMeta";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { useSettings } from "@/hooks/useSettings";
 import { enumLabel } from "@/lib/i18nLabels";
-import type { Account, AccountType } from "@/lib/types";
+import { CREATABLE_ACCOUNT_TYPES, type Account, type AccountType } from "@/lib/types";
 
-const TYPES: AccountType[] = ["cash", "bank", "card", "wallet", "upi", "savings"];
+const TYPES: AccountType[] = [...CREATABLE_ACCOUNT_TYPES];
 
 /** A sensible starter icon per account type (used for new accounts until the
  *  user picks their own). e.g. UPI → a phone, since GPay/PhonePe live there. */
@@ -39,6 +39,12 @@ const TYPE_ICON: Record<AccountType, string> = {
   wallet: "wallet",
   upi: "smartphone",
   savings: "piggy-bank",
+  demat: "trending-up",
+  // Auto-managed buckets never reach this picker, but the map stays exhaustive
+  // so adding an account type can't silently skip an icon.
+  receivable: "hand-coins",
+  payable: "receipt-text",
+  securities: "trending-up",
 };
 
 interface Props {

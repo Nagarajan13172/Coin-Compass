@@ -63,5 +63,20 @@
   "PERSON_EXISTS": "Someone with this name already exists",
   "PERSON_IN_USE": "{{name}} still has {{count}} entries. Delete anyway to keep them.",
   "PERSON_MERGE_SAME": "Pick two different people to merge",
-  "GROUP_EXISTS": "A group with this name already exists"
+  "GROUP_EXISTS": "A group with this name already exists",
+  "STOCKS_DISABLED": "Stock tracking isn’t switched on",
+  "STOCK_EXCHANGE_UNSUPPORTED": "Only NSE and BSE stocks can be tracked",
+  "STOCK_SYMBOL_UNPRICEABLE": "That symbol could not be priced in INR",
+  "STOCK_NOT_DEMAT": "Stocks must be held in a demat account",
+  "STOCK_NOT_HELD": "That stock isn’t in your portfolio",
+  "STOCK_INSUFFICIENT_QTY": "You only hold {{held}} share(s) of {{ticker}}",
+  "STOCK_LOT_NOT_FOUND": "Purchase not found",
+  "STOCK_LOT_PARTLY_SOLD": "Some of this purchase has been sold. Delete those sales first.",
+  "STOCK_SALE_NOT_FOUND": "Sale not found",
+  "STOCK_REFRESH_COOLDOWN": "Prices were just refreshed. Try again in {{minutes}} minute(s).",
+  "TXN_STOCK_LOT_DELETE": "This is part of a stock purchase. Delete the purchase from the Stocks page instead.",
+  "TXN_STOCK_LOT_EDIT": "This is part of a stock purchase. Edit the purchase from the Stocks page instead.",
+  "TXN_STOCK_SALE_DELETE": "This is part of a stock sale. Delete the sale from the Stocks page instead.",
+  "TXN_STOCK_SALE_EDIT": "This is part of a stock sale. Edit the sale from the Stocks page instead.",
+  "STOCK_SPLIT_NOT_FOUND": "That corporate action isn’t on record"
 }

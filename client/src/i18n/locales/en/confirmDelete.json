@@ -18,6 +18,8 @@
     "template": "template",
     "split": "shared bill",
     "person": "person",
-    "group": "group"
+    "group": "group",
+    "stockLot": "purchase",
+    "stockSale": "sale"
   }
 }

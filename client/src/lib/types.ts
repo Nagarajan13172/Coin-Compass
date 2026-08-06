@@ -1,6 +1,29 @@
 export type TxnType = "income" | "expense" | "transfer";
 export type CategoryType = "income" | "expense";
-export type AccountType = "cash" | "bank" | "card" | "wallet" | "upi" | "savings";
+// "receivable"/"payable"/"securities" are auto-managed buckets the app creates
+// (Money Lent, Money Owed, Stock Investments); the rest a user makes by hand.
+export type AccountType =
+  | "cash"
+  | "bank"
+  | "card"
+  | "wallet"
+  | "upi"
+  | "savings"
+  | "demat"
+  | "receivable"
+  | "payable"
+  | "securities";
+
+/** Account types a user can create. The system buckets are never offered. */
+export const CREATABLE_ACCOUNT_TYPES = [
+  "cash",
+  "bank",
+  "card",
+  "wallet",
+  "upi",
+  "savings",
+  "demat",
+] as const satisfies readonly AccountType[];
 export type BudgetPeriod = "weekly" | "monthly" | "yearly";
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
 export type PeriodKey = "week" | "month" | "year";
@@ -534,6 +557,8 @@ export interface NetWorthSnapshot {
   holdingsTotal: number;
   saving: number;
   investment: number;
+  /** Market value of stock lots. Already counted inside `investment`. */
+  stocksTotal: number;
   currency: string;
 }
 
@@ -654,4 +679,122 @@ export interface AppNotification {
 export interface NotificationList {
   items: AppNotification[];
   unread: number;
+}
+
+// ---- Stocks (demat holdings, priced from the global daily snapshots) ----
+
+export type StockExchange = "NSE" | "BSE";
+export type GainType = "STCG" | "LTCG";
+
+/** A search result from the symbol picker — the only way a symbol is chosen. */
+export interface InstrumentHit {
+  symbol: string; // "RELIANCE.NS"
+  ticker: string; // "RELIANCE"
+  exchange: StockExchange;
+  shortName: string;
+  longName: string;
+  sector: string;
+  industry: string;
+}
+
+/** One purchase. Positions are per-lot so buy dates survive for LTCG and FIFO. */
+export interface StockLot {
+  _id: string;
+  qty: number;
+  qtyRemaining: number;
+  buyPrice: number;
+  buyDate: string;
+  fees: number;
+  note: string;
+  /** Whole days until this lot turns long-term; 0 once it already has. */
+  daysToLongTerm: number;
+  longTerm: boolean;
+}
+
+export interface StockPosition {
+  symbol: string;
+  ticker: string;
+  name: string;
+  exchange: string;
+  sector: string;
+  qty: number;
+  avgCost: number;
+  investedCost: number;
+  /** null when nothing has been priced yet; the position then shows at cost. */
+  price: number | null;
+  priceDate: string | null;
+  /** True when the price is carried forward (weekend, holiday, failed fetch). */
+  stale: boolean;
+  dayChange: number;
+  dayChangePct: number;
+  marketValue: number;
+  unrealized: number;
+  unrealizedPct: number;
+  week52High: number;
+  week52Low: number;
+  allocationPct: number;
+  lots: StockLot[];
+}
+
+export interface PortfolioTotals {
+  marketValue: number;
+  investedCost: number;
+  unrealized: number;
+  unrealizedPct: number;
+  dayChange: number;
+  realizedPL: number;
+  realizedShortTerm: number;
+  realizedLongTerm: number;
+}
+
+export interface Portfolio {
+  /** False when the live feed is switched off server-side (STOCKS_ENABLED). */
+  configured: boolean;
+  positions: StockPosition[];
+  totals: PortfolioTotals;
+  pricedAt: string | null;
+  anyStale: boolean;
+}
+
+export interface StockSaleAllocation {
+  lot: string;
+  qty: number;
+  costBasis: number;
+  buyDate: string;
+  gainType: GainType;
+}
+
+export interface StockSale {
+  _id: string;
+  symbol: string;
+  ticker: string;
+  name: string;
+  qty: number;
+  sellPrice: number;
+  sellDate: string;
+  fees: number;
+  note: string;
+  allocations: StockSaleAllocation[];
+  realizedPL: number;
+  realizedShortTerm: number;
+  realizedLongTerm: number;
+}
+
+/**
+ * A split or bonus that has happened since you bought, and isn't reflected in
+ * your lots yet. Offered for confirmation rather than applied automatically —
+ * the market price adjusts instantly, so an unapplied split reads as a sudden
+ * loss, but silently multiplying a share count is worse than a questionable
+ * number. `ratio` is how many shares each old share became.
+ */
+export interface PendingSplit {
+  symbol: string;
+  ticker: string;
+  name: string;
+  date: string;
+  ratio: number;
+  label: string;
+  lots: number;
+  qtyBefore: number;
+  qtyAfter: number;
 }

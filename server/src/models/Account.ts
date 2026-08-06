@@ -5,6 +5,15 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 //   receivable — "Money Lent",  money owed TO you by other people (an asset)
 //   payable    — "Money Owed",  money YOU owe other people (a liability; its
 //                balance runs negative, which is what drags net worth down)
+//   demat      — a broker account. Its BALANCE is only the idle cash sitting
+//                there; the shares are StockLots valued at market price (see
+//                portfolioService). Keeping the two apart is what stops a funded
+//                demat account from being counted twice — once as cash and again
+//                as stock — in net worth.
+//   securities — auto-managed, one per user. Holds the cost basis of open lots so
+//                a purchase stays a balanced transfer instead of vanishing from
+//                the ledger. Excluded from totals (includeInTotal: false) because
+//                the lots supply the market value; see ensureSecuritiesAccount.
 export const ACCOUNT_TYPES = [
   "cash",
   "bank",
@@ -14,6 +23,8 @@ export const ACCOUNT_TYPES = [
   "savings",
   "receivable",
   "payable",
+  "demat",
+  "securities",
 ] as const;
 
 const accountSchema = new Schema(
