@@ -58,6 +58,14 @@ export const emailFallbackSchema = z.object({
   enabled: z.boolean(),
 });
 
+// Resetting a forgotten Net Worth passcode with the emailed code. `passcode` is
+// only length-capped here; the 4-32 rule lives in the service so a too-short
+// passcode gets the same friendly message as when setting one normally.
+export const wealthPasscodeResetSchema = z.object({
+  code: z.string().trim().min(4).max(10),
+  passcode: z.string().max(200),
+});
+
 export const accountSchema = z.object({
   name: z.string().min(1).max(60),
   // "receivable"/"payable"/"securities" are auto-managed and deliberately absent:

@@ -2,7 +2,7 @@ import { inject } from "vitest";
 import * as ob from "./outbox";
 
 export type { CapturedMail } from "./mailSink";
-export const { verificationToken, resetToken, emailOtp } = ob;
+export const { verificationToken, resetToken, emailOtp, wealthResetCode } = ob;
 
 const file = () => inject("outboxFile");
 

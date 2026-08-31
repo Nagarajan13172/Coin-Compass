@@ -11,6 +11,7 @@ import {
   disable2faSchema,
   regenerateBackupCodesSchema,
   emailFallbackSchema,
+  wealthPasscodeResetSchema,
 } from "../validators/schemas";
 import { signupWithPassword, signinWithPassword, changePassword as changePasswordService } from "../services/authService";
 import {
@@ -19,6 +20,10 @@ import {
   resendVerificationEmail,
 } from "../services/emailVerificationService";
 import { requestPasswordReset, consumePasswordReset } from "../services/passwordResetService";
+import {
+  requestWealthPasscodeReset as sendWealthResetCode,
+  consumeWealthPasscodeReset,
+} from "../services/wealthPasscodeResetService";
 import * as twoFactor from "../services/twoFactorService";
 import { setSessionCookie, clearSessionCookie } from "../auth/cookie";
 import { setPendingCookie, clearPendingCookie, verifyPending, type PendingSession } from "../auth/pending2fa";
@@ -27,6 +32,7 @@ import type { SessionMode } from "../auth/jwt";
 import { User, type UserDoc } from "../models/User";
 import { getSettings } from "../models/Settings";
 import { userId } from "../middleware/auth";
+import { maskEmail } from "../utils/maskEmail";
 import { env } from "../config/env";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -51,14 +57,6 @@ function publicUser(u: UserDoc & { _id: unknown }, mode: SessionMode = "user", w
 /** The available factors advertised to the client for a 2FA-enabled account. */
 function factorsFor(u: { twoFactorEmailFallback?: boolean | null }): string[] {
   return ["totp", ...(u.twoFactorEmailFallback ? ["email"] : [])];
-}
-
-/** Obscure an email for the 2FA screen: "jo•••@gmail.com". */
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!domain) return email;
-  const head = local.slice(0, 2);
-  return `${head}${"•".repeat(Math.max(1, local.length - head.length))}@${domain}`;
 }
 
 /** Read + validate the short-lived pending-2FA cookie, or 401. */
@@ -260,6 +258,29 @@ export async function lockWealth(req: Request, res: Response) {
   const user = await User.findById(uid);
   if (!user) throw new HttpError(401, "Not authenticated");
   res.json({ user: publicUser(user, "user", await wealthLockEnabledFor(uid)) });
+}
+
+/**
+ * Forgot the wealth passcode: mail a one-time code to the account's verified
+ * address. Replies with the masked address so the client can say where it went.
+ */
+export async function requestWealthReset(req: Request, res: Response) {
+  const { email } = await sendWealthResetCode(userId(req), req);
+  res.json({ ok: true, email });
+}
+
+/**
+ * Redeem that code to set a new wealth passcode. Like setting one normally, this
+ * leaves the person doing it unlocked for the session rather than demoting them.
+ */
+export async function resetWealthPasscode(req: Request, res: Response) {
+  const uid = userId(req);
+  const { code, passcode } = wealthPasscodeResetSchema.parse(req.body);
+  await consumeWealthPasscodeReset(uid, code, passcode);
+  setSessionCookie(res, uid, "superadmin");
+  const user = await User.findById(uid);
+  if (!user) throw new HttpError(401, "Not authenticated");
+  res.json({ user: publicUser(user, "superadmin", true) });
 }
 
 /** Which OAuth providers are configured (so the client only shows working buttons). */

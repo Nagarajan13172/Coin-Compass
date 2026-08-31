@@ -6,6 +6,8 @@ import {
   twoFactorVerifyLimiter,
   twoFactorEmailLimiter,
   wealthUnlockLimiter,
+  wealthResetRequestLimiter,
+  wealthResetLimiter,
 } from "../middleware/rateLimit";
 import * as auth from "../controllers/authController";
 import * as oauth from "../controllers/oauthController";
@@ -77,6 +79,9 @@ router.post("/auth/2fa/backup-codes", asyncHandler(auth.regenerateBackupCodes));
 // Wealth (Net Worth) view: unlock to superadmin with the passcode, or re-lock.
 router.post("/auth/unlock-wealth", wealthUnlockLimiter, asyncHandler(auth.unlockWealth));
 router.post("/auth/lock-wealth", asyncHandler(auth.lockWealth));
+// Forgot the passcode: mail a one-time code, then redeem it for a new passcode.
+router.post("/auth/wealth-passcode/reset-request", wealthResetRequestLimiter, asyncHandler(auth.requestWealthReset));
+router.post("/auth/wealth-passcode/reset", wealthResetLimiter, asyncHandler(auth.resetWealthPasscode));
 
 // Accounts
 router.get("/accounts", asyncHandler(accounts.listAccounts));

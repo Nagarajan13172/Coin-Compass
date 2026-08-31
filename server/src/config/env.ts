@@ -59,6 +59,13 @@ export const env = {
     emailCodeMaxAttempts: Number(process.env.TWO_FACTOR_EMAIL_CODE_MAX_ATTEMPTS ?? 5),
     backupCodeCount: Number(process.env.TWO_FACTOR_BACKUP_CODE_COUNT ?? 10),
   },
+  // Recovering a forgotten Net Worth (wealth) passcode: a one-time code mailed to
+  // the account's verified address. Kept apart from the 2FA knobs above because
+  // it guards a section of the app, not the sign-in itself.
+  wealthReset: {
+    codeTtlMinutes: Number(process.env.WEALTH_RESET_CODE_TTL_MINUTES ?? 15),
+    codeMaxAttempts: Number(process.env.WEALTH_RESET_CODE_MAX_ATTEMPTS ?? 5),
+  },
   // Live precious-metal (gold/silver) rates. These come from a FREE scrape of
   // GRT Jewellers' site (grtjewels.com) — no API key required — so the feature
   // is ON by default. Set METALS_ENABLED=false to turn it off; the test harness
