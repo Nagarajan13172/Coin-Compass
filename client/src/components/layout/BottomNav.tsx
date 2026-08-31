@@ -65,7 +65,7 @@ export function BottomNav() {
               {t("more")}
             </button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          <SheetContent side="bottom" className="pb-[calc(env(safe-area-inset-bottom)_+_1rem)]">
             <SheetHeader>
               <SheetTitle>{t("menu")}</SheetTitle>
             </SheetHeader>
@@ -104,13 +104,15 @@ function BottomLink({ to, labelKey, icon: Icon }: (typeof NAV_ITEMS)[number]) {
       end={to === "/"}
       className={({ isActive }) =>
         cn(
-          "flex h-full flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors",
+          "flex h-full min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium transition-colors",
           isActive ? "text-primary" : "text-muted-foreground"
         )
       }
     >
-      <Icon className="h-5 w-5" />
-      {t(labelKey)}
+      <Icon className="h-5 w-5 shrink-0" />
+      {/* Truncated, not wrapped: at 320px "Dashboard" and "Transactions" grew
+          into each other's columns with no gap between the words. */}
+      <span className="w-full truncate text-center">{t(labelKey)}</span>
     </NavLink>
   );
 }

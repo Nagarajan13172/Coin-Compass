@@ -38,7 +38,7 @@ export function NotificationBell() {
       <PopoverContent
         align="end"
         collisionPadding={12}
-        className="w-[22rem] max-w-[calc(100vw-1.5rem)] p-0"
+        className="w-[22rem] max-w-[calc(100vw_-_1.5rem)] p-0"
       >
         <div className="flex items-center justify-between border-b px-3 py-2.5">
           <p className="text-sm font-semibold">{t("title")}</p>

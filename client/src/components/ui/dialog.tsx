@@ -39,7 +39,11 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-xl",
+        // grid-cols-1 matters: without an explicit track the dialog's single
+        // implicit column is sized to its widest content, so a two-column field
+        // row grew the dialog past a phone's screen and clipped the right side.
+        // The width cap and tighter phone padding keep it inside the viewport.
+        "fixed left-[50%] top-[50%] z-50 grid grid-cols-1 w-[calc(100%_-_1.5rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-xl sm:p-6",
         className
       )}
       onInteractOutside={(e) => {

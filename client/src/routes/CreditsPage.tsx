@@ -179,7 +179,7 @@ export default function CreditsPage() {
 
       {isLoading ? (
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Skeleton className="h-24 rounded-xl" />
             <Skeleton className="h-24 rounded-xl" />
             <Skeleton className="h-24 rounded-xl" />
@@ -188,14 +188,14 @@ export default function CreditsPage() {
         </div>
       ) : people && people.length > 0 ? (
         <div className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Stat label={t("totals.owed")} tone="income" amount={totals.owedToYou} animId="credits-owed" />
             <Stat label={t("totals.owe")} tone="expense" amount={totals.youOwe} animId="credits-owe" />
             <Stat label={t("totals.net")} amount={totals.net} signed animId="credits-net" />
           </div>
 
           {active.length > 0 ? (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {active.map((p) => (
                 <PersonCard
                   key={p.person}
@@ -314,13 +314,15 @@ function PersonCard({
   const { person, net, entries } = summary;
   return (
     <Card data-testid="person-card" data-person={person}>
-      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-        <div className="flex items-center gap-3">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
+        {/* basis-44 is the floor that makes the actions wrap onto their own line
+            on a phone instead of squeezing the name down to nothing. */}
+        <div className="flex min-w-0 flex-1 basis-44 items-center gap-3">
           <Avatar className="h-10 w-10 border">
             <AvatarFallback className="text-sm font-semibold">{initials(person)}</AvatarFallback>
           </Avatar>
-          <div>
-            <CardTitle as="h2" className="text-base">
+          <div className="min-w-0">
+            <CardTitle as="h2" className="truncate text-base">
               {person}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -328,7 +330,7 @@ function PersonCard({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {net !== 0 && (
             <Badge variant={net > 0 ? "income" : "expense"}>
               {net > 0

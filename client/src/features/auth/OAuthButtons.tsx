@@ -25,7 +25,7 @@ export function OAuthButtons() {
         <span className="text-xs text-muted-foreground">{t("oauth.continueWith")}</span>
         <span className="h-px flex-1 bg-border" />
       </div>
-      <div className="grid gap-2">
+      <div className="grid grid-cols-1 gap-2">
         {enabled.map((p) => (
           <Button key={p} asChild variant="outline" className="w-full">
             <a href={`/api/auth/oauth/${p}`}>

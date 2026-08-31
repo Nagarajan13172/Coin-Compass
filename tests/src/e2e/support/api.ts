@@ -133,6 +133,24 @@ export async function seedUserWithData(): Promise<SeededUser> {
     nextRun: today,
   });
 
+  // Worst-case content for a phone: names long enough to need truncation, amounts
+  // long enough to need every digit group, and a demat account with a holding so
+  // the Stocks table has real rows. Layout bugs hide behind tidy sample data.
+  const demat = (await http.post("/accounts", { name: "Zerodha Demat — Family", type: "demat", initialBalance: 300000 })).data;
+  await http.post("/stocks/buy", { symbol: "TCS.NS", demat: demat._id, qty: 120, buyPrice: 100, fees: 25 });
+  await http.post("/accounts", { name: "HDFC Bank — Salary Account (Primary)", initialBalance: 1234567 });
+  await http.post("/credits", { person: "Venkataraman Subramaniam", direction: "borrowed", amount: 187500 });
+  await http.post("/goals", { name: "Down payment for the Chennai apartment", targetAmount: 5000000, savedAmount: 1234567 });
+  await http.post("/loans", { name: "Vehicle Loan — Hyundai Creta SX(O)", outstanding: 1875000, roi: 9.35, emi: 38450 });
+  await http.post("/transactions", {
+    type: "expense",
+    amount: 1234567,
+    account: acc._id,
+    category: cats[2]?._id,
+    date: new Date(now - 3600 * 1000).toISOString(),
+    note: "Annual insurance premium renewal for the whole family, paid in one go",
+  });
+
   return { email, password: DEFAULT_PASSWORD };
 }
 

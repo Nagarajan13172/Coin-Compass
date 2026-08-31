@@ -141,7 +141,7 @@ export default function LoansPage() {
           </TabsContent>
 
           <TabsContent value="loans">
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {loans.map((l, i) => (
                 <motion.div
                   key={l._id}
@@ -399,7 +399,7 @@ function LoansOverview({
   const byOutstanding = [...active].sort((a, b) => b.outstanding - a.outstanding);
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label={t("loanOverview.totalOutstanding")} tone="expense" amount={stats.totalOutstanding} animId="loans-outstanding" sub={outstandingSub} />
         <Stat label={t("loanOverview.monthlyEmi")} amount={stats.totalEmi} animId="loans-emi" sub={t("loanOverview.totalAcross", { loans: count })} />
         <Stat
@@ -411,7 +411,7 @@ function LoansOverview({
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle as="h2">{t("loanOverview.outstandingByLoan")}</CardTitle>

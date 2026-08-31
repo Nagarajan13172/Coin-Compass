@@ -83,7 +83,7 @@ export default function InsightsPage() {
           )}
 
           {/* headline comparison */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <CompareCard label={t("compare.spending")} metric={data.expense} noun={noun} goodWhenUp={false} animId="insights-spending" />
             <CompareCard label={t("compare.income")} metric={data.income} noun={noun} goodWhenUp animId="insights-income" />
             <CompareCard label={t("compare.net")} metric={data.net} noun={noun} goodWhenUp animId="insights-net" />
@@ -92,7 +92,7 @@ export default function InsightsPage() {
           {/* spending pace */}
           <PaceCard data={data} noun={noun} />
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* category movers */}
             <Card>
               <CardHeader>
@@ -241,7 +241,7 @@ function PaceCard({ data, noun }: { data: InsightsReport; noun: string }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">{t("pace.spentSoFar")}</p>
             <CountUp value={expense.current} id="insights-pace-spent" className="tnum mt-0.5 block text-xl font-bold" />
@@ -357,13 +357,13 @@ function InsightsSkeleton() {
   return (
     <div className="space-y-4">
       <Skeleton className="h-24 rounded-xl" />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-32 rounded-xl" />
         ))}
       </div>
       <Skeleton className="h-40 rounded-xl" />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Skeleton className="h-64 rounded-xl" />
         <Skeleton className="h-64 rounded-xl" />
       </div>

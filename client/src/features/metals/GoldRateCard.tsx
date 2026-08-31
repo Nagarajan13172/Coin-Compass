@@ -92,7 +92,7 @@ export function GoldRateCard() {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2">
           <Coins className="h-4 w-4" style={{ color: METAL_META.gold.color }} /> {t("gold.title")}
         </CardTitle>

@@ -122,7 +122,7 @@ export default function ReportsPage() {
       </p>
 
       {/* summary */}
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <SummaryStat label={t("txnType.income", { ns: "common" })} loading={summary.isLoading}>
           <CountUp
             value={summary.data?.income ?? 0}
@@ -149,7 +149,7 @@ export default function ReportsPage() {
       </div>
 
       {/* insights */}
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryStat
           label={t("avgDailySpend")}
           loading={summary.isLoading}
@@ -254,9 +254,9 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
             <CardTitle>{t("byCategory")}</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <Tabs value={grouping} onValueChange={(v) => setGrouping(v as "group" | "flat")}>

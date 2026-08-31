@@ -162,7 +162,7 @@ export default function DashboardPage() {
             {/* Net-worth hero sits on the far right of the summary row (wealth view only). */}
             {canSeeWealth && (
             <Card className="surface-gradient lg:col-span-1">
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {t("netWorth.title")}
                 </CardTitle>
@@ -230,10 +230,10 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {/* trend */}
             <Card className="lg:col-span-2">
-              <CardHeader className="flex-row items-center justify-between">
+              <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
                 <CardTitle>{t("cashFlow.title")}</CardTitle>
                 <div className="flex items-center gap-4 text-xs">
                   <Legend color="hsl(var(--income))" label={t("txnType.income", { ns: "common" })} />
@@ -264,7 +264,7 @@ export default function DashboardPage() {
             {/* accounts + live gold/silver rates */}
             <div className="space-y-4">
             <Card>
-              <CardHeader className="flex-row items-center justify-between">
+              <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
                 <CardTitle>{t("accounts.title")}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/accounts">{t("actions.viewAll", { ns: "common" })}</Link>
@@ -305,10 +305,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {/* spending donut */}
             <Card className="lg:col-span-2">
-              <CardHeader className="flex-row items-center justify-between">
+              <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
                 <CardTitle>{t("spending.title")}</CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
                   <Tabs value={grouping} onValueChange={(v) => setGrouping(v as "group" | "flat")}>
@@ -346,7 +346,7 @@ export default function DashboardPage() {
 
             {/* recent */}
             <Card>
-              <CardHeader className="flex-row items-center justify-between">
+              <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
                 <CardTitle>{t("recent.title")}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/transactions">{t("actions.viewAll", { ns: "common" })}</Link>
@@ -381,13 +381,13 @@ export default function DashboardPage() {
           {/* budgets */}
           {data.budgets.length > 0 && (
             <Card>
-              <CardHeader className="flex-row items-center justify-between">
+              <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
                 <CardTitle>{t("budgets.title")}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/budgets">{t("manage")}</Link>
                 </Button>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.budgets.map((b) => (
                   <Link
                     key={b._id}
@@ -444,7 +444,7 @@ export default function DashboardPage() {
           {/* goals */}
           {goals && goals.length > 0 && (
             <Card>
-              <CardHeader className="flex-row items-center justify-between">
+              <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="h-4 w-4 text-muted-foreground" /> {t("goals.title")}
                 </CardTitle>
@@ -452,7 +452,7 @@ export default function DashboardPage() {
                   <Link to="/goals">{t("manage")}</Link>
                 </Button>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {goals.slice(0, 3).map((g) => (
                   <Link key={g._id} to="/goals" className="space-y-2 rounded-lg border p-3 transition-colors hover:bg-accent">
                     <div className="flex items-center gap-2">
@@ -497,7 +497,7 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-muted-foreground" /> {t("dueSoon.title")}
         </CardTitle>
@@ -505,7 +505,7 @@ function UpcomingRecurring({ items }: { items: Recurring[] }) {
           <Link to="/recurring">{t("manage")}</Link>
         </Button>
       </CardHeader>
-      <CardContent className="grid gap-2 sm:grid-cols-2">
+      <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {items.map((r) => {
           const next = new Date(r.nextRun);
           const days = differenceInCalendarDays(next, new Date());
@@ -666,7 +666,7 @@ function CreditsSummaryCard({ owedToYou, youOwe }: { owedToYou: number; youOwe: 
   const { t } = useTranslation("dashboard");
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2">
           <HandCoins className="h-4 w-4 text-muted-foreground" /> {t("credits.title")}
         </CardTitle>
@@ -709,12 +709,12 @@ function EmptyChart() {
 function DashboardSkeleton() {
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Skeleton className="h-72 rounded-xl lg:col-span-2" />
         <Skeleton className="h-72 rounded-xl" />
       </div>
