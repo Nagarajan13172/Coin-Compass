@@ -63,6 +63,12 @@ export function emailOtp(mail: CapturedMail): string {
   return m[1];
 }
 
+export function wealthResetCode(mail: CapturedMail): string {
+  const m = /passcode reset code is:\s*(\d{6})/.exec(mail.text);
+  if (!m) throw new Error(`No 6-digit wealth reset code found in email:\n${mail.text}`);
+  return m[1];
+}
+
 function extractToken(text: string, pathHint: string): string {
   const line = text.split("\n").find((l) => l.includes(pathHint)) ?? text;
   const m = /[?&]token=([A-Za-z0-9\-_.%]+)/.exec(line);

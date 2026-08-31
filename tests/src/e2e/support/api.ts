@@ -2,7 +2,7 @@ import axios, { type AxiosInstance } from "axios";
 import { CookieJar } from "tough-cookie";
 import { wrapper } from "axios-cookiejar-support";
 import { API_URL, OUTBOX_FILE } from "../../harness/config";
-import { outboxIndexIn, verificationToken, waitForMailIn } from "../../harness/outbox";
+import { outboxIndexIn, verificationToken, waitForMailIn, wealthResetCode } from "../../harness/outbox";
 import { totpCode } from "../../harness/totp";
 
 let ipCounter = 500;
@@ -136,10 +136,59 @@ export async function seedUserWithData(): Promise<SeededUser> {
   return { email, password: DEFAULT_PASSWORD };
 }
 
+/** Create a verified user whose Net Worth section is hidden behind a passcode. */
+export async function seedUserWithWealthLock(): Promise<SeededUser & { passcode: string }> {
+  const http = apiSession();
+  const email = uniqueEmail();
+  const before = outboxIndexIn(OUTBOX_FILE);
+
+  const res = await http.post("/auth/signup", { email, password: DEFAULT_PASSWORD });
+  if (res.status !== 201) throw new Error(`seed signup failed: ${res.status} ${JSON.stringify(res.data)}`);
+  const mail = await waitForMailIn(OUTBOX_FILE, email, { since: before, match: /verify-email/ });
+  await http.post("/auth/verify-email", { token: verificationToken(mail) });
+
+  const passcode = "wealth-passcode";
+  const on = await http.post("/settings/wealth-passcode", { passcode });
+  if (on.status !== 200) throw new Error(`seed wealth lock failed: ${on.status} ${JSON.stringify(on.data)}`);
+
+  return { email, password: DEFAULT_PASSWORD, passcode };
+}
+
+/**
+ * Sign in over the API and hand back the session cookie for a browser context.
+ * The API client carries its own X-Forwarded-For, so a journey that isn't about
+ * logging in doesn't spend the browser's shared per-IP sign-in budget.
+ */
+export async function browserSessionCookie(email: string, password: string) {
+  const http = apiSession();
+  const res = await http.post("/auth/signin", { email, password });
+  if (res.status !== 200) throw new Error(`session signin failed: ${res.status} ${JSON.stringify(res.data)}`);
+
+  const jar = (http.defaults as { jar?: CookieJar }).jar;
+  const cookie = (await jar!.getCookies(API_URL)).find((c) => c.key === "mt_session");
+  if (!cookie) throw new Error("signin issued no mt_session cookie");
+
+  return {
+    name: cookie.key,
+    value: cookie.value,
+    domain: "127.0.0.1",
+    path: "/",
+    httpOnly: true,
+    secure: false,
+    sameSite: "Lax" as const,
+  };
+}
+
 /** The most recent verification token emailed to `email` (for the UI signup journey). */
 export async function latestVerificationToken(email: string, since: number): Promise<string> {
   const mail = await waitForMailIn(OUTBOX_FILE, email, { since, match: /verify-email/ });
   return verificationToken(mail);
+}
+
+/** The most recent Net Worth passcode reset code emailed to `email`. */
+export async function latestWealthResetCode(email: string, since: number): Promise<string> {
+  const mail = await waitForMailIn(OUTBOX_FILE, email, { since, match: /passcode reset code/ });
+  return wealthResetCode(mail);
 }
 
 export function outboxIndex(): number {

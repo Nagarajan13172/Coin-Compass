@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createVerifiedUser, DEFAULT_PASSWORD, type TestUser } from "../harness/users";
 import { newSession, type Session } from "../harness/http";
+import { expectNoMail, outboxIndex, waitForMail, wealthResetCode } from "../harness/mail";
 
 const PASSCODE = "s3cret-passcode";
+const NEW_PASSCODE = "r3set-passcode";
 
 /** Sign in as an existing user on a brand-new session (fresh cookie, fresh mode). */
 async function signInFresh(email: string): Promise<Session> {
@@ -124,6 +126,68 @@ describe("Wealth lock — unlocking", () => {
     expect((await u.session.http.get("/holdings")).status).toBe(403);
   });
 
+});
+
+describe("Wealth lock — forgotten passcode", () => {
+  it("mails a one-time code and swaps in a new passcode, leaving the session unlocked", async () => {
+    const u = await lockedUser();
+    const before = outboxIndex();
+
+    const req = await u.session.http.post("/auth/wealth-passcode/reset-request");
+    expect(req.status, JSON.stringify(req.data)).toBe(200);
+    // The address is masked — the client shows where the code went, not the address.
+    expect(req.data.email).toMatch(/^..•+@/);
+
+    const code = wealthResetCode(await waitForMail(u.email, { since: before, match: /passcode reset code/ }));
+    const done = await u.session.http.post("/auth/wealth-passcode/reset", { code, passcode: NEW_PASSCODE });
+    expect(done.status, JSON.stringify(done.data)).toBe(200);
+
+    // Like setting a passcode normally, resetting must not demote the person doing it.
+    expect(done.data.user.mode).toBe("superadmin");
+    expect(done.data.user.wealthLockEnabled).toBe(true);
+    expect((await u.session.http.get("/holdings")).status).toBe(200);
+    expect((await u.session.http.get("/networth/history")).status).toBe(200);
+
+    // The code is single-use: replaying it must not re-open the door.
+    expect((await u.session.http.post("/auth/wealth-passcode/reset", { code, passcode: "replay-code" })).status).toBe(401);
+
+    // And the lock itself is still on — only the passcode behind it changed.
+    expect((await u.session.http.post("/auth/lock-wealth")).status).toBe(200);
+    expect((await u.session.http.get("/holdings")).status).toBe(403);
+  });
+
+  it("rejects a wrong code, and a too-short passcode, without burning the real one", async () => {
+    const u = await lockedUser();
+    const before = outboxIndex();
+    expect((await u.session.http.post("/auth/wealth-passcode/reset-request")).status).toBe(200);
+    const code = wealthResetCode(await waitForMail(u.email, { since: before, match: /passcode reset code/ }));
+
+    const wrong = await u.session.http.post("/auth/wealth-passcode/reset", { code: "000000", passcode: NEW_PASSCODE });
+    expect(wrong.status).toBe(401);
+    expect((await u.session.http.get("/holdings")).status).toBe(403);
+
+    const short = await u.session.http.post("/auth/wealth-passcode/reset", { code, passcode: "abc" });
+    expect(short.status).toBe(400);
+
+    // Neither failure consumed the code, so the real one still works.
+    expect((await u.session.http.post("/auth/wealth-passcode/reset", { code, passcode: NEW_PASSCODE })).status).toBe(200);
+  });
+
+  it("refuses to mail a code when no lock is enabled", async () => {
+    // Otherwise a session could mint itself superadmin before the lock goes on.
+    const u = await createVerifiedUser();
+    const before = outboxIndex();
+    const res = await u.session.http.post("/auth/wealth-passcode/reset-request");
+    expect(res.status).toBe(400);
+    expect(res.data.code).toBe("WEALTH_LOCK_NOT_ENABLED");
+    await expectNoMail(u.email, before);
+    expect((await u.session.http.get("/auth/me")).data.user.mode).toBe("user");
+  });
+});
+
+describe("Wealth lock — brute-force protection", () => {
+  // Last in the file on purpose: it deliberately exhausts the per-IP unlock
+  // budget, which the server shares across every spec in the run.
   it("rate-limits repeated wrong passcodes", async () => {
     const u = await lockedUser();
     const statuses: number[] = [];

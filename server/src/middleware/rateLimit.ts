@@ -65,3 +65,12 @@ export const twoFactorEmailLimiter = makeLimiter(
  * 4 characters, so an unmetered endpoint would be trivially brute-forceable.
  */
 export const wealthUnlockLimiter = makeLimiter(15 * 60 * 1000, 8, "Too many unlock attempts.");
+
+/** Mailing a wealth-passcode reset code: keep the inbox from being flooded. */
+export const wealthResetRequestLimiter = makeLimiter(15 * 60 * 1000, 5, "Too many code requests.");
+
+/**
+ * Redeeming that code. Metered separately from `wealthUnlockLimiter` so someone
+ * who exhausted their unlock guesses (the very reason to reset) still has a way in.
+ */
+export const wealthResetLimiter = makeLimiter(15 * 60 * 1000, 8, "Too many attempts.");

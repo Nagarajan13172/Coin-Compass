@@ -169,7 +169,7 @@ All routes require a session cookie except the public auth endpoints. Most resou
 
 | Group | Endpoints |
 |------|-----------|
-| **Auth** | `auth/{signup,signin,logout,me}` · `auth/{verify-email,resend-verification,forgot-password,reset-password,change-password}` · `auth/2fa/{status,setup,enable,disable,verify,email,pending,backup-codes,email-fallback}` · `auth/providers` · `auth/oauth/:provider{,/callback}` · `auth/{unlock,lock}-wealth` |
+| **Auth** | `auth/{signup,signin,logout,me}` · `auth/{verify-email,resend-verification,forgot-password,reset-password,change-password}` · `auth/2fa/{status,setup,enable,disable,verify,email,pending,backup-codes,email-fallback}` · `auth/providers` · `auth/oauth/:provider{,/callback}` · `auth/{unlock,lock}-wealth` · `auth/wealth-passcode/{reset-request,reset}` |
 | **Core ledger** | `accounts` · `categories` · `transactions` (+ `summary`, `tags`, `balance`, `deleted`, `:id/restore`) · `templates` · `budgets` · `recurring` (+ `run`, `:id/{run,post-one,skip,transactions}`) |
 | **Wealth** | `goals` (+ `:id/contribute`) · `loans` (+ `:id/{pay,preclose}`) · `credits` (+ `summary`) · `holdings` · `networth/history` · `metals/{latest,history,refresh}` |
 | **Insight** | `reports/{summary,by-category,trend,by-account,insights,email-now}` · `dashboard` · `notifications` |
@@ -185,7 +185,7 @@ Clean modern fintech: trust-blue primary, emerald income / rose expense, Inter w
 
 - **Sign-in** protects your account; enable **two-factor auth** for a second factor (authenticator app, with emailed-OTP fallback and backup codes).
 - The **PIN** is an extra convenience lock on this device on top of your session — quick to enter, not a replacement for your password. It's stored only as a salted hash and never returned to the client.
-- The **wealth passcode** gates the net-worth view (holdings + trend) behind a separate unlock, so someone who reaches an already-signed-in device still can't see your full financial picture.
+- The **wealth passcode** gates the net-worth view (holdings + trend) behind a separate unlock, so someone who reaches an already-signed-in device still can't see your full financial picture. Forgotten it? "Forgot your passcode?" on the unlock dialog mails a 6-digit code to your verified address and lets you set a new one — proving you own the inbox, not merely the open session.
 
 ## 🛠️ Useful scripts
 

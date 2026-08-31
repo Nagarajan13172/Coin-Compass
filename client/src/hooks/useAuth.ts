@@ -130,6 +130,30 @@ export function useLockWealth() {
   });
 }
 
+/**
+ * Forgot the wealth passcode: mail a one-time code to the account address.
+ * Resolves with that address, masked, so the UI can say where the code went.
+ */
+export function useRequestWealthReset() {
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<{ ok: true; email: string }>("/auth/wealth-passcode/reset-request")).data.email,
+  });
+}
+
+/** Redeem the emailed code to set a new passcode; the session comes back unlocked. */
+export function useResetWealthPasscode() {
+  return useMutation({
+    mutationFn: async (body: { code: string; passcode: string }) =>
+      (await api.post<{ user: AuthUser }>("/auth/wealth-passcode/reset", body)).data.user,
+    onSuccess: (user) => {
+      queryClient.setQueryData(["me"], user);
+      invalidateWealthViews();
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}
+
 /** Confirm an email from the link's token; on success the server also signs us in. */
 export function useVerifyEmail() {
   return useMutation({
