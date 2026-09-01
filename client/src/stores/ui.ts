@@ -11,6 +11,8 @@ export type CategoryGrouping = "group" | "flat";
 /** Seed values for a brand-new transaction sheet. */
 export interface TxnPrefill {
   account?: string | null;
+  /** Destination for a transfer — e.g. paying into a goal's linked wallet. */
+  toAccount?: string | null;
   category?: string | null;
   date?: string | null;
   amount?: number | null;

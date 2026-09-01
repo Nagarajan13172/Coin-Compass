@@ -13,6 +13,7 @@ import {
   Trash2,
   TrendingUp,
   Trophy,
+  Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -44,8 +45,15 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import { fmtDate, dateFnsLocale } from "@/lib/dates";
 import { useGoals, useDeleteGoal, useContributeGoal } from "@/hooks/useGoals";
+import { useUIStore } from "@/stores/ui";
 import { GoalFormDialog } from "@/features/goals/GoalFormDialog";
-import type { Goal } from "@/lib/types";
+import type { Goal, RefLite } from "@/lib/types";
+
+/** The wallet a goal tracks, if it tracks one. Populated on the list response. */
+function linkedWallet(g: Goal): RefLite | null {
+  const link = g.linkedAccount;
+  return link && typeof link === "object" ? link : null;
+}
 import { toast } from "sonner";
 
 type ContributeState = { goal: Goal; mode: "add" | "withdraw" };
@@ -225,6 +233,13 @@ function GoalCard({
   onContribute: (mode: "add" | "withdraw") => void;
 }) {
   const { t } = useTranslation("planning");
+  const openTxnSheet = useUIStore((st) => st.openTxnSheet);
+  const wallet = linkedWallet(g);
+  /** For a tracked goal, "add money" means moving money into its wallet. */
+  function addMoney() {
+    if (wallet) openTxnSheet({ type: "transfer", prefill: { toAccount: wallet._id } });
+    else onContribute("add");
+  }
   const eta =
     g.monthsLeft != null
       ? `${t("goals.months", { count: g.monthsLeft })} · ${format(addMonths(new Date(), g.monthsLeft), "MMM yyyy", { locale: dateFnsLocale() })}`
@@ -256,6 +271,12 @@ function GoalCard({
             <p className="tnum text-xs text-muted-foreground">
               {t("goals.savedOfTarget", { saved: formatMoney(g.savedAmount), target: formatMoney(g.targetAmount) })}
             </p>
+            {wallet && (
+              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                <Wallet className="h-3 w-3 shrink-0" />
+                <span className="truncate">{t("goals.tracksWallet", { name: wallet.name })}</span>
+              </p>
+            )}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -264,14 +285,16 @@ function GoalCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {g.complete && (
-                <DropdownMenuItem onClick={() => onContribute("add")}>
-                  <Plus /> {t("goals.addMoney")}
+              {(g.complete || wallet) && (
+                <DropdownMenuItem onClick={addMoney}>
+                  <Plus /> {wallet ? t("goals.addToWallet") : t("goals.addMoney")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => onContribute("withdraw")} disabled={g.savedAmount <= 0}>
-                <Minus /> {t("goals.withdraw")}
-              </DropdownMenuItem>
+              {!wallet && (
+                <DropdownMenuItem onClick={() => onContribute("withdraw")} disabled={g.savedAmount <= 0}>
+                  <Minus /> {t("goals.withdraw")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil /> {t("actions.edit", { ns: "common" })}
               </DropdownMenuItem>
@@ -345,8 +368,8 @@ function GoalCard({
           )}
 
           {!g.complete && (
-            <Button variant="outline" size="sm" className="w-full" onClick={() => onContribute("add")}>
-              <Plus /> {t("goals.addMoney")}
+            <Button variant="outline" size="sm" className="w-full" onClick={addMoney}>
+              <Plus /> {wallet ? t("goals.addToWallet") : t("goals.addMoney")}
             </Button>
           )}
         </div>

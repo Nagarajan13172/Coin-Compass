@@ -198,7 +198,10 @@ export interface Goal {
   _id: string;
   name: string;
   targetAmount: number;
+  /** For a linked goal this is the wallet's live balance, resolved server-side. */
   savedAmount: number;
+  /** The account this goal tracks, if any — progress then follows its balance. */
+  linkedAccount?: RefLite | string | null;
   targetDate?: string | null;
   monthlyContribution: number;
   color: string;

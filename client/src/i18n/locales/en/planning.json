@@ -84,7 +84,9 @@
     "etaHelpEmpty": "Add a monthly saving amount to this goal to see a projected completion date.",
     "aheadMonths": "Ahead {{count}} mo",
     "behindMonths": "Behind {{count}} mo",
-    "onTrack": "On track"
+    "onTrack": "On track",
+    "tracksWallet": "Tracks {{name}}",
+    "addToWallet": "Add to wallet"
   },
   "contribute": {
     "addTo": "Add to {{name}}",
@@ -111,6 +113,11 @@
     "enterTarget": "Enter a target amount greater than 0",
     "updated": "Goal updated",
     "created": "Goal created",
-    "saveFailed": "Failed to save"
+    "saveFailed": "Failed to save",
+    "trackAccount": "Track an account",
+    "noAccount": "Not linked — I'll record savings myself",
+    "accountTaken": "{{name}} · already tracked by {{goal}}",
+    "trackAccountHint": "Link a wallet and its balance becomes this goal's progress — every deposit counts on its own.",
+    "trackAccountOnHint": "Progress follows this wallet's balance. Pay in to move the goal; take money out and it falls back."
   }
 }

@@ -20,7 +20,7 @@ A polished, full-stack **personal finance manager**. Track accounts and day-to-d
 
 ### Wealth
 
-- **Goals** — savings goals with target amounts/dates, progress, and contributions (manual or via a linked recurring rule).
+- **Goals** — savings goals with target amounts/dates, progress, and contributions (manual or via a linked recurring rule). A goal can instead **track a wallet**: link an account and its live balance becomes the progress, so a salary transfer or an ad-hoc top-up counts on its own and a withdrawal takes it back down. One account funds one goal, and manual contributions are refused on a tracked goal so nothing is counted twice.
 - **Loans** — real **EMI / amortization** schedules, extra payments, and pre-closure math.
 - **Credits** — informal IOUs with friends/family, optionally linked to a real transaction, with a net owed/owing summary.
 - **Investments (holdings)** — track holdings and their value as part of net worth.
