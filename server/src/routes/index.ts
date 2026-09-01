@@ -28,6 +28,7 @@ import * as notifications from "../controllers/notificationController";
 import * as reports from "../controllers/reportController";
 import * as metals from "../controllers/metalController";
 import * as stocks from "../controllers/stockController";
+import * as funds from "../controllers/fundController";
 import * as settings from "../controllers/settingsController";
 import { getDashboard } from "../controllers/dashboardController";
 import { exportCsv } from "../controllers/exportController";
@@ -152,6 +153,7 @@ router.use("/holdings", asyncHandler(requireWealthAccess));
 router.use("/networth", asyncHandler(requireWealthAccess));
 // Stocks reveal net-worth figures, so they sit behind the same lock as holdings.
 router.use("/stocks", asyncHandler(requireWealthAccess));
+router.use("/funds", asyncHandler(requireWealthAccess));
 
 router.get("/holdings", asyncHandler(holdings.listHoldings));
 router.post("/holdings", asyncHandler(holdings.createHolding));
@@ -208,6 +210,17 @@ router.post("/stocks/buy", asyncHandler(stocks.buy));
 router.post("/stocks/sell", asyncHandler(stocks.sell));
 router.delete("/stocks/lots/:id", asyncHandler(stocks.removeLot));
 router.delete("/stocks/sales/:id", asyncHandler(stocks.removeSale));
+
+// Mutual funds. Same ordering rule as stocks: the fixed paths are declared
+// before /funds/lots/:id so "search" is never read as an id.
+router.get("/funds/portfolio", asyncHandler(funds.portfolio));
+router.get("/funds/search", asyncHandler(funds.search));
+router.get("/funds/redemptions", asyncHandler(funds.redemptions));
+router.post("/funds/refresh", asyncHandler(funds.refresh));
+router.post("/funds/buy", asyncHandler(funds.buy));
+router.post("/funds/redeem", asyncHandler(funds.redeem));
+router.delete("/funds/lots/:id", asyncHandler(funds.removeLot));
+router.delete("/funds/redemptions/:id", asyncHandler(funds.removeRedemption));
 
 // Precious metals (gold/silver) — global daily rates
 router.get("/metals/latest", asyncHandler(metals.latestMetals));

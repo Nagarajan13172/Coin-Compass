@@ -18,7 +18,8 @@
     "noteEmpty": "Add accounts, holdings or loans to see your net worth.",
     "noteDebtFree": "Debt-free — every rupee is yours.",
     "notePositive": "Your assets comfortably cover what you owe.",
-    "stocks": "Stocks"
+    "stocks": "Stocks",
+    "funds": "Mutual funds"
   },
   "tabs": {
     "overview": "Overview",

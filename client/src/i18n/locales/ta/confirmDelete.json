@@ -20,6 +20,7 @@
     "person": "நபர்",
     "group": "குழு",
     "stockLot": "வாங்குதல்",
-    "stockSale": "விற்பனை"
+    "stockSale": "விற்பனை",
+    "fundLot": "வாங்கல்"
   }
 }

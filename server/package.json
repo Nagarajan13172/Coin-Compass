@@ -19,7 +19,8 @@
     "gapfill:metals": "tsx src/scripts/fillMetalGaps.ts",
     "backfill:stocks": "tsx src/scripts/backfillStockHistory.ts",
     "build": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:demo": "tsx src/scripts/seedDemoData.ts"
   },
   "dependencies": {
     "arctic": "^3.7.0",

@@ -20,6 +20,7 @@
     "person": "person",
     "group": "group",
     "stockLot": "purchase",
-    "stockSale": "sale"
+    "stockSale": "sale",
+    "fundLot": "purchase"
   }
 }

@@ -101,6 +101,16 @@ export const env = {
     // many are in flight at once to stay a polite client.
     maxConcurrentFetches: Number(process.env.STOCKS_MAX_CONCURRENT ?? 4),
   },
+  // Mutual funds, priced from AMFI's daily NAV file — free, no key, one file for
+  // all ~14,000 Indian schemes — so the feature is ON by default. Set
+  // FUNDS_ENABLED=false to hide it. "stub" prices a couple of fixed schemes with
+  // no network, which is how the test suite exercises buys and redemptions
+  // (mirrors STOCKS_PROVIDER=stub).
+  funds: {
+    enabled: process.env.FUNDS_ENABLED !== "false",
+    provider: process.env.FUNDS_PROVIDER === "stub" ? "stub" : "amfi",
+    navUrl: process.env.AMFI_NAV_URL ?? "https://portal.amfiindia.com/spages/NAVAll.txt",
+  },
   mail: {
     // When SMTP isn't configured, the mailer logs verification links to the console
     // instead of sending — so signup/verify works out of the box in local dev.

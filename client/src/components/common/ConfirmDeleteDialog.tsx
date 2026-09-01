@@ -27,7 +27,8 @@ export type DeleteItemKey =
   | "recurring"
   | "template"
   | "stockLot"
-  | "stockSale";
+  | "stockSale"
+  | "fundLot";
 
 /** Returned by onConfirm when the server reports the item still has dependents and
  *  the caller wants a second, explicit "delete anyway" step (e.g. an account that

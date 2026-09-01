@@ -86,7 +86,7 @@ export async function ensureSecuritiesAccount(uid: unknown): Promise<Types.Objec
 }
 
 /** Find — or lazily create — the realized gain/loss category. */
-async function ensureGainCategory(uid: unknown, kind: keyof typeof GAIN_CATEGORY): Promise<Types.ObjectId> {
+export async function ensureGainCategory(uid: unknown, kind: keyof typeof GAIN_CATEGORY): Promise<Types.ObjectId> {
   const spec = GAIN_CATEGORY[kind];
   const existing = await Category.findOne({ user: uid, system: spec.system });
   if (existing) return existing._id as Types.ObjectId;

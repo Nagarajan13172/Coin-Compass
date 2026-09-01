@@ -31,20 +31,36 @@ const POPULATE = [
  * and the Stock Investments bucket in step with the lots, so they are managed
  * from the Stocks page — never edited or deleted as loose transactions here.
  */
-function isStockLinked(txn: { stockLot?: unknown; stockSale?: unknown }): boolean {
-  return Boolean(txn.stockLot || txn.stockSale);
+function isStockLinked(txn: {
+  stockLot?: unknown;
+  stockSale?: unknown;
+  fundLot?: unknown;
+  fundRedemption?: unknown;
+}): boolean {
+  return Boolean(txn.stockLot || txn.stockSale || txn.fundLot || txn.fundRedemption);
 }
 
 /** Refuse to touch a stock leg, naming the record that actually owns it. */
 function assertNotStockLinked(
-  txn: { stockLot?: unknown; stockSale?: unknown },
+  txn: { stockLot?: unknown; stockSale?: unknown; fundLot?: unknown; fundRedemption?: unknown },
   action: "delete" | "edit"
 ): void {
   if (!isStockLinked(txn)) return;
+  const verb = action === "delete" ? "Delete" : "Edit";
+  if (txn.fundLot || txn.fundRedemption) {
+    const owner = txn.fundLot ? "purchase" : "redemption";
+    throw new HttpError(
+      400,
+      `This is part of a fund ${owner}. ${verb} the ${owner} from the Funds page instead.`,
+      txn.fundLot
+        ? action === "delete" ? "TXN_FUND_LOT_DELETE" : "TXN_FUND_LOT_EDIT"
+        : action === "delete" ? "TXN_FUND_REDEMPTION_DELETE" : "TXN_FUND_REDEMPTION_EDIT"
+    );
+  }
   const owner = txn.stockLot ? "purchase" : "sale";
   throw new HttpError(
     400,
-    `This is part of a stock ${owner}. ${action === "delete" ? "Delete" : "Edit"} the ${owner} from the Stocks page instead.`,
+    `This is part of a stock ${owner}. ${verb} the ${owner} from the Stocks page instead.`,
     txn.stockLot
       ? action === "delete" ? "TXN_STOCK_LOT_DELETE" : "TXN_STOCK_LOT_EDIT"
       : action === "delete" ? "TXN_STOCK_SALE_DELETE" : "TXN_STOCK_SALE_EDIT"
@@ -57,7 +73,16 @@ function assertNotStockLinked(
  * sale's realized gain, so changing one here desynchronises it from the shares.
  */
 function assertStockLegUnchanged(
-  txn: { stockLot?: unknown; stockSale?: unknown; amount: number; type: string; account: unknown; toAccount?: unknown },
+  txn: {
+    stockLot?: unknown;
+    stockSale?: unknown;
+    fundLot?: unknown;
+    fundRedemption?: unknown;
+    amount: number;
+    type: string;
+    account: unknown;
+    toAccount?: unknown;
+  },
   patch: Record<string, unknown>
 ): void {
   if (!isStockLinked(txn)) return;

@@ -38,6 +38,7 @@ import { useLoans } from "@/hooks/useLoans";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useNetWorthHistory } from "@/hooks/useNetWorth";
 import { usePortfolio } from "@/hooks/useStocks";
+import { useFundPortfolio } from "@/hooks/useFunds";
 import { useByCategory, useSummary } from "@/hooks/useReports";
 import { periodRange } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
@@ -98,17 +99,21 @@ export default function NetWorthPage() {
   // by design (this one is instant, that one is the snapshot), so they have to be
   // changed together or the cards and the trend's newest point drift apart.
   const stocksTotal = portfolio?.totals.marketValue ?? 0;
+  const { data: fundPortfolio } = useFundPortfolio();
+  const fundsTotal = fundPortfolio?.marketValue ?? 0;
 
   const totals = useMemo(() => {
     const saving = (holdings ?? []).filter((h) => h.class === "saving").reduce((s, h) => s + h.value, 0);
     const investment =
-      (holdings ?? []).filter((h) => h.class === "investment").reduce((s, h) => s + h.value, 0) + stocksTotal;
+      (holdings ?? []).filter((h) => h.class === "investment").reduce((s, h) => s + h.value, 0) +
+      stocksTotal +
+      fundsTotal;
     const accountsTotal = includedAccounts.reduce((s, a) => s + (a.balance ?? 0), 0);
     const holdingsTotal = saving + investment;
     const assets = accountsTotal + holdingsTotal;
     const liabilities = activeLoans.reduce((s, l) => s + l.outstanding, 0);
     return { saving, investment, accountsTotal, holdingsTotal, assets, liabilities, netWorth: assets - liabilities };
-  }, [holdings, includedAccounts, activeLoans, stocksTotal]);
+  }, [holdings, includedAccounts, activeLoans, stocksTotal, fundsTotal]);
 
   const expenditure = summary.data?.expense ?? 0;
 
@@ -130,12 +135,17 @@ export default function NetWorthPage() {
       // The stock portfolio enters the donut as one synthetic "stocks" holding.
       // holdingsToData reads only subtype and value, and SUBTYPE_META already
       // defines a stocks slice — so equity gets its colour and icon for free.
+      // Funds join the same way — SUBTYPE_META already has a mutual_funds slice,
+      // so they get their colour and icon for free.
+      const withEquity = stocksTotal > 0 ? [...list, { subtype: "stocks", value: stocksTotal } as Holding] : list;
       return holdingsToData(
-        stocksTotal > 0 ? [...list, { subtype: "stocks", value: stocksTotal } as Holding] : list
+        fundsTotal > 0
+          ? [...withEquity, { subtype: "mutual_funds", value: fundsTotal } as Holding]
+          : withEquity
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-derive translated slice labels on language switch
-    [holdings, stocksTotal, i18n.language]
+    [holdings, stocksTotal, fundsTotal, i18n.language]
   );
 
   const negative = totals.netWorth < 0;
@@ -197,6 +207,7 @@ export default function NetWorthPage() {
               {/* Stocks are already inside the holdings figure above; called out
                   separately because they're the one line that moves daily. */}
               {stocksTotal > 0 && <MiniRow label={t("summary.stocks")} value={formatMoney(stocksTotal)} />}
+              {fundsTotal > 0 && <MiniRow label={t("summary.funds")} value={formatMoney(fundsTotal)} />}
             </div>
           </CardContent>
         </Card>

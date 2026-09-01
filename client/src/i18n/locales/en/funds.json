@@ -1,0 +1,93 @@
+{
+  "page": {
+    "title": "Mutual Funds",
+    "description": "Your schemes, valued at the NAV AMFI published, and counted in your net worth.",
+    "addPurchase": "Add purchase",
+    "refresh": "Refresh NAVs",
+    "refreshed": "Updated {{count}} schemes",
+    "refreshFailed": "Couldn't refresh NAVs"
+  },
+  "empty": {
+    "title": "No funds yet",
+    "description": "Add a purchase — or set up a SIP in Recurring — and its value feeds straight into your net worth."
+  },
+  "totals": {
+    "value": "Current value",
+    "invested": "Invested",
+    "unrealised": "Unrealised P&L",
+    "realised": "Realised P&L",
+    "staleHint": "A scheme has no published NAV yet, so it's valued at cost until AMFI lists one."
+  },
+  "search": {
+    "placeholder": "Search a fund — name or AMC",
+    "searching": "Searching…",
+    "noResults": "No scheme matched",
+    "keepTyping": "Keep typing…",
+    "change": "Change"
+  },
+  "buy": {
+    "title": "Add a fund purchase",
+    "fund": "Scheme",
+    "byAmount": "By amount",
+    "byUnits": "By units",
+    "amount": "Amount invested",
+    "units": "Units allotted",
+    "nav": "NAV per unit",
+    "previewUnits": "≈ {{units}} units at this NAV",
+    "previewCost": "≈ {{amount}} at this NAV",
+    "paidFrom": "Paid from",
+    "date": "Date",
+    "folio": "Folio number",
+    "folioPlaceholder": "Optional",
+    "note": "Note",
+    "recordCash": "Take the money from that account",
+    "recordCashHint": "Turn this off for units you already held before tracking started here.",
+    "submit": "Add purchase",
+    "done": "Added {{name}}",
+    "failed": "Couldn't add that purchase",
+    "pickFund": "Pick a scheme first",
+    "pickAccount": "Pick the account it was paid from",
+    "enterAmount": "Enter an amount or a number of units"
+  },
+  "redeem": {
+    "title": "Redeem units",
+    "holding": "{{name}} · {{units}} units held",
+    "units": "Units to redeem",
+    "all": "Redeem all",
+    "nav": "NAV per unit",
+    "into": "Proceeds into",
+    "date": "Date",
+    "exitLoad": "Exit load / charges",
+    "proceeds": "You'll receive about {{amount}}",
+    "submit": "Redeem",
+    "done": "Redeemed from {{name}}",
+    "failed": "Couldn't redeem those units",
+    "enterUnits": "Enter how many units",
+    "tooMany": "You only hold {{held}} units",
+    "pickAccount": "Pick where the money lands"
+  },
+  "position": {
+    "unitsAt": "{{units}} units at ₹{{nav}}",
+    "navOn": "NAV {{date}}",
+    "folio": "Folio {{folio}}",
+    "longTermIn": "Long-term in {{days}}d",
+    "redeem": "Redeem",
+    "lots_one": "{{count}} purchase",
+    "lots_other": "{{count}} purchases",
+    "sip": "SIP",
+    "deleteLot": "Delete this purchase",
+    "lotLabel": "{{units}} units",
+    "lotDeleted": "Purchase deleted",
+    "lotDeleteFailed": "Couldn't delete that purchase"
+  },
+  "redemptions": {
+    "title": "Redemptions",
+    "units": "{{units}} units redeemed"
+  },
+  "sip": {
+    "label": "Mutual fund SIP",
+    "hint": "Each run buys this much of the scheme at the day's NAV, instead of posting an ordinary transaction.",
+    "none": "Not a SIP",
+    "folio": "Folio number"
+  }
+}

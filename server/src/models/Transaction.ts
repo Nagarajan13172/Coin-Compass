@@ -52,6 +52,12 @@ const transactionSchema = new Schema(
     stockSale: { type: Schema.Types.ObjectId, ref: "StockSale", default: null },
     stockCostBasis: { type: Number, default: 0 },
     stockRealized: { type: Number, default: 0 },
+    // The same three for mutual funds: the transfer legs a purchase and a
+    // redemption own, and the realised gain booked as income/expense.
+    fundLot: { type: Schema.Types.ObjectId, ref: "FundLot", default: null },
+    fundRedemption: { type: Schema.Types.ObjectId, ref: "FundRedemption", default: null },
+    fundCostBasis: { type: Number, default: 0 },
+    fundRealized: { type: Number, default: 0 },
     // Soft delete: when set, the row is in the "Recently deleted" trash — hidden
     // from every read (see hooks below) and hard-purged after the retention window.
     // Only side-effect-free transactions are soft-deleted; loan/credit-linked ones
