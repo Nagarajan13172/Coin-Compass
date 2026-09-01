@@ -13,6 +13,8 @@ export const NOTIFICATION_TYPES = [
   "recurring.overdue", // an active rule is past its run date and hasn't posted
   "budget.exceeded", // spend in a budget's period passed its limit
   "balance.low", // a (non-card) account balance went negative
+  "goal.cycle_rolled", // a repeating goal finished a cycle and started the next
+  "goal.behind", // at its current funding, a goal won't reach its target date
 ] as const;
 
 const notificationSchema = new Schema(

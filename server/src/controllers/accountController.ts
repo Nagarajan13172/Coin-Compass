@@ -6,6 +6,8 @@ import { reverseLoanPayment } from "../services/loanService";
 import { deleteCreditForTransaction } from "../services/creditService";
 import { accountSchema, accountUpdateSchema } from "../validators/schemas";
 import { userId } from "../middleware/auth";
+import { Goal } from "../models/Goal";
+import { linkedBalance } from "../services/goalService";
 import { HttpError } from "../middleware/errorHandler";
 
 export async function listAccounts(req: Request, res: Response) {
@@ -60,6 +62,15 @@ export async function deleteAccount(req: Request, res: Response) {
       { count: txnCount }
     );
   }
+  // A goal tracking this wallet keeps the figure it last showed, as its own
+  // stored total — deleting the account shouldn't silently reset it to zero.
+  const linkedGoal = await Goal.findOne({ user: uid, linkedAccount: id });
+  if (linkedGoal) {
+    linkedGoal.savedAmount = await linkedBalance(id, uid);
+    linkedGoal.linkedAccount = null;
+    await linkedGoal.save();
+  }
+
   if (req.query.force === "true") {
     // Reverse each transaction's side-effects before removing it, so deleting the
     // account doesn't strand a loan at a wrong outstanding or leave a credit

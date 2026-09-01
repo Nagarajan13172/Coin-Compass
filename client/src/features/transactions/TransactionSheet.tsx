@@ -122,6 +122,7 @@ export function TransactionSheet() {
       setType(defaultType);
       setAmount(prefill?.amount ?? 0);
       setAccountId(prefill?.account ?? accounts?.[0]?._id ?? "");
+      setToAccountId(prefill?.toAccount ?? "");
       setCategoryId(prefill?.category ?? null);
       setNote(prefill?.note ?? "");
       setDate(prefill?.date ?? format(new Date(), "yyyy-MM-dd"));

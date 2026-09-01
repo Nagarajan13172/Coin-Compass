@@ -11,6 +11,7 @@ import {
   skipNextOccurrence,
 } from "../services/recurringService";
 import { userId } from "../middleware/auth";
+import { assertGoalTakesContributions } from "../services/goalService";
 import { HttpError } from "../middleware/errorHandler";
 
 const populate = [
@@ -42,6 +43,7 @@ export async function listRecurring(req: Request, res: Response) {
 
 export async function createRecurring(req: Request, res: Response) {
   const data = recurringSchema.parse(req.body);
+  await assertGoalTakesContributions(data.goal, userId(req));
   if (!data.nextRun) data.nextRun = data.startDate;
   if (data.type !== "transfer") data.toAccount = null;
   if (data.type === "transfer") data.category = null;
@@ -54,6 +56,7 @@ export async function updateRecurring(req: Request, res: Response) {
   const data = recurringUpdateSchema.parse(req.body);
   const item = await RecurringTransaction.findOne({ _id: req.params.id, user: userId(req) });
   if (!item) throw new HttpError(404, "Recurring transaction not found");
+  if (data.goal !== undefined) await assertGoalTakesContributions(data.goal, userId(req));
 
   if (data.type && data.type !== "transfer") data.toAccount = null;
   if (data.type === "transfer") data.category = null;

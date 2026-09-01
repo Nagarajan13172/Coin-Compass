@@ -1,4 +1,7 @@
 import { Goal } from "../models/Goal";
+import { Account } from "../models/Account";
+import { computeAllBalances } from "./balanceService";
+import { HttpError } from "../middleware/errorHandler";
 
 /**
  * When a goal has just crossed (or fallen back below) its target, return the
@@ -58,6 +61,11 @@ export async function applyGoalContribution(
   if (!goalId || !amount) return 0;
   const goal = await Goal.findOne({ _id: goalId, user: userId });
   if (!goal) return 0;
+  // A goal that tracks a wallet reads its balance directly. Recording a stored
+  // contribution as well would count the same money twice — once when it lands
+  // in the account and again here. The API refuses these links up front; this is
+  // the backstop for a goal that gets linked after a rule was pointed at it.
+  if (goal.linkedAccount) return 0;
 
   const next = applyContribution(
     { savedAmount: goal.savedAmount ?? 0, targetAmount: goal.targetAmount, achievedAt: goal.achievedAt ?? null },
@@ -79,4 +87,82 @@ export async function reverseGoalContribution(
 ): Promise<void> {
   if (!goalId || !applied) return;
   await applyGoalContribution(goalId, userId, -applied, now);
+}
+
+
+/** True when this goal's progress comes from an account balance, not a stored total. */
+export async function isLinkedGoal(goalId: unknown, userId: unknown): Promise<boolean> {
+  if (!goalId) return false;
+  const goal = await Goal.findOne({ _id: goalId, user: userId }).select("linkedAccount").lean();
+  return Boolean(goal?.linkedAccount);
+}
+
+/**
+ * Reject pointing a transaction or a recurring rule at a wallet-tracking goal.
+ * Those goals already move with the account, so an explicit contribution on top
+ * would double-count; better a clear refusal than silently ignoring the link.
+ */
+export async function assertGoalTakesContributions(goalId: unknown, userId: unknown): Promise<void> {
+  if (await isLinkedGoal(goalId, userId)) {
+    throw new HttpError(400, "This goal tracks an account", "GOAL_TRACKS_ACCOUNT");
+  }
+}
+
+/**
+ * Validate a goal's account link: the account must exist, belong to the user, and
+ * not already be funding a different goal. Returns nothing; throws on a bad link.
+ */
+export async function assertAccountLinkable(
+  accountId: unknown,
+  userId: unknown,
+  exceptGoalId?: unknown
+): Promise<void> {
+  if (!accountId) return;
+  const account = await Account.findOne({ _id: accountId, user: userId }).select("_id").lean();
+  if (!account) throw new HttpError(404, "Account not found");
+  const clash = await Goal.findOne({
+    user: userId,
+    linkedAccount: accountId,
+    ...(exceptGoalId ? { _id: { $ne: exceptGoalId } } : {}),
+  })
+    .select("name")
+    .lean();
+  if (clash) {
+    throw new HttpError(409, "That account already funds another goal", "ACCOUNT_ALREADY_LINKED", {
+      name: clash.name,
+    });
+  }
+}
+
+/** The account id behind a link, whether it arrives raw or already populated. */
+function accountIdOf(link: unknown): string {
+  if (!link) return "";
+  if (typeof link === "object" && link !== null && "_id" in link) {
+    return String((link as { _id: unknown })._id);
+  }
+  return String(link);
+}
+
+/**
+ * Swap in live balances for every goal that tracks an account. Costs one balance
+ * aggregation for the whole list, and only when at least one goal is linked.
+ */
+export async function withLinkedBalances<T extends { savedAmount?: number; linkedAccount?: unknown }>(
+  goals: T[],
+  userId: string
+): Promise<T[]> {
+  if (!goals.some((g) => g.linkedAccount)) return goals;
+  const balances = await computeAllBalances(userId);
+  return goals.map((g) =>
+    g.linkedAccount
+      ? { ...g, savedAmount: Math.max(0, balances.get(accountIdOf(g.linkedAccount))?.balance ?? 0) }
+      : g
+  );
+}
+
+/** The live balance behind one linked goal (0 when it tracks nothing). */
+export async function linkedBalance(linkedAccount: unknown, userId: string): Promise<number> {
+  if (!linkedAccount) return 0;
+  const balances = await computeAllBalances(userId);
+  return Math.max(0, balances.get(accountIdOf(linkedAccount))?.balance ?? 0);
 }

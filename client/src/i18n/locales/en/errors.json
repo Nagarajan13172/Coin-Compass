@@ -78,5 +78,7 @@
   "TXN_STOCK_LOT_EDIT": "This is part of a stock purchase. Edit the purchase from the Stocks page instead.",
   "TXN_STOCK_SALE_DELETE": "This is part of a stock sale. Delete the sale from the Stocks page instead.",
   "TXN_STOCK_SALE_EDIT": "This is part of a stock sale. Edit the sale from the Stocks page instead.",
-  "STOCK_SPLIT_NOT_FOUND": "That corporate action isn’t on record"
+  "STOCK_SPLIT_NOT_FOUND": "That corporate action isn’t on record",
+  "GOAL_TRACKS_ACCOUNT": "This goal tracks an account — pay into that wallet instead",
+  "ACCOUNT_ALREADY_LINKED": "That account already funds {{name}}"
 }

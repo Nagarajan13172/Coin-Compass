@@ -349,7 +349,11 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
               (a real transaction still moves the money in your accounts). */}
           {type !== "income" &&
             (() => {
-              const options = (goals ?? []).filter((g) => !g.complete || g._id === goalId);
+              // Wallet-tracking goals are absent by design: they already move
+              // with their account, so a rule feeding one would count twice.
+              const options = (goals ?? []).filter(
+                (g) => (!g.complete && !g.linkedAccount) || g._id === goalId
+              );
               if (options.length === 0) return null;
               return (
                 <div className="space-y-1.5">

@@ -38,6 +38,14 @@ export function useContributeGoal() {
   });
 }
 
+/** Close a repeating goal's current cycle and start the next — paid early. */
+export function useRollGoalCycle() {
+  return useMutation({
+    mutationFn: async (id: string) => (await api.post(`/goals/${id}/roll`)).data,
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteGoal() {
   return useMutation({
     mutationFn: async (id: string) => (await api.delete(`/goals/${id}`)).data,

@@ -3,8 +3,11 @@ import { Notification, type NotificationDoc, NOTIFICATION_TYPES } from "../model
 import { RecurringTransaction } from "../models/RecurringTransaction";
 import { Budget } from "../models/Budget";
 import { Account } from "../models/Account";
+import { Goal } from "../models/Goal";
 import { getSpentForCategory } from "./reportService";
 import { computeAllBalances } from "./balanceService";
+import { fundingByGoal, projectionFor, rollDueGoalCycles } from "./goalCycleService";
+import { withLinkedBalances } from "./goalService";
 import { resolvePeriod, addDays, startOfDay, type Period } from "../utils/dateRange";
 import {
   DUE_SOON_DAYS,
@@ -14,6 +17,9 @@ import {
   dueDedupeKey,
   budgetDedupeKey,
   balanceDedupeKey,
+  goalBehindDedupeKey,
+  goalCycleDedupeKey,
+  monthKey,
 } from "./notificationLogic";
 
 type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -72,6 +78,78 @@ export async function runNotificationSweep(now: Date = new Date()): Promise<numb
   created += await sweepRecurringDue(now);
   created += await sweepBudgets(now);
   created += await sweepBalances(now);
+  created += await sweepGoals(now);
+  return created;
+}
+
+/**
+ * Repeating goals: roll any whose due date has arrived (a yearly insurance fund
+ * starts its next year the day the premium is due), and warn about goals that
+ * won't reach their target date at the rate they're actually being funded.
+ */
+async function sweepGoals(now: Date): Promise<number> {
+  let created = 0;
+
+  for (const { goal, cycles } of await rollDueGoalCycles(now)) {
+    try {
+      const inserted = await notify({
+        user: goal.user,
+        type: "goal.cycle_rolled",
+        params: {
+          name: goal.name,
+          amount: goal.targetAmount,
+          currency: goal.currency,
+          count: cycles,
+          date: goal.targetDate?.toISOString() ?? null,
+        },
+        link: "/goals",
+        dedupeKey: goalCycleDedupeKey(String(goal._id), goal.cycleCount ?? 1),
+      });
+      if (inserted) created += 1;
+    } catch (e) {
+      console.error("[notify] goal cycle notice failed for goal", String(goal._id), e);
+    }
+  }
+
+  const userIds: Types.ObjectId[] = await Goal.distinct("user");
+  for (const uid of userIds) {
+    try {
+      const goals = await withLinkedBalances(
+        await Goal.find({ user: uid, targetDate: { $ne: null } }).lean(),
+        String(uid)
+      );
+      const funding = await fundingByGoal(goals, String(uid));
+      for (const goal of goals) {
+        const projection = projectionFor(
+          {
+            savedAmount: goal.savedAmount ?? 0,
+            targetAmount: goal.targetAmount,
+            targetDate: goal.targetDate,
+            monthlyContribution: goal.monthlyContribution ?? 0,
+          },
+          funding.get(String(goal._id)),
+          now
+        );
+        if (projection.schedule !== "behind") continue;
+        const inserted = await notify({
+          user: uid,
+          type: "goal.behind",
+          params: {
+            name: goal.name,
+            amount: projection.fundedMonthly,
+            currency: goal.currency,
+            date: goal.targetDate?.toISOString() ?? null,
+            projected: projection.projectedDate,
+          },
+          link: "/goals",
+          dedupeKey: goalBehindDedupeKey(String(goal._id), monthKey(now)),
+        });
+        if (inserted) created += 1;
+      }
+    } catch (e) {
+      console.error("[notify] goal sweep failed for user", String(uid), e);
+    }
+  }
   return created;
 }
 

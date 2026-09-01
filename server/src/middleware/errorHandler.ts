@@ -43,6 +43,7 @@ const MESSAGE_CODES: Record<string, string> = {
   "Split total must be greater than 0": "SPLIT_TOTAL_INVALID",
   "Add at least one person to split with": "SPLIT_NO_PARTICIPANTS",
   "Goal not found": "GOAL_NOT_FOUND",
+  "This goal tracks an account": "GOAL_TRACKS_ACCOUNT",
   "Holding not found": "HOLDING_NOT_FOUND",
   "Your sign-in session expired. Please sign in again.": "SIGNIN_SESSION_EXPIRED",
   "That code is incorrect or expired": "CODE_INCORRECT",

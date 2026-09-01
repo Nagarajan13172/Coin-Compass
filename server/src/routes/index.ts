@@ -142,6 +142,7 @@ router.delete("/notifications", asyncHandler(notifications.removeAll));
 router.get("/goals", asyncHandler(goals.listGoals));
 router.post("/goals", asyncHandler(goals.createGoal));
 router.post("/goals/:id/contribute", asyncHandler(goals.contributeGoal));
+router.post("/goals/:id/roll", asyncHandler(goals.rollGoalCycle));
 router.patch("/goals/:id", asyncHandler(goals.updateGoal));
 router.delete("/goals/:id", asyncHandler(goals.deleteGoal));
 

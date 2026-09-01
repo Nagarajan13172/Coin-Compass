@@ -12,7 +12,9 @@ import {
   Target,
   Trash2,
   TrendingUp,
+  RefreshCw,
   Trophy,
+  Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -43,9 +45,16 @@ import {
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import { fmtDate, dateFnsLocale } from "@/lib/dates";
-import { useGoals, useDeleteGoal, useContributeGoal } from "@/hooks/useGoals";
+import { useGoals, useDeleteGoal, useContributeGoal, useRollGoalCycle } from "@/hooks/useGoals";
+import { useUIStore } from "@/stores/ui";
 import { GoalFormDialog } from "@/features/goals/GoalFormDialog";
-import type { Goal } from "@/lib/types";
+import type { Goal, RefLite } from "@/lib/types";
+
+/** The wallet a goal tracks, if it tracks one. Populated on the list response. */
+function linkedWallet(g: Goal): RefLite | null {
+  const link = g.linkedAccount;
+  return link && typeof link === "object" ? link : null;
+}
 import { toast } from "sonner";
 
 type ContributeState = { goal: Goal; mode: "add" | "withdraw" };
@@ -205,12 +214,19 @@ function SectionHeading({ title, count }: { title: string; count: number }) {
 }
 
 /** On-track / ahead / behind vs the target date, from the planned ETA. Label is built by the caller. */
+/**
+ * How the goal is doing against its date. The verdict comes from the server,
+ * which knows what's actually funding it (the recurring rules paying in, or a
+ * tracked wallet) rather than a planned figure typed once; the month count here
+ * is only for wording — "2 months late", "3 months early".
+ */
 function schedule(g: Goal): { kind: "ahead" | "onTrack" | "behind"; months: number; tone: "income" | "expense" } | null {
-  if (g.complete || !g.targetDate || g.monthsLeft == null) return null;
-  const diff = differenceInCalendarMonths(new Date(g.targetDate), new Date()) - g.monthsLeft;
-  if (diff > 0) return { kind: "ahead", months: diff, tone: "income" };
-  if (diff === 0) return { kind: "onTrack", months: 0, tone: "income" };
-  return { kind: "behind", months: -diff, tone: "expense" };
+  if (g.complete || !g.targetDate || g.schedule === "unknown" || !g.projectedDate) return null;
+  const diff = differenceInCalendarMonths(new Date(g.targetDate), new Date(g.projectedDate));
+  if (g.schedule === "behind") return { kind: "behind", months: Math.max(1, -diff), tone: "expense" };
+  return diff > 0
+    ? { kind: "ahead", months: diff, tone: "income" }
+    : { kind: "onTrack", months: 0, tone: "income" };
 }
 
 function GoalCard({
@@ -225,6 +241,15 @@ function GoalCard({
   onContribute: (mode: "add" | "withdraw") => void;
 }) {
   const { t } = useTranslation("planning");
+  const openTxnSheet = useUIStore((st) => st.openTxnSheet);
+  const wallet = linkedWallet(g);
+  const roll = useRollGoalCycle();
+  const repeating = g.repeat !== "none";
+  /** For a tracked goal, "add money" means moving money into its wallet. */
+  function addMoney() {
+    if (wallet) openTxnSheet({ type: "transfer", prefill: { toAccount: wallet._id } });
+    else onContribute("add");
+  }
   const eta =
     g.monthsLeft != null
       ? `${t("goals.months", { count: g.monthsLeft })} · ${format(addMonths(new Date(), g.monthsLeft), "MMM yyyy", { locale: dateFnsLocale() })}`
@@ -232,9 +257,14 @@ function GoalCard({
         ? t("goals.targetOn", { date: fmtDate(g.targetDate, "dd MMM yyyy") })
         : null;
   const etaHelp =
-    g.monthsLeft != null
-      ? t("goals.etaHelp", { amount: formatMoney(g.monthlyContribution) })
-      : t("goals.etaHelpEmpty");
+    g.monthsLeft == null
+      ? t("goals.etaHelpEmpty")
+      : g.fundedByRules > 0
+        ? t("goals.etaHelpRules", {
+            amount: formatMoney(g.fundedMonthly),
+            count: g.fundedByRules,
+          })
+        : t("goals.etaHelp", { amount: formatMoney(g.fundedMonthly) });
   const sched = schedule(g);
   const schedLabel = sched
     ? sched.kind === "ahead"
@@ -256,6 +286,21 @@ function GoalCard({
             <p className="tnum text-xs text-muted-foreground">
               {t("goals.savedOfTarget", { saved: formatMoney(g.savedAmount), target: formatMoney(g.targetAmount) })}
             </p>
+            {wallet && (
+              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                <Wallet className="h-3 w-3 shrink-0" />
+                <span className="truncate">{t("goals.tracksWallet", { name: wallet.name })}</span>
+              </p>
+            )}
+            {repeating && (
+              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                <RefreshCw className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {t(`goals.repeats.${g.repeat}`)}
+                  {g.cycleCount > 1 ? ` · ${t("goals.cycleNumber", { count: g.cycleCount })}` : ""}
+                </span>
+              </p>
+            )}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -264,14 +309,31 @@ function GoalCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {g.complete && (
-                <DropdownMenuItem onClick={() => onContribute("add")}>
-                  <Plus /> {t("goals.addMoney")}
+              {(g.complete || wallet) && (
+                <DropdownMenuItem onClick={addMoney}>
+                  <Plus /> {wallet ? t("goals.addToWallet") : t("goals.addMoney")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => onContribute("withdraw")} disabled={g.savedAmount <= 0}>
-                <Minus /> {t("goals.withdraw")}
-              </DropdownMenuItem>
+              {!wallet && (
+                <DropdownMenuItem onClick={() => onContribute("withdraw")} disabled={g.savedAmount <= 0}>
+                  <Minus /> {t("goals.withdraw")}
+                </DropdownMenuItem>
+              )}
+              {repeating && (
+                <DropdownMenuItem
+                  disabled={roll.isPending}
+                  onClick={async () => {
+                    try {
+                      await roll.mutateAsync(g._id);
+                      toast.success(t("goals.cycleClosed", { name: g.name }));
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : t("goals.cycleCloseFailed"));
+                    }
+                  }}
+                >
+                  <RefreshCw /> {t("goals.closeCycle")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil /> {t("actions.edit", { ns: "common" })}
               </DropdownMenuItem>
@@ -345,8 +407,8 @@ function GoalCard({
           )}
 
           {!g.complete && (
-            <Button variant="outline" size="sm" className="w-full" onClick={() => onContribute("add")}>
-              <Plus /> {t("goals.addMoney")}
+            <Button variant="outline" size="sm" className="w-full" onClick={addMoney}>
+              <Plus /> {wallet ? t("goals.addToWallet") : t("goals.addMoney")}
             </Button>
           )}
         </div>

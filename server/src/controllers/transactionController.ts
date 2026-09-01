@@ -4,7 +4,11 @@ import { Transaction } from "../models/Transaction";
 import { transactionSchema, transactionUpdateSchema } from "../validators/schemas";
 import { balancesAsOf } from "../services/balanceService";
 import { applyLoanPayment, reverseLoanPayment } from "../services/loanService";
-import { applyGoalContribution, reverseGoalContribution } from "../services/goalService";
+import {
+  applyGoalContribution,
+  assertGoalTakesContributions,
+  reverseGoalContribution,
+} from "../services/goalService";
 import { unlinkCreditTransaction, deleteCreditForTransaction } from "../services/creditService";
 import { splitIdForTransaction, unlinkSplitForTransaction } from "../services/splitService";
 import { userId } from "../middleware/auth";
@@ -251,6 +255,7 @@ export async function createTransaction(req: Request, res: Response) {
   const data = transactionSchema.parse(req.body);
   if (data.type !== "transfer") data.toAccount = null;
   if (data.type === "transfer") data.category = null;
+  await assertGoalTakesContributions(data.goal, uid);
   const txn = await Transaction.create({ ...data, user: uid });
   let touched = false;
   // Linked to a loan → principal reduces the balance, interest is tracked separately.
@@ -281,6 +286,7 @@ export async function updateTransaction(req: Request, res: Response) {
   if (!txn) throw new HttpError(404, "Transaction not found");
 
   assertStockLegUnchanged(txn, data);
+  if (data.goal !== undefined) await assertGoalTakesContributions(data.goal, uid);
 
   const prevLoan = txn.loan;
   const prevPrincipal = txn.loanPrincipal ?? 0;
