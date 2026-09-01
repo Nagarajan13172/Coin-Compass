@@ -2,8 +2,12 @@
  * Fill an existing account with lifelike sample data, so every screen has
  * something to show while you click around.
  *
- *   npm --prefix server run seed:demo -- --email you@example.com
- *   npm --prefix server run seed:demo -- --email you@example.com --clean
+ *   npm --prefix server run seed:demo -- --email you@example.com --db mytracker-local
+ *   npm --prefix server run seed:demo -- --email you@example.com --db mytracker-local --clean
+ *
+ * --db must name the database the connection actually lands on. MONGO_URI points
+ * at PRODUCTION in an ordinary checkout, and this script deletes as well as
+ * writes, so the target is never implicit.
  *
  * Unlike seed:all, this ADDS to whatever is already there — it exists for an
  * account that already has a few budgets but no spending against them. That
@@ -27,6 +31,14 @@ import { RecurringTransaction } from "../models/RecurringTransaction";
 /** Marks everything this script creates, so --clean can find it again. */
 const SEED_TAG = "seed";
 const SAMPLE = "(sample)";
+/** The account a wallet-tracking goal needs, named so it is obviously sample. */
+const SAVINGS_NAME = "Emergency Savings (sample)";
+/**
+ * SAMPLE matched as a literal. It contains parentheses, so used raw it is not a
+ * marker but a regex — "(sample)$" is a capture group, and the escaping has to be
+ * right or the query is rejected outright.
+ */
+const SAMPLE_RX = new RegExp(`${SAMPLE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
 
 function arg(flag: string): string | undefined {
   const args = process.argv.slice(2);
@@ -41,6 +53,9 @@ function arg(flag: string): string | undefined {
 const email = (arg("--email") ?? "").toLowerCase().trim();
 const clean = process.argv.includes("--clean");
 const months = Number(arg("--months") ?? 3);
+const dbFlag = (arg("--db") ?? "").trim();
+/** Also build the scenario the newer Goals features need in order to be visible. */
+const goalsShowcase = process.argv.includes("--goals");
 
 const rint = (a: number, b: number) => Math.floor(Math.random() * (b - a + 1)) + a;
 const pick = <T>(arr: T[]): T => arr[rint(0, arr.length - 1)];
@@ -69,7 +84,22 @@ async function main() {
     process.exit(1);
   }
   await connectDB();
-  console.log(`database: ${mongoose.connection.name}`);
+  const dbName = mongoose.connection.name;
+
+  // MONGO_URI points at production in an ordinary checkout, and this script both
+  // writes and (with --clean) deletes. So the database has to be named out loud:
+  // no amount of care in the command line is worth one silent run against prod.
+  if (dbFlag !== dbName) {
+    console.error(
+      `Refusing to touch "${dbName}".
+` +
+        `Name it to confirm:  --db ${dbName}
+` +
+        `Or point somewhere else:  MONGO_URI=mongodb://localhost:27017/mytracker-local`
+    );
+    process.exit(1);
+  }
+  console.log(`database: ${dbName}`);
 
   const user = await User.findOne({ email });
   if (!user) {
@@ -81,8 +111,8 @@ async function main() {
   // ---- Remove a previous run, and stop ----
   if (clean) {
     const txns = await Transaction.deleteMany({ user: uid, tags: SEED_TAG });
-    const goals = await Goal.deleteMany({ user: uid, name: { $regex: `\\${SAMPLE}$` } });
-    const rules = await RecurringTransaction.deleteMany({ user: uid, note: { $regex: `\\${SAMPLE}$` } });
+    const goals = await Goal.deleteMany({ user: uid, name: SAMPLE_RX });
+    const rules = await RecurringTransaction.deleteMany({ user: uid, note: SAMPLE_RX });
     console.log(
       `✓ removed ${txns.deletedCount} transactions, ${goals.deletedCount} goals, ${rules.deletedCount} rules`
     );
@@ -90,6 +120,7 @@ async function main() {
     // from one you set yourself. They're left alone rather than guessed at —
     // delete any you don't want from the Budgets page.
     console.log("• budgets left in place (nothing marks them as sample)");
+    console.log(`• "${SAVINGS_NAME}" left in place — delete it from Accounts if you want it gone`);
     await mongoose.disconnect();
     return;
   }
@@ -258,6 +289,75 @@ async function main() {
   ];
   await RecurringTransaction.insertMany(rules);
   console.log(`✓ ${rules.length} recurring rules`);
+
+  // ---- The Goals scenario, on request ----
+  // A wallet-tracking goal needs an account to track, and an ETA needs something
+  // paying in — so on an account with neither, both features look like they do
+  // nothing. This builds both, plus a repeating goal already past its due date:
+  // open the Goals page and it will have rolled into its next round by itself.
+  if (goalsShowcase) {
+    let savings = await Account.findOne({ user: uid, name: SAVINGS_NAME });
+    if (!savings) {
+      savings = await Account.create({
+        user: uid,
+        name: SAVINGS_NAME,
+        type: "savings",
+        icon: "piggy-bank",
+        color: "#10B981",
+        initialBalance: 125000,
+        currency: "INR",
+      });
+    }
+
+    if (!(await Goal.findOne({ user: uid, linkedAccount: savings._id }))) {
+      await Goal.create({
+        ...INR,
+        name: `Emergency fund ${SAMPLE}`,
+        targetAmount: 500000,
+        targetDate: monthsFromNow(24),
+        linkedAccount: savings._id,
+        color: "#F59E0B",
+        icon: "piggy-bank",
+      });
+    }
+
+    // The monthly transfer that funds it — this is what turns "Nothing paying in
+    // yet" into a projected date and a "₹15,000/month from 1 rule" line.
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 3);
+    await RecurringTransaction.create({
+      ...INR,
+      type: "transfer",
+      amount: 15000,
+      account: bank._id,
+      toAccount: savings._id,
+      payee: "Monthly saving",
+      note: `Into savings ${SAMPLE}`,
+      frequency: "monthly",
+      interval: 1,
+      startDate: soon,
+      nextRun: soon,
+    });
+
+    // Overdue on purpose: listing the goals rolls this into round 2.
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    await Goal.create({
+      ...INR,
+      name: `School fees ${SAMPLE}`,
+      targetAmount: 24000,
+      savedAmount: 24000,
+      targetDate: lastMonth,
+      monthlyContribution: 2000,
+      repeat: "yearly",
+      color: "#6366F1",
+      icon: "trophy",
+    });
+
+    console.log(
+      `✓ goals scenario: "${SAVINGS_NAME}", a goal tracking it, the rule funding it, and an overdue yearly goal`
+    );
+  }
 
   console.log(`\n✓ Seeded ${email}. Undo with the same command plus --clean.`);
   await mongoose.disconnect();
