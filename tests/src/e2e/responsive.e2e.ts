@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { DEFAULT_PASSWORD, seedUserWithData } from "./support/api";
+import { browserSessionCookie, DEFAULT_PASSWORD, seedUserWithData } from "./support/api";
 
 /**
  * Guards against horizontal overflow on a phone. The Samsung S24 Ultra reports a
@@ -29,12 +29,12 @@ const ROUTES = [
   "/settings",
 ];
 
+/** Seed the session over the API — this test is about layout, not the login form,
+ *  and driving the form would spend the browser's shared per-IP sign-in budget. */
 async function login(page: Page, email: string) {
-  await page.goto("/login");
-  await page.locator("#email").fill(email);
-  await page.locator("#password").fill(DEFAULT_PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/$/, { timeout: 15_000 });
+  await page.context().addCookies([await browserSessionCookie(email, DEFAULT_PASSWORD)]);
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Add transaction" }).first()).toBeVisible({ timeout: 15_000 });
 }
 
 /** Returns { overflow, offenders } for the current page at the current viewport. */
@@ -82,4 +82,90 @@ test("no horizontal overflow on any route at phone width", async ({ page }) => {
   // eslint-disable-next-line no-console
   console.log("OVERFLOW REPORT:\n" + JSON.stringify(bad, null, 2));
   expect(bad, `Routes with horizontal overflow:\n${JSON.stringify(bad, null, 2)}`).toEqual([]);
+});
+
+/**
+ * Overlays are where the worst phone breakage hid: a dialog is a grid, and without
+ * an explicit column its track grows to the widest field row, so the box spilled
+ * past both screen edges and clipped its own controls. Routes alone never caught
+ * it, because the dialog is portalled and clipped.
+ */
+test("dialogs and sheets fit inside a narrow phone", async ({ page }) => {
+  test.setTimeout(120_000);
+  const { email } = await seedUserWithData();
+  await page.setViewportSize({ width: 320, height: 832 });
+  await login(page, email);
+
+  /**
+   * How far the overlay's contents exceed it. The box itself is always viewport
+   * width, so a too-wide field row shows up as horizontal scroll *inside* the
+   * dialog (its own controls scrolled out of reach) rather than a wider box —
+   * plus any descendant whose edges land outside the screen.
+   */
+  async function overlayOverflow() {
+    return page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const problems: { kind: string; by: number; text: string }[] = [];
+      for (const dialog of Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))) {
+        const scroll = dialog.scrollWidth - dialog.clientWidth;
+        if (scroll > 1) {
+          problems.push({ kind: "scrolls sideways", by: scroll, text: (dialog.textContent ?? "").trim().slice(0, 40) });
+        }
+        const box = dialog.getBoundingClientRect();
+        if (box.right > vw + 1 || box.left < -1) {
+          problems.push({ kind: "box off-screen", by: Math.round(box.right - vw), text: "" });
+        }
+        for (const el of Array.from(dialog.querySelectorAll<HTMLElement>("*"))) {
+          const st = getComputedStyle(el);
+          if (st.display === "none" || st.visibility === "hidden" || st.position === "fixed") continue;
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0) continue;
+          if (rect.right > box.right + 1 && rect.left >= box.left - 1) {
+            problems.push({
+              kind: `${el.tagName.toLowerCase()} past the edge`,
+              by: Math.round(rect.right - box.right),
+              text: (el.textContent ?? "").trim().slice(0, 30),
+            });
+          }
+        }
+      }
+      return { vw, problems: problems.slice(0, 5) };
+    });
+  }
+
+  // The split-bill dialog: two-column field rows plus a participant editor.
+  await page.goto("/credits");
+  await page.getByRole("button", { name: /Split a bill/i }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.waitForTimeout(700); // let the open animation settle before measuring
+  let m = await overlayOverflow();
+  expect(m.problems, `split dialog does not fit ${m.vw}px:
+${JSON.stringify(m.problems, null, 2)}`).toEqual([]);
+  await page.keyboard.press("Escape");
+
+  // The account form: pickers, a colour grid and an icon search.
+  await page.goto("/accounts");
+  await page.getByRole("button", { name: /New account/i }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.waitForTimeout(700);
+  m = await overlayOverflow();
+  expect(m.problems, `account dialog does not fit ${m.vw}px:
+${JSON.stringify(m.problems, null, 2)}`).toEqual([]);
+  await page.keyboard.press("Escape");
+
+  // The add-transaction sheet, opened from the bottom bar's FAB.
+  await page.goto("/");
+  await page.getByRole("navigation").locator("button").first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.waitForTimeout(700);
+  m = await overlayOverflow();
+  expect(m.problems, `transaction sheet does not fit ${m.vw}px:
+${JSON.stringify(m.problems, null, 2)}`).toEqual([]);
+
+  // Nothing in the sheet may push the document sideways either.
+  const doc = await page.evaluate(() => ({
+    vw: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(doc.scrollWidth).toBeLessThanOrEqual(doc.vw + 1);
 });

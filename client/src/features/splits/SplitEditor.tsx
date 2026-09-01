@@ -108,8 +108,8 @@ export function SplitEditor({
 
   return (
     <div className="space-y-3 rounded-lg border p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-medium">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Users className="h-4 w-4 text-muted-foreground" />
           {t("editor.sharedBetween", { count: headcount })}
         </div>
@@ -146,16 +146,18 @@ export function SplitEditor({
       <div className="space-y-2">
         <Label>{t("editor.othersLabel")}</Label>
         {participants.map((p, i) => (
-          <div key={p.id} className="flex items-start gap-2">
+          // Phones give the name its own line: a picker squeezed beside a money
+          // field and a delete button had room for about three characters.
+          <div key={p.id} className="flex flex-wrap items-center gap-2">
             <PersonPicker
-              className="flex-1"
+              className="min-w-0 basis-full sm:flex-1"
               value={{ name: p.person, personId: p.personId }}
               onChange={(v) => updateParticipant(p.id, { person: v.name, personId: v.personId })}
               placeholder={t("editor.personPlaceholder", { n: i + 1 })}
               aria-label={t("editor.personAria", { n: i + 1 })}
             />
             <AmountInput
-              className="w-28"
+              className="min-w-0 flex-1 sm:w-28 sm:flex-none"
               value={p.amount ? String(p.amount) : ""}
               onChange={(v) => updateParticipant(p.id, { amount: Number(v) || 0 })}
               placeholder="0"

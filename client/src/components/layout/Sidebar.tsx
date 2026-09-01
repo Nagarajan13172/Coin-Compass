@@ -36,7 +36,8 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r bg-card/40 transition-[width] duration-300 lg:flex",
+        // pt keeps the brand clear of an iPad's status bar in the installed app.
+        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r bg-card/40 pt-[env(safe-area-inset-top)] transition-[width] duration-300 lg:flex",
         collapsed ? "w-[76px]" : "w-64"
       )}
     >

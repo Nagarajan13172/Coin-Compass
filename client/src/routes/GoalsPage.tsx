@@ -115,7 +115,7 @@ export default function GoalsPage() {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-52 rounded-xl" />
           ))}
@@ -149,7 +149,7 @@ export default function GoalsPage() {
           {active.length > 0 && (
             <section className="space-y-3">
               {completed.length > 0 && <SectionHeading title={t("goals.activeGoals")} count={active.length} />}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {active.map(renderCard)}
               </div>
             </section>
@@ -159,7 +159,7 @@ export default function GoalsPage() {
           {completed.length > 0 && (
             <section className="space-y-3">
               <SectionHeading title={t("goals.completed")} count={completed.length} />
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {completed.map(renderCard)}
               </div>
             </section>

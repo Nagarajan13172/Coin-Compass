@@ -53,7 +53,7 @@ export function GroupsSection() {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
           {t("groups.title")}

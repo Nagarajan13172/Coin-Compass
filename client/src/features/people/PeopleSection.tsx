@@ -81,7 +81,7 @@ export function PeopleSection() {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
           {t("section.title")}
@@ -121,17 +121,22 @@ export function PeopleSection() {
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="text-xs">{initials(p.name)}</AvatarFallback>
                   </Avatar>
+                  {/* The balance rides with the name rather than as a third column:
+                      on a 320px phone a fixed-width badge plus three actions left
+                      nothing for the name and pushed the row off-screen. */}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{enumLabel("relation", p.relation)}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                      <span className="truncate">{enumLabel("relation", p.relation)}</span>
+                      {net !== 0 && (
+                        <Badge variant="secondary" className="tabular-nums">
+                          {net > 0
+                            ? t("section.owesYou", { amount: formatMoney(Math.abs(net)) })
+                            : t("section.youOwe", { amount: formatMoney(Math.abs(net)) })}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  {net !== 0 && (
-                    <Badge variant="secondary" className="shrink-0 tabular-nums">
-                      {net > 0
-                        ? t("section.owesYou", { amount: formatMoney(Math.abs(net)) })
-                        : t("section.youOwe", { amount: formatMoney(Math.abs(net)) })}
-                    </Badge>
-                  )}
                   <div className="flex shrink-0 items-center">
                     <Button
                       variant="ghost"

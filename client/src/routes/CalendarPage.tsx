@@ -133,7 +133,7 @@ export default function CalendarPage() {
     <div>
       <PageHeader title={t("calendar.title")} description={t("calendar.description")} />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_380px]">
         <Card>
           <CardContent className="p-4">
             <div className="mb-3 flex items-center justify-between">

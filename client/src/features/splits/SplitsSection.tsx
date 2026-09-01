@@ -42,7 +42,7 @@ export function SplitsSection({ onSettle }: { onSettle: (prefill: CreditPrefill)
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
         <CardTitle as="h2" className="flex items-center gap-2 text-base">
           <Receipt className="h-4 w-4 text-muted-foreground" />
           {t("section.title")}

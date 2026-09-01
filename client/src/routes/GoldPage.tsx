@@ -66,7 +66,7 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
   const headline = resolved ? resolved.gram22k : price.pricePerGram24k;
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2">
           <Coins className="h-4 w-4" style={{ color: meta.color }} /> {t(`gold.metal.${metal}`)}
           {resolved && city && (
@@ -171,7 +171,7 @@ export default function GoldPage() {
 
       {isLoading ? (
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Skeleton className="h-44 rounded-xl" />
             <Skeleton className="h-44 rounded-xl" />
           </div>
@@ -191,7 +191,7 @@ export default function GoldPage() {
         />
       ) : (
         <div className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {latest.gold && <MetalBigCard price={latest.gold} metal="gold" city={city} />}
             {latest.silver && <MetalBigCard price={latest.silver} metal="silver" />}
           </div>

@@ -99,7 +99,10 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
+    // On iOS the installed app draws under the status bar (viewport-fit=cover +
+    // black-translucent), so the bar's own height has to absorb the top inset —
+    // otherwise the brand and controls sit under the clock and signal icons.
+    <header className="sticky top-0 z-30 flex h-[calc(4rem_+_env(safe-area-inset-top))] items-center gap-3 border-b bg-background/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md md:px-6">
       {/* mobile brand — min-w-0 + truncate so the wordmark yields on narrow phones
           instead of pushing the header past the viewport */}
       <div className="flex min-w-0 items-center gap-2 lg:hidden">
@@ -144,7 +147,7 @@ export function TopBar() {
               <Search className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="top" className="p-4">
+          <SheetContent side="top" className="p-4 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
             <SheetHeader className="sr-only">
               <SheetTitle>{t("search.title")}</SheetTitle>
             </SheetHeader>

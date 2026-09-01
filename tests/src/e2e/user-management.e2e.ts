@@ -9,6 +9,14 @@ import {
 } from "./support/api";
 
 /**
+ * Sign-in is rate-limited per IP, and every browser test in the run otherwise
+ * shares one — this file's handful of deliberate logins would then exhaust the
+ * budget for everyone. A forwarded address gives it its own bucket (the server
+ * runs behind `trust proxy`, which is how the API-side seeders isolate too).
+ */
+test.use({ extraHTTPHeaders: { "X-Forwarded-For": "10.40.0.11" } });
+
+/**
  * User Management — browser journeys against the real app + backend.
  * These are the critical happy paths a user actually clicks through; the
  * exhaustive edge-case coverage lives in the API suite.

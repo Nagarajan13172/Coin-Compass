@@ -48,7 +48,7 @@ export function NetWorthTrend({ data, loading }: { data: NetWorthSnapshot[] | un
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <div className="min-w-0">
           <CardTitle as="h2">{t("trend.title")}</CardTitle>
           {latest && (

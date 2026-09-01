@@ -123,7 +123,7 @@ export default function BudgetsPage() {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-52 rounded-xl" />
           ))}
@@ -199,7 +199,7 @@ export default function BudgetsPage() {
             </Card>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((b, i) => {
               const status = budgetStatus(b);
               const statusLabel =
@@ -302,7 +302,7 @@ export default function BudgetsPage() {
               <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
                 {t("budgets.unbudgetedDescription")}
               </p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {suggestions.map((c) => (
                   <div key={c.categoryId} className="flex items-center gap-3 rounded-xl border p-3">
                     <CategoryIcon icon={c.icon} color={c.color} size="sm" />

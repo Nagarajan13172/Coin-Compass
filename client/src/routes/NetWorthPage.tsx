@@ -153,7 +153,7 @@ export default function NetWorthPage() {
       <PageHeader title={t("netWorth.title")} description={t("netWorth.description")} />
 
       {/* summary */}
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="surface-gradient">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
@@ -353,7 +353,7 @@ function OverviewTab({
     );
   }
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>{t("overview.moneyMap")}</CardTitle>
@@ -476,7 +476,7 @@ function AssetsTab({
               <span className="tnum text-sm text-muted-foreground">{formatMoney(accountsTotal)}</span>
             </div>
             {accounts.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {accounts.map((a) => (
                   <Link key={a._id} to={`/accounts/${a._id}`} className="block">
                     <Card className="transition-colors hover:bg-accent">
@@ -512,7 +512,7 @@ function AssetsTab({
                   {formatMoney(portfolio?.totals.marketValue ?? 0)}
                 </span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {positions.map((p) => (
                   <Link key={p.symbol} to="/stocks" className="block">
                     <Card className="transition-colors hover:bg-accent">
@@ -559,7 +559,7 @@ function AssetsTab({
                         {formatMoney(items.reduce((s, h) => s + h.value, 0))}
                       </span>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {items.map((h, i) => (
                         <motion.div
                           key={h._id}
