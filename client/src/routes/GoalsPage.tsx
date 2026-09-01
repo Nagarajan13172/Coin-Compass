@@ -12,6 +12,7 @@ import {
   Target,
   Trash2,
   TrendingUp,
+  Repeat2,
   RefreshCw,
   Trophy,
   Wallet,
@@ -251,11 +252,20 @@ function GoalCard({
     else onContribute("add");
   }
   const eta =
-    g.monthsLeft != null
-      ? `${t("goals.months", { count: g.monthsLeft })} · ${format(addMonths(new Date(), g.monthsLeft), "MMM yyyy", { locale: dateFnsLocale() })}`
-      : g.targetDate
-        ? t("goals.targetOn", { date: fmtDate(g.targetDate, "dd MMM yyyy") })
-        : null;
+    g.projectedDate != null
+      ? t("goals.readyBy", { date: fmtDate(g.projectedDate, "MMM yyyy") })
+      : g.monthsLeft != null
+        ? `${t("goals.months", { count: g.monthsLeft })} · ${format(addMonths(new Date(), g.monthsLeft), "MMM yyyy", { locale: dateFnsLocale() })}`
+        : g.targetDate
+          ? t("goals.targetOn", { date: fmtDate(g.targetDate, "dd MMM yyyy") })
+          : null;
+  /** Where the ETA comes from: live rules if any are paying in, else the plan. */
+  const funding =
+    g.fundedMonthly > 0
+      ? g.fundedByRules > 0
+        ? t("goals.fundedByRules", { amount: formatMoney(g.fundedMonthly), count: g.fundedByRules })
+        : t("goals.fundedByPlan", { amount: formatMoney(g.fundedMonthly) })
+      : null;
   const etaHelp =
     g.monthsLeft == null
       ? t("goals.etaHelpEmpty")
@@ -382,27 +392,35 @@ function GoalCard({
                 : t("goals.achieved")}
             </p>
           ) : (
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    {eta ?? t("goals.noEta")}
-                    <Info className="h-3 w-3 opacity-60" />
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      {eta ?? t("goals.noEta")}
+                      <Info className="h-3 w-3 opacity-60" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[220px] text-xs">{etaHelp}</TooltipContent>
+                </Tooltip>
+                {sched && (
+                  <span
+                    className={cn(
+                      "shrink-0 font-medium",
+                      sched.tone === "income" ? "text-income" : "text-expense"
+                    )}
+                  >
+                    {schedLabel}
                   </span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[220px] text-xs">{etaHelp}</TooltipContent>
-              </Tooltip>
-              {sched && (
-                <span
-                  className={cn(
-                    "shrink-0 font-medium",
-                    sched.tone === "income" ? "text-income" : "text-expense"
-                  )}
-                >
-                  {schedLabel}
-                </span>
-              )}
+                )}
+              </div>
+              {/* What's actually paying for it — a recurring rule, a rule into the
+                  tracked wallet, or just the monthly figure the user planned. */}
+              <p className="flex items-center gap-1.5 text-muted-foreground">
+                <Repeat2 className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{funding ?? t("goals.nothingFunding")}</span>
+              </p>
             </div>
           )}
 
