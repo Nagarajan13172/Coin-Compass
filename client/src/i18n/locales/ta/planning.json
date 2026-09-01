@@ -103,7 +103,8 @@
     "fundedByRules_one": "{{count}} விதியிலிருந்து மாதம் {{amount}}",
     "fundedByRules_other": "{{count}} விதிகளிலிருந்து மாதம் {{amount}}",
     "fundedByPlan": "திட்டப்படி மாதம் {{amount}}",
-    "nothingFunding": "இதுவரை எதுவும் செலுத்தப்படவில்லை"
+    "nothingFunding": "இதுவரை எதுவும் செலுத்தப்படவில்லை",
+    "ofTarget": "/ {{target}}"
   },
   "contribute": {
     "addTo": "{{name}} இல் சேர்",

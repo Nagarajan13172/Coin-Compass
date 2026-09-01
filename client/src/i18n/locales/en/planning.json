@@ -103,7 +103,8 @@
     "fundedByRules_one": "{{amount}}/month from {{count}} rule",
     "fundedByRules_other": "{{amount}}/month from {{count}} rules",
     "fundedByPlan": "{{amount}}/month planned",
-    "nothingFunding": "Nothing paying in yet"
+    "nothingFunding": "Nothing paying in yet",
+    "ofTarget": "of {{target}}"
   },
   "contribute": {
     "addTo": "Add to {{name}}",

@@ -30,7 +30,9 @@ test("a goal linked to a wallet shows its balance and takes money by transfer", 
   // The seeded Savings account holds ₹1,25,000 — that IS the progress, with no
   // contribution ever recorded against the goal.
   await expect(page.getByText("Tracks Savings")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("₹1,25,000 of ₹5,00,000")).toBeVisible();
+  // The saved figure and its target are separate lines on the card.
+  await expect(page.getByText("₹1,25,000", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("of ₹5,00,000").first()).toBeVisible();
   // The card says what's paying in — nothing yet, since no rule feeds this wallet.
   await expect(page.getByText("Nothing paying in yet").first()).toBeVisible();
 
@@ -48,7 +50,7 @@ test("a goal linked to a wallet shows its balance and takes money by transfer", 
 
   // …and the goal has moved without anyone telling it about the transfer.
   await page.goto("/goals");
-  await expect(page.getByText("₹1,30,000 of ₹5,00,000")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("₹1,30,000", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
 });
 
 /**
