@@ -245,7 +245,9 @@ function GoalCard({
   const openTxnSheet = useUIStore((st) => st.openTxnSheet);
   const wallet = linkedWallet(g);
   const roll = useRollGoalCycle();
-  const repeating = g.repeat !== "none";
+  // Guard the missing case too: a goal saved before `repeat` existed has no
+  // such field, and `undefined !== "none"` would call it a repeating goal.
+  const repeating = Boolean(g.repeat) && g.repeat !== "none";
   /** For a tracked goal, "add money" means moving money into its wallet. */
   function addMoney() {
     if (wallet) openTxnSheet({ type: "transfer", prefill: { toAccount: wallet._id } });
@@ -293,8 +295,14 @@ function GoalCard({
           <CategoryIcon icon={g.icon} color={g.color} size="md" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{g.name}</p>
+            {/* The saved figure is the value on this card, so it gets the weight.
+                The target sits under it rather than beside it: at lakh scale the
+                pair doesn't fit one line, and a truncated amount is a lie. */}
+            <p className="tnum text-[15px] font-semibold leading-tight">
+              {formatMoney(g.savedAmount)}
+            </p>
             <p className="tnum text-xs text-muted-foreground">
-              {t("goals.savedOfTarget", { saved: formatMoney(g.savedAmount), target: formatMoney(g.targetAmount) })}
+              {t("goals.ofTarget", { target: formatMoney(g.targetAmount) })}
             </p>
             {wallet && (
               <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
@@ -375,7 +383,7 @@ function GoalCard({
               <CheckCircle2 className="h-3.5 w-3.5" /> {t("goals.completed")}
             </Badge>
           ) : (
-            <span className="tnum font-medium text-income">
+            <span className="tnum text-base font-semibold text-income">
               {t("goals.amountToGo", { amount: formatMoney(g.remaining) })}
             </span>
           )}

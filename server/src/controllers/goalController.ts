@@ -42,7 +42,18 @@ function withProgress(goal: Record<string, unknown>, funding?: GoalFunding, now 
   );
   const monthsLeft =
     !complete && projection.fundedMonthly > 0 ? Math.ceil(remaining / projection.fundedMonthly) : null;
-  return { ...goal, remaining, percent, complete, monthsLeft, ...projection };
+  return {
+    ...goal,
+    // Goals saved before repeating cycles existed have no `repeat` at all.
+    repeat: goal.repeat ?? "none",
+    cycleCount: goal.cycleCount ?? 1,
+    cycles: goal.cycles ?? [],
+    remaining,
+    percent,
+    complete,
+    monthsLeft,
+    ...projection,
+  };
 }
 
 export async function listGoals(req: Request, res: Response) {
