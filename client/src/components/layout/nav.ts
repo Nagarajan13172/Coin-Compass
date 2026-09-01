@@ -5,6 +5,7 @@ import {
   Target,
   Trophy,
   Landmark,
+  Layers,
   HandCoins,
   HeartHandshake,
   Coins,
@@ -73,6 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/net-worth", labelKey: "items.netWorth", icon: Landmark },
       { to: "/stocks", labelKey: "items.stocks", icon: LineChart },
+      { to: "/funds", labelKey: "items.funds", icon: Layers },
       { to: "/loans", labelKey: "items.loans", icon: HandCoins },
       { to: "/gold", labelKey: "items.gold", icon: Coins },
     ],
@@ -93,7 +95,7 @@ export const SETTINGS_ITEM: NavItem = { to: "/settings", labelKey: "items.settin
  * Destinations that reveal net-worth figures. Hidden from the nav (and blocked
  * at the route) in the everyday "user" view when the wealth lock is engaged.
  */
-export const WEALTH_ONLY_PATHS = ["/net-worth", "/stocks"];
+export const WEALTH_ONLY_PATHS = ["/net-worth", "/stocks", "/funds"];
 
 /** Flat list of every destination — used by the mobile bottom nav. */
 export const NAV_ITEMS: NavItem[] = [...NAV_GROUPS.flatMap((g) => g.items), SETTINGS_ITEM];

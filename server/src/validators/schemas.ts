@@ -169,6 +169,9 @@ const recurringBase = z.object({
   currency: z.string().default("INR"),
   loan: optionalObjectId,
   goal: optionalObjectId,
+  // A SIP: AMFI's scheme code, so each run buys `amount` worth of that fund.
+  fund: z.string().trim().max(20).nullish(),
+  fundFolio: z.string().trim().max(40).default(""),
   frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).default("monthly"),
   interval: z.number().int().positive().default(1),
   startDate: z.coerce.date().default(() => new Date()),
@@ -210,6 +213,39 @@ export const goalSchema = z.object({
 export const goalUpdateSchema = goalSchema.partial();
 // A contribution can be negative to correct/withdraw; the service clamps saved ≥ 0.
 export const goalContributeSchema = z.object({ amount: z.number() });
+
+/**
+ * Buying a fund: give either the rupees invested or the units allotted — a SIP
+ * knows the amount, a statement knows the units — and the other is derived at
+ * the NAV used.
+ */
+export const fundBuySchema = z
+  .object({
+    schemeCode: z.string().trim().min(1).max(20),
+    account: objectId,
+    amount: z.number().positive().nullish(),
+    units: z.number().positive().nullish(),
+    nav: z.number().positive().nullish(),
+    buyDate: z.coerce.date().nullish(),
+    fees: z.number().min(0).default(0),
+    folio: z.string().trim().max(40).default(""),
+    note: z.string().trim().max(280).default(""),
+    recordCash: z.boolean().default(true),
+  })
+  .refine((d) => Boolean(d.amount || d.units), {
+    message: "Enter an amount or a number of units",
+    path: ["amount"],
+  });
+
+export const fundRedeemSchema = z.object({
+  schemeCode: z.string().trim().min(1).max(20),
+  account: objectId,
+  units: z.number().positive(),
+  nav: z.number().positive().nullish(),
+  sellDate: z.coerce.date().nullish(),
+  fees: z.number().min(0).default(0),
+  note: z.string().trim().max(280).default(""),
+});
 
 const SAVING_SUBS = ["fixed_deposit", "recurring_deposit", "emergency_fund", "retirement_fund"] as const;
 const INVEST_SUBS = ["stocks", "mutual_funds", "real_estate", "bonds", "gold"] as const;

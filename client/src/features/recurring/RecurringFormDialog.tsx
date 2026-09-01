@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
+import { FundSearchCombobox } from "@/features/funds/FundSearchCombobox";
+import type { FundHit } from "@/lib/types";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useLoans } from "@/hooks/useLoans";
@@ -110,6 +112,9 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const [note, setNote] = useState("");
   const [loanId, setLoanId] = useState("");
   const [goalId, setGoalId] = useState("");
+  // A SIP: the rule buys this scheme instead of posting an ordinary transaction.
+  const [fund, setFund] = useState<FundHit | null>(null);
+  const [fundFolio, setFundFolio] = useState("");
   // The date strings as first loaded, so an edit only re-sends them when the user
   // actually changed them — this keeps a metadata-only edit from re-anchoring the schedule.
   const [initialStart, setInitialStart] = useState("");
@@ -136,6 +141,12 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
     setNote(recurring?.note ?? "");
     setLoanId(recurring?.loan?._id ?? "");
     setGoalId(recurring?.goal?._id ?? "");
+    setFund(
+      recurring?.fund
+        ? ({ schemeCode: recurring.fund, name: recurring.payee || recurring.fund } as FundHit)
+        : null
+    );
+    setFundFolio(recurring?.fundFolio ?? "");
   }, [open, recurring, accounts]);
 
   const preview = useMemo(
@@ -165,6 +176,8 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
       note,
       loan: type !== "income" && loanId ? loanId : null,
       goal: type !== "income" && goalId ? goalId : null,
+      fund: type !== "income" && fund ? fund.schemeCode : null,
+      fundFolio: fundFolio.trim(),
     };
     // Only send the calendar dates when they actually changed. On edit this keeps a
     // metadata-only save from being misread as a start-date change (which would
@@ -388,6 +401,36 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
                 </div>
               );
             })()}
+
+          {/* A SIP. The rule then buys units at the day's NAV rather than posting
+              a plain expense, so it can't also feed a goal or pay a loan. */}
+          {type !== "income" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="rule-fund">{t("sip.label", { ns: "funds" })}</Label>
+              <FundSearchCombobox
+                id="rule-fund"
+                value={fund}
+                onChange={(hit) => {
+                  setFund(hit);
+                  if (hit) {
+                    setGoalId("");
+                    setLoanId("");
+                  }
+                }}
+              />
+              {fund && (
+                <>
+                  <Input
+                    value={fundFolio}
+                    onChange={(e) => setFundFolio(e.target.value)}
+                    placeholder={t("sip.folio", { ns: "funds" })}
+                    aria-label={t("sip.folio", { ns: "funds" })}
+                  />
+                  <p className="text-xs text-muted-foreground">{t("sip.hint", { ns: "funds" })}</p>
+                </>
+              )}
+            </div>
+          )}
 
           {preview.length > 0 && (
             <div className="rounded-lg border bg-muted/30 p-3">

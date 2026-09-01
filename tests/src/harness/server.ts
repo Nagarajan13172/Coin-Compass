@@ -39,6 +39,10 @@ export async function startServer(
     // ₹100 with no network access, so the buy/sell ledger can be exercised
     // deterministically without reaching Yahoo.
     STOCKS_PROVIDER: "stub",
+    // Mutual funds stay ON, on the stub NAV provider: two fixed schemes at fixed
+    // NAVs, no network, so buying and redeeming is exercised deterministically
+    // without pulling AMFI's 14,000-row file into every test run.
+    FUNDS_PROVIDER: "stub",
     ...extraEnv,
   };
 

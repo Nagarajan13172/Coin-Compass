@@ -181,6 +181,9 @@ export interface Recurring {
   loan?: RefLite | null;
   /** When set, each posted occurrence adds its amount to this savings goal. */
   goal?: RefLite | null;
+  /** A SIP: AMFI scheme code whose units each occurrence buys at the day's NAV. */
+  fund?: string | null;
+  fundFolio?: string;
   frequency: Frequency;
   interval: number;
   startDate: string;
@@ -816,4 +819,77 @@ export interface PendingSplit {
   lots: number;
   qtyBefore: number;
   qtyAfter: number;
+}
+
+// ---- Mutual funds ----
+
+/** One scheme from the cached AMFI universe, as the search returns it. */
+export interface FundHit {
+  schemeCode: string;
+  name: string;
+  fundHouse: string;
+  /** "Direct" | "Regular" | "" */
+  plan: string;
+  /** "Growth" | "IDCW" | "" */
+  option: string;
+  category: string;
+  kind: string;
+  nav: number;
+  navDate: string | null;
+}
+
+export interface FundLotView {
+  id: string;
+  units: number;
+  unitsRemaining: number;
+  buyNav: number;
+  buyDate: string;
+  fees: number;
+  folio: string;
+  /** True when a SIP rule bought this installment rather than a person. */
+  sip: boolean;
+  daysToLongTerm: number;
+}
+
+export interface FundPosition {
+  schemeCode: string;
+  name: string;
+  fundHouse: string;
+  plan: string;
+  option: string;
+  kind: string;
+  folios: string[];
+  units: number;
+  avgNav: number;
+  invested: number;
+  nav: number;
+  navDate: string | null;
+  marketValue: number;
+  unrealizedPL: number;
+  unrealizedPct: number;
+  shortTermUnits: number;
+  daysToLongTerm: number | null;
+  lots: FundLotView[];
+}
+
+export interface FundPortfolio {
+  positions: FundPosition[];
+  invested: number;
+  marketValue: number;
+  unrealizedPL: number;
+  unrealizedPct: number;
+  realizedPL: number;
+  /** True when a holding has no published NAV — value falls back to cost. */
+  stale: boolean;
+}
+
+export interface FundRedemptionRow {
+  _id: string;
+  schemeCode: string;
+  units: number;
+  sellNav: number;
+  sellDate: string;
+  fees: number;
+  realizedPL: number;
+  note?: string;
 }

@@ -20,6 +20,12 @@ const recurringSchema = new Schema(
     // When set, each posted occurrence adds its amount to this savings goal's progress
     // (e.g. a monthly auto-debit that also counts toward a "Car Insurance" goal).
     goal: { type: Schema.Types.ObjectId, ref: "Goal", default: null },
+    // A SIP: each posted occurrence buys `amount` worth of this scheme at the
+    // NAV of the day, instead of posting an ordinary transaction. Holds AMFI's
+    // scheme code rather than a Fund ref — the scheme is what the AMC debits.
+    fund: { type: String, default: null, trim: true },
+    /** The folio the SIP's units are allotted into. A label, as on the lot. */
+    fundFolio: { type: String, default: "", trim: true },
     // recurrence rule
     frequency: { type: String, enum: RECURRENCE_FREQUENCIES, default: "monthly" },
     interval: { type: Number, default: 1, min: 1 }, // every N frequency units

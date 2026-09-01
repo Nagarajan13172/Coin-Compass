@@ -16,6 +16,7 @@ import { runNotificationSweep } from "./services/notificationService";
 import { purgeExpiredDeletions } from "./services/trashService";
 import { refreshMetalPrices, fillMetalGaps, isTodayCaptured } from "./services/metalPriceService";
 import { refreshStockPrices, syncAllSplits } from "./services/stockPriceService";
+import { refreshFundUniverse } from "./services/navService";
 import { sendDueReports } from "./services/reportEmailService";
 
 async function bootstrap() {
@@ -151,6 +152,22 @@ async function bootstrap() {
     }
   };
   await syncSplits("boot");
+
+  // Mutual-fund NAVs. AMFI publishes one file a day, late evening IST, so a
+  // morning refresh always has the previous business day's NAVs. On boot too,
+  // because a fresh install has no scheme cache to search at all.
+  const refreshNavs = async (why: string) => {
+    if (!env.funds.enabled) return;
+    try {
+      const count = await refreshFundUniverse();
+      console.log(`[funds] ${why}: cached ${count} schemes`);
+    } catch (e) {
+      console.error(`[funds] NAV refresh failed (${why})`, e);
+    }
+  };
+  await refreshNavs("boot");
+  cron.schedule("30 8 * * *", () => void refreshNavs("cron"), { timezone: "Asia/Kolkata" });
+
   cron.schedule("30 16 * * 1-5", () => void syncSplits("cron"), { timezone: "Asia/Kolkata" });
 
   // Email summary reports on the 1st (last month) and 15th (month-to-date) at 08:00

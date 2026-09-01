@@ -2,6 +2,7 @@ import { RecurringTransaction, type RecurringDoc } from "../models/RecurringTran
 import { Transaction } from "../models/Transaction";
 import { applyLoanPayment } from "./loanService";
 import { applyGoalContribution } from "./goalService";
+import { buyFund } from "./fundService";
 import { notify } from "./notificationService";
 import { ruleTitle, postedDedupeKey, endedDedupeKey } from "./notificationLogic";
 import { addDays, addMonths, addYears } from "../utils/dateRange";
@@ -77,6 +78,35 @@ async function postDueForRule(rule: RuleDoc, now: Date): Promise<number> {
 
   while (next <= now && iterations < GUARD_MAX) {
     if (rule.endDate && next > rule.endDate) break;
+
+    // A SIP doesn't post an ordinary transaction: it buys units at the day's NAV,
+    // and the purchase brings its own ledger leg (bank → Securities). If the buy
+    // fails — no NAV published yet, the account gone — stop without advancing, so
+    // the installment is retried on the next run rather than silently skipped.
+    if (rule.fund) {
+      try {
+        await buyFund(String(rule.user), {
+          schemeCode: rule.fund,
+          account: String(rule.account),
+          amount: rule.amount,
+          buyDate: new Date(next),
+          fees: 0,
+          folio: rule.fundFolio ?? "",
+          note: rule.note ?? "",
+          recordCash: true,
+          sip: rule._id,
+          recurring: rule._id,
+        });
+      } catch (e) {
+        console.error("[recurring] SIP purchase failed for rule", String(rule._id), e);
+        break;
+      }
+      created += 1;
+      rule.lastRun = new Date(next);
+      next = advance(next, rule.frequency, rule.interval);
+      iterations += 1;
+      continue;
+    }
 
     const posted = await Transaction.create({
       user: rule.user,
