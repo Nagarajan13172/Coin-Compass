@@ -98,7 +98,12 @@
       "monthly": "ஒவ்வொரு மாதமும்",
       "quarterly": "ஒவ்வொரு 3 மாதமும்",
       "yearly": "ஒவ்வொரு ஆண்டும்"
-    }
+    },
+    "readyBy": "{{date}} க்குள் தயார்",
+    "fundedByRules_one": "{{count}} விதியிலிருந்து மாதம் {{amount}}",
+    "fundedByRules_other": "{{count}} விதிகளிலிருந்து மாதம் {{amount}}",
+    "fundedByPlan": "திட்டப்படி மாதம் {{amount}}",
+    "nothingFunding": "இதுவரை எதுவும் செலுத்தப்படவில்லை"
   },
   "contribute": {
     "addTo": "{{name}} இல் சேர்",

@@ -98,7 +98,12 @@
       "monthly": "Every month",
       "quarterly": "Every 3 months",
       "yearly": "Every year"
-    }
+    },
+    "readyBy": "Ready by {{date}}",
+    "fundedByRules_one": "{{amount}}/month from {{count}} rule",
+    "fundedByRules_other": "{{amount}}/month from {{count}} rules",
+    "fundedByPlan": "{{amount}}/month planned",
+    "nothingFunding": "Nothing paying in yet"
   },
   "contribute": {
     "addTo": "Add to {{name}}",

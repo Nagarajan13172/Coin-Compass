@@ -31,6 +31,8 @@ test("a goal linked to a wallet shows its balance and takes money by transfer", 
   // contribution ever recorded against the goal.
   await expect(page.getByText("Tracks Savings")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("₹1,25,000 of ₹5,00,000")).toBeVisible();
+  // The card says what's paying in — nothing yet, since no rule feeds this wallet.
+  await expect(page.getByText("Nothing paying in yet").first()).toBeVisible();
 
   // Paying in goes through the wallet: the button opens a transfer aimed at it.
   await page.getByRole("button", { name: /Add to wallet/i }).first().click();
