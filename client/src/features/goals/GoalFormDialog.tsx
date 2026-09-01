@@ -25,7 +25,7 @@ import {
 import { useCreateGoal, useUpdateGoal, useGoals } from "@/hooks/useGoals";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useSettings } from "@/hooks/useSettings";
-import type { Goal, RefLite } from "@/lib/types";
+import { GOAL_REPEATS, type Goal, type GoalRepeat, type RefLite } from "@/lib/types";
 
 function refId(v: RefLite | string | null | undefined): string {
   return typeof v === "string" ? v : v?._id ?? "";
@@ -57,6 +57,7 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
   const [color, setColor] = useState("#6366F1");
   const [icon, setIcon] = useState("goal");
   const [linkedAccount, setLinkedAccount] = useState(NO_ACCOUNT);
+  const [repeat, setRepeat] = useState<GoalRepeat>("none");
   const linked = linkedAccount !== NO_ACCOUNT;
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
     setColor(goal?.color ?? "#6366F1");
     setIcon(goal?.icon ?? "goal");
     setLinkedAccount(refId(goal?.linkedAccount) || NO_ACCOUNT);
+    setRepeat(goal?.repeat ?? "none");
   }, [open, goal]);
 
   /** Which wallet each OTHER goal already tracks — one account funds one goal. */
@@ -89,6 +91,7 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
       // A tracked wallet supplies the saved figure; sending one would be ignored.
       savedAmount: linked ? undefined : Number(savedAmount) || 0,
       linkedAccount: linked ? linkedAccount : null,
+      repeat,
       monthlyContribution: Number(monthlyContribution) || 0,
       targetDate: targetDate ? new Date(targetDate).toISOString() : null,
       color,
@@ -191,6 +194,31 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
                 onChange={(e) => setTargetDate(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* One-time goals finish. A repeating one is a sinking fund: it starts
+              again on its due date, which is why the date matters here. */}
+          <div className="space-y-1.5">
+            <Label htmlFor="goal-repeat">{t("goalForm.repeat")}</Label>
+            <Select value={repeat} onValueChange={(v) => setRepeat(v as GoalRepeat)}>
+              <SelectTrigger id="goal-repeat">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GOAL_REPEATS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {t(`goalForm.repeats.${r}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {repeat === "none"
+                ? t("goalForm.repeatHintNone")
+                : targetDate
+                  ? t("goalForm.repeatHint")
+                  : t("goalForm.repeatNeedsDate")}
+            </p>
           </div>
           <p className="text-xs text-muted-foreground">
             {t("goalForm.monthlyHint")}

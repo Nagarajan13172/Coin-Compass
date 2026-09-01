@@ -49,3 +49,13 @@ export function budgetDedupeKey(budgetId: string, periodStart: Date): string {
 export function balanceDedupeKey(accountId: string, ref: Date): string {
   return `balance.low:${accountId}:${monthKey(ref)}`;
 }
+
+/** One notice per cycle a goal closes. */
+export function goalCycleDedupeKey(goalId: string, cycleIndex: number): string {
+  return `goal.cycle_rolled:${goalId}:${cycleIndex}`;
+}
+
+/** Behind-schedule nags are worth at most one a month per goal. */
+export function goalBehindDedupeKey(goalId: string, month: string): string {
+  return `goal.behind:${goalId}:${month}`;
+}

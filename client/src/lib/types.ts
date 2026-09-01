@@ -194,6 +194,9 @@ export interface Recurring {
   updatedAt?: string;
 }
 
+export const GOAL_REPEATS = ["none", "monthly", "quarterly", "yearly"] as const;
+export type GoalRepeat = (typeof GOAL_REPEATS)[number];
+
 export interface Goal {
   _id: string;
   name: string;
@@ -208,11 +211,24 @@ export interface Goal {
   icon: string;
   currency: string;
   achievedAt?: string | null;
+  /** "none" for a one-time goal; anything else restarts it each cycle. */
+  repeat: GoalRepeat;
+  /** Which run of a repeating goal is in progress (1-based). */
+  cycleCount: number;
+  /** Finished cycles, oldest first. */
+  cycles: { index: number; targetAmount: number; savedAmount: number; closedAt: string }[];
   // computed server-side
   remaining: number;
   percent: number;
   complete: boolean;
   monthsLeft: number | null;
+  /** Monthly inflow from the recurring rules paying in (or the planned figure). */
+  fundedMonthly: number;
+  /** How many active rules that came from — 0 when it's the planned figure. */
+  fundedByRules: number;
+  /** When it should be reached at that rate, ISO, or null if nothing is paying in. */
+  projectedDate: string | null;
+  schedule: "on_track" | "behind" | "unknown";
   createdAt?: string;
   updatedAt?: string;
 }

@@ -204,6 +204,8 @@ export const goalSchema = z.object({
   currency: z.string().default("INR"),
   // The wallet whose balance is this goal's progress; null tracks nothing.
   linkedAccount: optionalObjectId,
+  // How often the goal starts over — "none" finishes for good.
+  repeat: z.enum(["none", "monthly", "quarterly", "yearly"]).default("none"),
 });
 export const goalUpdateSchema = goalSchema.partial();
 // A contribution can be negative to correct/withdraw; the service clamps saved ≥ 0.

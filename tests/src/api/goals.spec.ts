@@ -221,3 +221,212 @@ describe("Goals — linked to an account", () => {
     expect(listed.savedAmount).toBe(8000);
   });
 });
+
+/**
+ * A sinking fund: ₹12,000 for the car insurance due every February, fed by an RD.
+ * The goal isn't finished when it's reached — it starts again for next year, and
+ * what the finished year managed is kept.
+ */
+describe("Goals — repeating cycles", () => {
+  /** The most recent 12 February that has already passed — one cycle overdue,
+   *  the way a daily sweep would find it. */
+  const lastDue = () => {
+    const now = new Date();
+    const feb = new Date(Date.UTC(now.getUTCFullYear(), 1, 12));
+    if (feb.getTime() > now.getTime()) feb.setUTCFullYear(feb.getUTCFullYear() - 1);
+    return feb.toISOString();
+  };
+  const yearsAgo = (n: number) => new Date(Date.UTC(new Date().getUTCFullYear() - n, 1, 12)).toISOString();
+  const daysAhead = (n: number) => new Date(Date.now() + n * 86400_000).toISOString();
+
+  it("starts the next cycle once the due date has passed, keeping the last one", async () => {
+    const u = await createVerifiedUser();
+    const goal = (
+      await u.session.http.post("/goals", {
+        name: "Car Insurance",
+        targetAmount: 12000,
+        repeat: "yearly",
+        targetDate: lastDue(),
+      })
+    ).data;
+    await u.session.http.post(`/goals/${goal._id}/contribute`, { amount: 12000 });
+
+    // Opening the page rolls anything that came due.
+    const [listed] = (await u.session.http.get("/goals")).data;
+    expect(listed.cycleCount).toBeGreaterThan(1);
+    expect(listed.savedAmount).toBe(0); // that year's ₹12,000 went on the premium
+    expect(listed.cycles.at(-1)).toMatchObject({ targetAmount: 12000, savedAmount: 12000 });
+    expect(new Date(listed.targetDate).getTime()).toBeGreaterThan(Date.now());
+    // February stays February — cycles chain from the due date, not from today.
+    expect(new Date(listed.targetDate).getUTCMonth()).toBe(1);
+  });
+
+  it("carries a surplus forward and doesn't lose a shortfall", async () => {
+    const u = await createVerifiedUser();
+    const over = (
+      await u.session.http.post("/goals", { name: "Over", targetAmount: 12000, repeat: "yearly", targetDate: lastDue() })
+    ).data;
+    await u.session.http.post(`/goals/${over._id}/contribute`, { amount: 15000 });
+    const under = (
+      await u.session.http.post("/goals", { name: "Under", targetAmount: 12000, repeat: "yearly", targetDate: lastDue() })
+    ).data;
+    await u.session.http.post(`/goals/${under._id}/contribute`, { amount: 9000 });
+
+    const goals = (await u.session.http.get("/goals")).data as {
+      name: string;
+      savedAmount: number;
+      cycles: { savedAmount: number }[];
+    }[];
+    expect(goals.find((g) => g.name === "Over")!.savedAmount).toBe(3000);
+    expect(goals.find((g) => g.name === "Under")!.savedAmount).toBe(0);
+    expect(goals.find((g) => g.name === "Under")!.cycles.at(-1)!.savedAmount).toBe(9000);
+  });
+
+  it("never rolls a one-time goal, however long ago its date passed", async () => {
+    const u = await createVerifiedUser();
+    const goal = (
+      await u.session.http.post("/goals", { name: "Laptop", targetAmount: 60000, targetDate: yearsAgo(2) })
+    ).data;
+    await u.session.http.post(`/goals/${goal._id}/contribute`, { amount: 60000 });
+
+    const [listed] = (await u.session.http.get("/goals")).data;
+    expect(listed).toMatchObject({ cycleCount: 1, savedAmount: 60000, complete: true });
+    expect(listed.cycles).toEqual([]);
+  });
+
+  it("closes a cycle on demand, for a premium paid early", async () => {
+    const u = await createVerifiedUser();
+    const due = daysAhead(30);
+    const goal = (
+      await u.session.http.post("/goals", {
+        name: "Car Insurance",
+        targetAmount: 12000,
+        repeat: "yearly",
+        targetDate: due,
+      })
+    ).data;
+    await u.session.http.post(`/goals/${goal._id}/contribute`, { amount: 12000 });
+
+    const res = await u.session.http.post(`/goals/${goal._id}/roll`);
+    expect(res.status).toBe(200);
+    expect(res.data).toMatchObject({ cycleCount: 2, savedAmount: 0 });
+    // Next year's date chains from the due date, not from today.
+    expect(new Date(res.data.targetDate).getTime()).toBeGreaterThan(new Date(due).getTime());
+  });
+
+  it("refuses to close a cycle on a one-time goal", async () => {
+    const u = await createVerifiedUser();
+    const goal = (await u.session.http.post("/goals", { name: "Laptop", targetAmount: 1000 })).data;
+    const res = await u.session.http.post(`/goals/${goal._id}/roll`);
+    expect(res.status).toBe(400);
+    expect(res.data.code).toBe("GOAL_NOT_REPEATING");
+  });
+
+  it("leaves a wallet-tracking goal's balance alone when it rolls", async () => {
+    const u = await createVerifiedUser();
+    const wallet = (await u.session.http.post("/accounts", { name: "RD Wallet", initialBalance: 12000 })).data;
+    const goal = (
+      await u.session.http.post("/goals", {
+        name: "Insurance",
+        targetAmount: 12000,
+        repeat: "yearly",
+        targetDate: lastDue(),
+        linkedAccount: wallet._id,
+      })
+    ).data;
+
+    const [listed] = (await u.session.http.get("/goals")).data;
+    expect(listed._id).toBe(goal._id);
+    expect(listed.cycleCount).toBeGreaterThan(1);
+    // The wallet still holds the money — only paying the premium empties it.
+    expect(listed.savedAmount).toBe(12000);
+  });
+});
+
+/**
+ * "Ready by February" is only worth showing if it comes from what's actually
+ * paying in, so the projection is built from live recurring rules — the RD
+ * feeding the goal, or one paying into its wallet — not a figure typed once.
+ */
+describe("Goals — funding and projection", () => {
+  const daysAhead = (n: number) => new Date(Date.now() + n * 86400_000).toISOString();
+
+  /** A monthly rule of `amount`, either tagged to a goal or paying into a wallet. */
+  async function rule(
+    u: Awaited<ReturnType<typeof createVerifiedUser>>,
+    body: Record<string, unknown>
+  ) {
+    return u.session.http.post("/recurring", {
+      frequency: "monthly",
+      interval: 1,
+      startDate: new Date().toISOString(),
+      ...body,
+    });
+  }
+
+  it("falls back to the planned monthly figure when nothing is automated", async () => {
+    const u = await createVerifiedUser();
+    await u.session.http.post("/goals", { name: "Plan", targetAmount: 12000, monthlyContribution: 1000 });
+    const [g] = (await u.session.http.get("/goals")).data;
+    expect(g).toMatchObject({ fundedMonthly: 1000, fundedByRules: 0, monthsLeft: 12 });
+  });
+
+  it("adds up the rules feeding the goal, and prefers them over the plan", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main", initialBalance: 0 })).data;
+    const goal = (
+      await u.session.http.post("/goals", { name: "Car Insurance", targetAmount: 12000, monthlyContribution: 100 })
+    ).data;
+    for (const amount of [600, 400]) {
+      await rule(u, { type: "expense", amount, account: acc._id, goal: goal._id });
+    }
+    const [g] = (await u.session.http.get("/goals")).data;
+    expect(g).toMatchObject({ fundedMonthly: 1000, fundedByRules: 2, monthsLeft: 12 });
+  });
+
+  it("counts a rule paying into a tracked wallet, but not one spending from it", async () => {
+    const u = await createVerifiedUser();
+    const main = (await u.session.http.post("/accounts", { name: "Main", initialBalance: 100000 })).data;
+    const wallet = (await u.session.http.post("/accounts", { name: "RD Wallet", initialBalance: 0 })).data;
+    await u.session.http.post("/goals", { name: "Insurance", targetAmount: 12000, linkedAccount: wallet._id });
+
+    // The RD: ₹1,000 a month into the wallet.
+    await rule(u, { type: "transfer", amount: 1000, account: main._id, toAccount: wallet._id });
+    // A rule that spends FROM the wallet isn't funding — it's spending.
+    await rule(u, { type: "expense", amount: 5000, account: wallet._id });
+
+    const [g] = (await u.session.http.get("/goals")).data;
+    expect(g).toMatchObject({ fundedMonthly: 1000, fundedByRules: 1 });
+  });
+
+  it("says whether the target date will be met", async () => {
+    const u = await createVerifiedUser();
+    const acc = (await u.session.http.post("/accounts", { name: "Main", initialBalance: 0 })).data;
+    const mk = async (name: string, amount: number, targetDate: string) => {
+      const goal = (await u.session.http.post("/goals", { name, targetAmount: 12000, targetDate })).data;
+      await rule(u, { type: "expense", amount, account: acc._id, goal: goal._id });
+    };
+    await mk("Comfortable", 2000, daysAhead(400)); // 6 months of funding, a year to go
+    await mk("Struggling", 200, daysAhead(60)); // 60 months of funding, 2 months to go
+
+    const goals = (await u.session.http.get("/goals")).data as {
+      name: string;
+      schedule: string;
+      projectedDate: string | null;
+    }[];
+    expect(goals.find((g) => g.name === "Comfortable")!.schedule).toBe("on_track");
+    expect(goals.find((g) => g.name === "Struggling")!.schedule).toBe("behind");
+    expect(goals.find((g) => g.name === "Comfortable")!.projectedDate).toBeTruthy();
+  });
+
+  it("has no verdict without a target date, or with nothing paying in", async () => {
+    const u = await createVerifiedUser();
+    await u.session.http.post("/goals", { name: "Someday", targetAmount: 5000, monthlyContribution: 500 });
+    const [undated] = (await u.session.http.get("/goals")).data;
+    expect(undated.schedule).toBe("unknown");
+
+    await u.session.http.post("/goals", { name: "Unfunded", targetAmount: 5000, targetDate: daysAhead(90) });
+    const unfunded = (await u.session.http.get("/goals")).data.find((g: { name: string }) => g.name === "Unfunded");
+    expect(unfunded).toMatchObject({ fundedMonthly: 0, schedule: "unknown", projectedDate: null });
+  });
+});

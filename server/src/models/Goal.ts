@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { GOAL_REPEATS } from "../services/goalCycles";
 
 /** A savings goal: target amount, what's saved so far, and an optional plan. */
 const goalSchema = new Schema(
@@ -21,6 +22,25 @@ const goalSchema = new Schema(
     icon: { type: String, default: "goal" },
     currency: { type: String, default: "INR" },
     achievedAt: { type: Date, default: null },
+    // A sinking fund repeats: save the target by the due date, spend it, start
+    // again. "none" is an ordinary one-time goal that stays finished.
+    repeat: { type: String, enum: GOAL_REPEATS, default: "none" },
+    // Which run of a repeating goal is in progress (1-based).
+    cycleCount: { type: Number, default: 1 },
+    // Finished cycles, oldest first — what each run was aiming for and reached.
+    // Capped when appended so a decade of monthly cycles can't bloat the doc.
+    cycles: {
+      type: [
+        {
+          _id: false,
+          index: { type: Number, required: true },
+          targetAmount: { type: Number, required: true },
+          savedAmount: { type: Number, required: true },
+          closedAt: { type: Date, required: true },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

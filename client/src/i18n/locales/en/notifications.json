@@ -39,6 +39,17 @@
         "title": "Low balance",
         "body": "{{account}} is overdrawn ({{balance}})."
       }
+    },
+    "goal": {
+      "cycle_rolled": {
+        "title": "Goal restarted",
+        "body_one": "{{name}} finished a round and is saving {{amount}} again by {{date}}.",
+        "body_other": "{{name}} rolled through {{count}} rounds and is saving {{amount}} again by {{date}}."
+      },
+      "behind": {
+        "title": "Goal running late",
+        "body": "At {{amount}}/month, {{name}} won't reach its target by {{date}}."
+      }
     }
   }
 }

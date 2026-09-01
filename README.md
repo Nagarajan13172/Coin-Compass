@@ -20,7 +20,7 @@ A polished, full-stack **personal finance manager**. Track accounts and day-to-d
 
 ### Wealth
 
-- **Goals** — savings goals with target amounts/dates, progress, and contributions (manual or via a linked recurring rule). A goal can instead **track a wallet**: link an account and its live balance becomes the progress, so a salary transfer or an ad-hoc top-up counts on its own and a withdrawal takes it back down. One account funds one goal, and manual contributions are refused on a tracked goal so nothing is counted twice.
+- **Goals** — savings goals with target amounts/dates, progress, and contributions (manual or via a linked recurring rule). A goal can instead **track a wallet**: link an account and its live balance becomes the progress, so a salary transfer or an ad-hoc top-up counts on its own and a withdrawal takes it back down. One account funds one goal, and manual contributions are refused on a tracked goal so nothing is counted twice. Goals can also **repeat** (monthly / quarterly / yearly): a yearly insurance fund starts its next round on its due date — automatically, or on demand when the bill is paid early — keeping what each finished round saved, carrying a surplus forward, and never touching a one-time goal. The ETA comes from the recurring rules actually paying in (including one that pays into a tracked wallet), with a notification when a goal won't make its date.
 - **Loans** — real **EMI / amortization** schedules, extra payments, and pre-closure math.
 - **Credits** — informal IOUs with friends/family, optionally linked to a real transaction, with a net owed/owing summary.
 - **Investments (holdings)** — track holdings and their value as part of net worth.
@@ -171,7 +171,7 @@ All routes require a session cookie except the public auth endpoints. Most resou
 |------|-----------|
 | **Auth** | `auth/{signup,signin,logout,me}` · `auth/{verify-email,resend-verification,forgot-password,reset-password,change-password}` · `auth/2fa/{status,setup,enable,disable,verify,email,pending,backup-codes,email-fallback}` · `auth/providers` · `auth/oauth/:provider{,/callback}` · `auth/{unlock,lock}-wealth` · `auth/wealth-passcode/{reset-request,reset}` |
 | **Core ledger** | `accounts` · `categories` · `transactions` (+ `summary`, `tags`, `balance`, `deleted`, `:id/restore`) · `templates` · `budgets` · `recurring` (+ `run`, `:id/{run,post-one,skip,transactions}`) |
-| **Wealth** | `goals` (+ `:id/contribute`) · `loans` (+ `:id/{pay,preclose}`) · `credits` (+ `summary`) · `holdings` · `networth/history` · `metals/{latest,history,refresh}` |
+| **Wealth** | `goals` (+ `:id/{contribute,roll}`) · `loans` (+ `:id/{pay,preclose}`) · `credits` (+ `summary`) · `holdings` · `networth/history` · `metals/{latest,history,refresh}` |
 | **Insight** | `reports/{summary,by-category,trend,by-account,insights,email-now}` · `dashboard` · `notifications` |
 | **Data / prefs** | `settings` (+ `pin{,/verify}`, `wealth-passcode`) · `export/csv` · `import` |
 

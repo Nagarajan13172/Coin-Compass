@@ -86,7 +86,19 @@
     "behindMonths": "Behind {{count}} mo",
     "onTrack": "On track",
     "tracksWallet": "Tracks {{name}}",
-    "addToWallet": "Add to wallet"
+    "addToWallet": "Add to wallet",
+    "cycleNumber": "Round {{count}}",
+    "closeCycle": "Close this round",
+    "cycleClosed": "{{name}} started its next round",
+    "cycleCloseFailed": "Couldn't close this round",
+    "etaHelpRules_one": "At {{amount}}/month from {{count}} recurring rule.",
+    "etaHelpRules_other": "At {{amount}}/month from {{count}} recurring rules.",
+    "repeats": {
+      "none": "One-time",
+      "monthly": "Every month",
+      "quarterly": "Every 3 months",
+      "yearly": "Every year"
+    }
   },
   "contribute": {
     "addTo": "Add to {{name}}",
@@ -118,6 +130,16 @@
     "noAccount": "Not linked — I'll record savings myself",
     "accountTaken": "{{name}} · already tracked by {{goal}}",
     "trackAccountHint": "Link a wallet and its balance becomes this goal's progress — every deposit counts on its own.",
-    "trackAccountOnHint": "Progress follows this wallet's balance. Pay in to move the goal; take money out and it falls back."
+    "trackAccountOnHint": "Progress follows this wallet's balance. Pay in to move the goal; take money out and it falls back.",
+    "repeat": "Repeats",
+    "repeats": {
+      "none": "One-time — finishes when I reach it",
+      "monthly": "Every month",
+      "quarterly": "Every 3 months",
+      "yearly": "Every year"
+    },
+    "repeatHint": "On the target date this starts again for the next round, keeping what the finished one saved. For yearly bills like insurance.",
+    "repeatHintNone": "The goal is done once you reach it and stays that way.",
+    "repeatNeedsDate": "Set a target date — that's the day each round is due and the next one starts."
   }
 }
