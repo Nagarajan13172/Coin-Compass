@@ -92,6 +92,9 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
   await expect(page.getByText(/Good buy|About normal|Dear right now/)).toBeVisible();
   await expect(page.getByText(/the 30-day average/)).toBeVisible();
   await expect(page.getByText(/7d avg/)).toBeVisible();
+  await expect(
+    page.getByText(/reasonable day to buy|No rush either way|may cost less/)
+  ).toBeVisible();
   // Two shaded zones (cheap, dear) plus the average line.
   expect(await page.locator(".recharts-reference-area").count()).toBe(2);
   await expect(page.locator(".recharts-reference-line").first()).toBeAttached();
