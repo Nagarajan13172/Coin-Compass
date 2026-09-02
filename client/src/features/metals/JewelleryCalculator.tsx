@@ -169,7 +169,7 @@ export function JewelleryCalculator({
 
         {/* Wide on a phone, so it scrolls in its own box rather than the page. */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-sm">
+          <table className="w-full min-w-[620px] text-sm">
             <thead>
               <tr className="border-b text-xs text-muted-foreground">
                 <th className="py-2 text-left font-medium">{t("gold.calc.col.weight")}</th>
@@ -177,6 +177,7 @@ export function JewelleryCalculator({
                 <th className="py-2 text-right font-medium">
                   {t("gold.calc.col.making", { pct: making })}
                 </th>
+                <th className="py-2 text-right font-medium">{t("gold.calc.col.beforeGst")}</th>
                 <th className="py-2 text-right font-medium">{t("gold.calc.col.gst", { pct: gst })}</th>
                 <th className="py-2 text-right font-medium">{t("gold.calc.col.total")}</th>
               </tr>
@@ -204,6 +205,9 @@ export function JewelleryCalculator({
                     </td>
                     <td className="tnum py-2.5 text-right text-muted-foreground">
                       {formatMoney(c.makingCharges, { currency: "INR" })}
+                    </td>
+                    <td className="tnum py-2.5 text-right font-medium">
+                      {formatMoney(c.metalValue + c.makingCharges, { currency: "INR" })}
                     </td>
                     <td className="tnum py-2.5 text-right text-muted-foreground">
                       {formatMoney(c.gst, { currency: "INR" })}

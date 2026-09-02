@@ -5,6 +5,8 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -64,6 +66,7 @@ export function MetalHistoryChart({
   metal = "gold",
   city,
   variant = "area",
+  zones = null,
 }: {
   data: MetalPrice[];
   color?: string;
@@ -75,6 +78,11 @@ export function MetalHistoryChart({
    * you're deciding whether to buy this week.
    */
   variant?: "area" | "bar";
+  /**
+   * Shades the plot against the period's average: green below it, red above,
+   * with a neutral strip between. Omit to draw the series alone.
+   */
+  zones?: { average: number; goodBelow: number; highAbove: number } | null;
 }) {
   const { t } = useTranslation("credits");
   const gradId = useId();
@@ -99,6 +107,18 @@ export function MetalHistoryChart({
 
   const zoomed = isZoomed(win, series.length);
   const view = useMemo(() => series.slice(win.start, win.end + 1), [series, win]);
+
+  // Bounds for the shaded zones. Recharts discards a reference area that runs
+  // past the axis domain, so "everything above the line" has to be an actual
+  // number — the visible range with a little headroom, recomputed as you zoom.
+  const [bandBottom, bandTop] = useMemo(() => {
+    const values = view.map((p) => p.value).filter((v) => v > 0);
+    if (!values.length) return [0, 0];
+    const lo = Math.min(...values);
+    const hi = Math.max(...values);
+    const pad = Math.max((hi - lo) * 0.25, hi * 0.01);
+    return [lo - pad, hi + pad];
+  }, [view]);
 
   /** Pointer x → fraction (0…1) across the plot area. */
   const focusFraction = useCallback((clientX: number) => {
@@ -229,6 +249,32 @@ export function MetalHistoryChart({
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+          {/* Cheap and dear by recent standards, not a forecast. Drawn before the
+              series so the line and bars sit on top of the shading. */}
+          {zones && zones.average > 0 && (
+            <>
+              <ReferenceArea
+                y1={zones.highAbove}
+                y2={bandTop}
+                fill="hsl(var(--expense))"
+                fillOpacity={0.08}
+                ifOverflow="visible"
+              />
+              <ReferenceArea
+                y1={bandBottom}
+                y2={zones.goodBelow}
+                fill="hsl(var(--income))"
+                fillOpacity={0.08}
+                ifOverflow="visible"
+              />
+              <ReferenceLine
+                y={zones.average}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="4 4"
+                strokeOpacity={0.7}
+              />
+            </>
+          )}
           <XAxis
             dataKey="date"
             tickFormatter={dayLabel}

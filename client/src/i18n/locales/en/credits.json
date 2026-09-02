@@ -139,9 +139,19 @@
         "metal": "Metal",
         "making": "Making {{pct}}%",
         "gst": "GST {{pct}}%",
-        "total": "Total"
+        "total": "Total",
+        "beforeGst": "Before GST"
       },
       "footnote": "All-in that works out to {{perGram}} per gram. A jeweller may also charge wastage separately, and hallmarking per piece."
+    },
+    "signal": {
+      "good": "Good buy",
+      "fair": "About normal",
+      "high": "Dear right now",
+      "under": "under",
+      "over": "over",
+      "detail": "{{pct}}% ({{amount}}/g) {{direction}} the {{days}}-day average",
+      "avgDays": "{{days}}d avg"
     }
   },
   "directionHelp": {
