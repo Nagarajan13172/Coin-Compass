@@ -85,7 +85,10 @@ export function toSovereigns(grams: number): number {
  */
 export function weightRows(custom: number, metal: "gold" | "silver" = "gold"): number[] {
   const rows = metal === "silver" ? [10, 50, 100, 250, 500, 1000] : [1, 8, 16, 24, 40];
-  const extra = round2(custom);
+  // Three decimals, not two: a weight worked back from a budget lands on the
+  // milligram, and rounding it to 3.12 g here would price the row above the
+  // budget it came from — the row and the answer above it must be the same piece.
+  const extra = Math.round((custom + Number.EPSILON) * 1000) / 1000;
   if (extra > 0 && !rows.includes(extra)) rows.push(extra);
   return rows.sort((a, b) => a - b);
 }

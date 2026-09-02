@@ -118,8 +118,8 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
 
   // A weight of your own slots into the table in order.
   await page.locator("#calc-grams").fill("12.5");
-  await expect(page.getByText("1.56 sovereigns")).toBeVisible();
-  await expect(page.getByText("12.5 g")).toBeVisible();
+  await expect(page.getByText("1.56 sovereigns").first()).toBeVisible();
+  await expect(page.getByText("12.5 g").first()).toBeVisible();
 
   // GST is a policy that can change, so it's an input too, not a constant.
   await page.locator("#calc-gst").fill("0");
@@ -139,7 +139,12 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
   // that matters — it lands under the budget, with the change accounted for.
   // The arithmetic itself is pinned in jewellery.test.ts.
   await expect(page.getByText(/left over/)).toBeVisible();
-  await page.locator("#calc-budget").fill("");
+
+  // The same panel the other way: a weight in, the amount out. Still at Ring
+  // 20% and 3% GST, so one sovereign is the ₹1,30,818.24 the table row shows.
+  await page.locator("#calc-grams").fill("8");
+  await expect(page.getByText("₹1,30,818.24").first()).toBeVisible();
+  await page.locator("#calc-grams").fill("");
 
   // Silver is a different metal in more than name: one click on the chart's tab
   // moves the calculator with it, and the weights become silver's own — nobody

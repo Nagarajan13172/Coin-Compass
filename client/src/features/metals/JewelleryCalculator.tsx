@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Calculator } from "lucide-react";
+import { ArrowLeftRight, Calculator } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +49,12 @@ export function JewelleryCalculator({
   const [gstPct, setGstPct] = useState(String(GST_PCT));
   const [customGrams, setCustomGrams] = useState("");
   const [budget, setBudget] = useState("");
+  /**
+   * Which side of the converter the user typed into last. The other side is
+   * derived from it, so the two can never disagree and neither field fights the
+   * cursor while it's being typed in.
+   */
+  const [driver, setDriver] = useState<"weight" | "budget">("weight");
 
   const price = metal === "gold" ? gold : silver;
 
@@ -63,8 +69,19 @@ export function JewelleryCalculator({
 
   const making = Number(makingPct) || 0;
   const gst = Number(gstPct) || 0;
-  const rows = weightRows(Number(customGrams) || 0, metal);
-  const customWeight = Number(customGrams) || 0;
+  // Whichever side was typed drives the other, so the pair always agrees.
+  const result =
+    driver === "weight"
+      ? (() => {
+          const grams = Number(customGrams) || 0;
+          return { grams, cost: jewelleryCost(rate, grams, making, gst), leftover: 0 };
+        })()
+      : weightForBudget(Number(budget) || 0, rate, making, gst);
+  const weightValue = driver === "weight" ? customGrams : result.grams ? String(result.grams) : "";
+  const budgetValue = driver === "budget" ? budget : result.cost.total ? String(result.cost.total) : "";
+
+  const customWeight = result.grams;
+  const rows = weightRows(customWeight, metal);
 
   if (!price) return null;
 
@@ -100,7 +117,7 @@ export function JewelleryCalculator({
 
       <CardContent className="space-y-4">
         {/* The three inputs that drive every row below. */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="calc-making">{t("gold.calc.making")}</Label>
             <div className="relative">
@@ -150,21 +167,6 @@ export function JewelleryCalculator({
             <p className="pt-0.5 text-xs text-muted-foreground">{t("gold.calc.gstHint")}</p>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="calc-grams">{t("gold.calc.customWeight")}</Label>
-            <Input
-              id="calc-grams"
-              inputMode="decimal"
-              value={customGrams}
-              onChange={(e) => setCustomGrams(e.target.value)}
-              placeholder={t("gold.calc.customPlaceholder")}
-            />
-            {customWeight > 0 && metal === "gold" && (
-              <p className="pt-0.5 text-xs text-muted-foreground">
-                {t("gold.calc.sovereigns", { count: toSovereigns(customWeight) })}
-              </p>
-            )}
-          </div>
         </div>
 
         <p className="tnum text-xs text-muted-foreground">
@@ -231,57 +233,76 @@ export function JewelleryCalculator({
           </table>
         </div>
 
-        {/* The same sum the other way round: the table goes weight → cost, this
-            goes cost → weight, which is how the question is actually asked. */}
+        {/* The converter: type either side and the other follows. The table
+            above prices a fixed ladder of weights; the question at the counter
+            runs both ways — "what does 3 grams cost" and "what does ₹50,000
+            buy" are the same sum read from opposite ends. */}
         <div className="rounded-xl border bg-muted/30 p-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="min-w-0 flex-1 basis-52 space-y-1.5">
-              <Label htmlFor="calc-budget">{t("gold.calc.budget")}</Label>
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
+            <div className="space-y-1.5">
+              <Label htmlFor="calc-grams">{t("gold.calc.weightSide")}</Label>
+              <Input
+                id="calc-grams"
+                inputMode="decimal"
+                value={weightValue}
+                onChange={(e) => {
+                  setCustomGrams(e.target.value);
+                  setDriver("weight");
+                }}
+                placeholder={t("gold.calc.customPlaceholder")}
+              />
+            </div>
+            <div className="flex items-center justify-center pb-2.5 text-muted-foreground">
+              <ArrowLeftRight className="h-4 w-4" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="calc-budget">{t("gold.calc.amountSide")}</Label>
               <AmountInput
                 id="calc-budget"
-                value={budget}
-                onChange={setBudget}
+                value={budgetValue}
+                onChange={(v) => {
+                  setBudget(v);
+                  setDriver("budget");
+                }}
                 placeholder="50,000"
               />
             </div>
-            {(() => {
-              const b = weightForBudget(Number(budget) || 0, rate, making, gst);
-              if (!b.grams) {
-                return (
-                  <p className="flex-1 basis-64 pb-2 text-sm text-muted-foreground">
-                    {t("gold.calc.budgetHint")}
-                  </p>
-                );
-              }
-              return (
-                <div className="min-w-0 flex-1 basis-64 pb-0.5">
-                  <p className="tnum text-lg font-bold leading-tight">
-                    {t("gold.calc.budgetBuys", { grams: b.grams })}
-                    {metal === "gold" && b.grams >= 1 && (
-                      <span className="ml-2 text-sm font-medium text-muted-foreground">
-                        {t("gold.calc.sovereigns", { count: toSovereigns(b.grams) })}
-                      </span>
-                    )}
-                  </p>
-                  <p className="tnum mt-1 text-xs text-muted-foreground">
-                    {t("gold.calc.budgetBreakdown", {
-                      metal: formatMoney(b.cost.metalValue, { currency: "INR" }),
-                      making: formatMoney(b.cost.makingCharges, { currency: "INR" }),
-                      gst: formatMoney(b.cost.gst, { currency: "INR" }),
-                      total: formatMoney(b.cost.total, { currency: "INR" }),
-                    })}
-                  </p>
-                  {b.leftover > 0 && (
-                    <p className="tnum mt-0.5 text-xs text-muted-foreground">
-                      {t("gold.calc.budgetLeftover", {
-                        amount: formatMoney(b.leftover, { currency: "INR" }),
-                      })}
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
           </div>
+
+          {result.grams > 0 ? (
+            <div className="mt-3 border-t pt-3">
+              <p className="tnum text-base font-semibold leading-tight">
+                {t("gold.calc.budgetBuys", { grams: result.grams })}
+                {metal === "gold" && (
+                  <span className="ml-2 text-sm font-medium text-muted-foreground">
+                    {t("gold.calc.sovereigns", { count: toSovereigns(result.grams) })}
+                  </span>
+                )}
+                <span className="mx-2 text-muted-foreground">=</span>
+                {formatMoney(result.cost.total, { currency: "INR" })}
+              </p>
+              <p className="tnum mt-1 text-xs text-muted-foreground">
+                {t("gold.calc.budgetBreakdown", {
+                  metal: formatMoney(result.cost.metalValue, { currency: "INR" }),
+                  making: formatMoney(result.cost.makingCharges, { currency: "INR" }),
+                  gst: formatMoney(result.cost.gst, { currency: "INR" }),
+                  total: formatMoney(result.cost.total, { currency: "INR" }),
+                })}
+              </p>
+              {/* Only meaningful coming from a budget: what you'd walk out with. */}
+              {driver === "budget" && result.leftover > 0 && (
+                <p className="tnum mt-0.5 text-xs text-muted-foreground">
+                  {t("gold.calc.budgetLeftover", {
+                    amount: formatMoney(result.leftover, { currency: "INR" }),
+                  })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 border-t pt-3 text-sm text-muted-foreground">
+              {t("gold.calc.converterHint")}
+            </p>
+          )}
         </div>
 
         <p className="text-xs text-muted-foreground">

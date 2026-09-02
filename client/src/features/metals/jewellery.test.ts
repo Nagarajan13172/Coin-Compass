@@ -75,6 +75,13 @@ describe("jewellery cost — weights", () => {
     expect(weightRows(0, "silver")).toEqual([10, 50, 100, 250, 500, 1000]);
   });
 
+  it("keeps a weight worked back from a budget to the milligram", () => {
+    // Rounded to 3.12 g the row would cost more than the budget that produced it.
+    const b = weightForBudget(50000, RATE, 12);
+    expect(weightRows(b.grams)).toContain(b.grams);
+    expect(jewelleryCost(RATE, b.grams, 12).total).toBeLessThanOrEqual(50000);
+  });
+
   it("slots a custom weight into place without duplicating one already there", () => {
     expect(weightRows(12)).toEqual([1, 8, 12, 16, 24, 40]);
     expect(weightRows(8)).toEqual([1, 8, 16, 24, 40]);

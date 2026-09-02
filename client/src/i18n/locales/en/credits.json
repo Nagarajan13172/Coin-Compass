@@ -148,7 +148,10 @@
       "budgetHint": "Enter what you want to spend and we'll work back to the weight.",
       "budgetBuys": "{{grams}} g",
       "budgetBreakdown": "{{metal}} metal + {{making}} making + {{gst}} GST = {{total}}",
-      "budgetLeftover": "{{amount}} left over"
+      "budgetLeftover": "{{amount}} left over",
+      "weightSide": "Weight (grams)",
+      "amountSide": "Amount you'd pay",
+      "converterHint": "Type either side — a weight, or what you want to spend — and the other follows."
     },
     "signal": {
       "good": "Good buy",
