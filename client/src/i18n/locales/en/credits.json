@@ -151,7 +151,12 @@
       "under": "under",
       "over": "over",
       "detail": "{{pct}}% ({{amount}}/g) {{direction}} the {{days}}-day average",
-      "avgDays": "{{days}}d avg"
+      "avgDays": "{{days}}d avg",
+      "advice": {
+        "good": "Below its recent average — a reasonable day to buy.",
+        "fair": "Sitting at its usual level. No rush either way.",
+        "high": "Above its recent average. Waiting a while may cost less."
+      }
     }
   },
   "directionHelp": {

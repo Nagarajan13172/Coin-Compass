@@ -35,6 +35,7 @@ import { MetalChange } from "@/features/metals/MetalChange";
 import { MetalHistoryChart } from "@/features/metals/MetalHistoryChart";
 import { JewelleryCalculator } from "@/features/metals/JewelleryCalculator";
 import { averagesFor, buySignal, movingAverage } from "@/features/metals/buySignal";
+import { BuySignalBanner } from "@/features/metals/BuySignalBanner";
 import { metalChartSeries } from "@/features/metals/cities";
 import {
   DEFAULT_CITY,
@@ -275,50 +276,13 @@ export default function GoldPage() {
                   </p>
                 </div>
               )}
-              {/* What the shading means, in words — and the windows behind it. */}
-              {signal.average > 0 && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
-                        signal.verdict === "good" && "bg-income/10 text-income",
-                        signal.verdict === "high" && "bg-expense/10 text-expense",
-                        signal.verdict === "fair" && "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {signal.verdict === "good" ? (
-                        <TrendingDown className="h-3.5 w-3.5" />
-                      ) : signal.verdict === "high" ? (
-                        <TrendingUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <Minus className="h-3.5 w-3.5" />
-                      )}
-                      {t(`gold.signal.${signal.verdict}`)}
-                    </span>
-                    <span className="tnum text-xs text-muted-foreground">
-                      {t("gold.signal.detail", {
-                        pct: Math.abs(signal.diffPct).toFixed(2),
-                        amount: formatMoney(Math.abs(signal.diff), { currency: "INR" }),
-                        direction: t(`gold.signal.${signal.diff < 0 ? "under" : "over"}`),
-                        days,
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    {windowAverages
-                      .filter((w) => w.average > 0)
-                      .map((w) => (
-                        <span key={w.days} className="tnum">
-                          {t("gold.signal.avgDays", { days: w.days })}{" "}
-                          <span className="font-medium text-foreground">
-                            {formatMoney(w.average, { currency: "INR" })}
-                          </span>
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              )}
+              {/* The page's conclusion, so it reads as one. */}
+              <BuySignalBanner
+                signal={signal}
+                days={days}
+                averages={windowAverages}
+                className="mt-4"
+              />
             </CardContent>
           </Card>
 
