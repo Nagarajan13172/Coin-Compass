@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Coins, RefreshCw, TrendingUp } from "lucide-react";
+import { BarChart3, Coins, LineChart as LineChartIcon, RefreshCw, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +25,7 @@ import type { Metal, MetalPrice } from "@/lib/types";
 import { METAL_META } from "@/features/metals/meta";
 import { MetalChange } from "@/features/metals/MetalChange";
 import { MetalHistoryChart } from "@/features/metals/MetalHistoryChart";
+import { JewelleryCalculator } from "@/features/metals/JewelleryCalculator";
 import {
   DEFAULT_CITY,
   findCity,
@@ -75,7 +76,7 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
             </Badge>
           )}
         </CardTitle>
-        <MetalChange changePct={price.changePct} />
+        <MetalChange changePct={price.changePct} change={price.change} />
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
@@ -122,6 +123,7 @@ export default function GoldPage() {
   const { t } = useTranslation("credits");
   const [metal, setMetal] = useState<Metal>("gold");
   const [days, setDays] = useState(30);
+  const [chart, setChart] = useState<"area" | "bar">("area");
   const [cityKey, setCityKey] = useState(DEFAULT_CITY);
   const city = findCity(cityKey);
   const { data: latest, isLoading } = useMetalsLatest();
@@ -214,6 +216,16 @@ export default function GoldPage() {
                     <TabsTrigger value="365">{t("gold.range.1y")}</TabsTrigger>
                   </TabsList>
                 </Tabs>
+                <Tabs value={chart} onValueChange={(v) => setChart(v as "area" | "bar")}>
+                  <TabsList className="h-8">
+                    <TabsTrigger value="area" aria-label={t("gold.chart.line")}>
+                      <LineChartIcon className="h-4 w-4" />
+                    </TabsTrigger>
+                    <TabsTrigger value="bar" aria-label={t("gold.chart.bar")}>
+                      <BarChart3 className="h-4 w-4" />
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
             </CardHeader>
             <CardContent>
@@ -223,6 +235,7 @@ export default function GoldPage() {
                   color={METAL_META[metal].color}
                   metal={metal}
                   city={city}
+                  variant={chart}
                 />
               ) : (
                 <div className="flex h-[280px] flex-col items-center justify-center gap-1 text-center text-sm text-muted-foreground">
@@ -235,6 +248,12 @@ export default function GoldPage() {
               )}
             </CardContent>
           </Card>
+
+          <JewelleryCalculator
+            gold={latest.gold}
+            silver={latest.silver}
+            goldRate22k={latest.gold && city ? resolveCityRate(latest.gold, city).gram22k : undefined}
+          />
 
           <p className="text-center text-xs text-muted-foreground">
             {t("gold.disclaimer")}

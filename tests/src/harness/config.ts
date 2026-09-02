@@ -19,3 +19,11 @@ export const JWT_SECRET = "coincompass-test-jwt-secret-do-not-use-in-prod";
 
 /** Captured outgoing mail (verification links, reset links, 2FA codes) as JSONL. */
 export const OUTBOX_FILE = path.join(TESTS_ROOT, "reports", ".outbox.jsonl");
+
+/**
+ * Where global-setup leaves the E2E stack's Mongo URI. Vitest specs receive it
+ * via inject("mongoUri"); a Playwright spec runs in a worker with no such
+ * channel, so anything it needs to seed directly (rates the API can't create,
+ * for one) reads the URI from here.
+ */
+export const MONGO_URI_FILE = path.join(TESTS_ROOT, "reports", ".mongo-uri");

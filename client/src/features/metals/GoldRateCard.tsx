@@ -116,7 +116,7 @@ export function GoldRateCard() {
             </p>
           </div>
           <div className="text-right">
-            <MetalChange changePct={gold.changePct} />
+            <MetalChange changePct={gold.changePct} change={gold.change} />
             <p className="mt-1 text-[11px] text-muted-foreground">{t("gold.asOfLower", { date: asOf(gold.date) })}</p>
           </div>
         </div>
@@ -132,7 +132,7 @@ export function GoldRateCard() {
               <span className="tnum text-sm font-semibold">
                 {formatMoney(silver.pricePerGram24k, { currency: "INR" })}
               </span>
-              <MetalChange changePct={silver.changePct} />
+              <MetalChange changePct={silver.changePct} change={silver.change} />
             </span>
           </div>
         )}

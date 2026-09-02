@@ -2,8 +2,9 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import {
   Area,
-  AreaChart,
+  Bar,
   CartesianGrid,
+  ComposedChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -62,11 +63,18 @@ export function MetalHistoryChart({
   color = "#D4AF37",
   metal = "gold",
   city,
+  variant = "area",
 }: {
   data: MetalPrice[];
   color?: string;
   metal?: Metal;
   city?: GoldCity;
+  /**
+   * How the series is drawn. The area reads as a trend line; bars make each
+   * day's rate its own quantity, which is easier to compare day to day when
+   * you're deciding whether to buy this week.
+   */
+  variant?: "area" | "bar";
 }) {
   const { t } = useTranslation("credits");
   const gradId = useId();
@@ -213,7 +221,7 @@ export function MetalHistoryChart({
         </button>
       )}
       <ResponsiveContainer width="100%" height={280}>
-        <AreaChart data={view} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <ComposedChart data={view} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={color} stopOpacity={0.35} />
@@ -236,6 +244,7 @@ export function MetalHistoryChart({
             axisLine={false}
             width={52}
             domain={["auto", "auto"]}
+            allowDataOverflow
           />
           <Tooltip
             contentStyle={{
@@ -248,15 +257,19 @@ export function MetalHistoryChart({
             labelFormatter={(l) => dayLabel(String(l))}
             formatter={(value: number) => [formatMoney(value, { currency: "INR" }), seriesLabel]}
           />
-          <Area
-            type="monotone"
-            dataKey="value"
-            stroke={color}
-            strokeWidth={2}
-            fill={`url(#${gradId})`}
-            isAnimationActive={false}
-          />
-        </AreaChart>
+          {variant === "bar" ? (
+            <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          ) : (
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={2}
+              fill={`url(#${gradId})`}
+              isAnimationActive={false}
+            />
+          )}
+        </ComposedChart>
       </ResponsiveContainer>
       {!zoomed && series.length > 2 && (
         <span className="pointer-events-none absolute bottom-1 right-2 text-[10px] text-muted-foreground/70">
