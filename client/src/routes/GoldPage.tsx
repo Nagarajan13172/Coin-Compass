@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { BarChart3, Coins, LineChart as LineChartIcon, RefreshCw, TrendingUp } from "lucide-react";
+import {
+  BarChart3,
+  Coins,
+  LineChart as LineChartIcon,
+  Minus,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +34,8 @@ import { METAL_META } from "@/features/metals/meta";
 import { MetalChange } from "@/features/metals/MetalChange";
 import { MetalHistoryChart } from "@/features/metals/MetalHistoryChart";
 import { JewelleryCalculator } from "@/features/metals/JewelleryCalculator";
+import { averagesFor, buySignal, movingAverage } from "@/features/metals/buySignal";
+import { metalChartSeries } from "@/features/metals/cities";
 import {
   DEFAULT_CITY,
   findCity,
@@ -129,6 +139,24 @@ export default function GoldPage() {
   const { data: latest, isLoading } = useMetalsLatest();
   const { data: history } = useMetalHistory(metal, days);
   const refresh = useRefreshMetals();
+
+  // Where today sits against its own recent history — the only honest thing a
+  // rate chart can say about whether to buy. The series matches what's plotted,
+  // so the shading and the verdict can never disagree with the line.
+  const series = useMemo(
+    () => metalChartSeries(history ?? [], metal, city).map((p) => p.value).filter((v) => v > 0),
+    [history, metal, city]
+  );
+  const windowAverages = useMemo(
+    () => averagesFor(series).filter((w) => series.length >= w.days),
+    [series]
+  );
+  // The threshold is the average of the range on screen, so 1Y works the same as
+  // 7D without a special case.
+  const signal = useMemo(
+    () => buySignal(series.at(-1) ?? 0, movingAverage(series, days)),
+    [series, days]
+  );
 
   async function refreshNow() {
     try {
@@ -236,6 +264,7 @@ export default function GoldPage() {
                   metal={metal}
                   city={city}
                   variant={chart}
+                  zones={signal.average > 0 ? signal : null}
                 />
               ) : (
                 <div className="flex h-[280px] flex-col items-center justify-center gap-1 text-center text-sm text-muted-foreground">
@@ -244,6 +273,50 @@ export default function GoldPage() {
                   <p className="text-xs">
                     {t("gold.historyBuildingDesc")}
                   </p>
+                </div>
+              )}
+              {/* What the shading means, in words — and the windows behind it. */}
+              {signal.average > 0 && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
+                        signal.verdict === "good" && "bg-income/10 text-income",
+                        signal.verdict === "high" && "bg-expense/10 text-expense",
+                        signal.verdict === "fair" && "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {signal.verdict === "good" ? (
+                        <TrendingDown className="h-3.5 w-3.5" />
+                      ) : signal.verdict === "high" ? (
+                        <TrendingUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <Minus className="h-3.5 w-3.5" />
+                      )}
+                      {t(`gold.signal.${signal.verdict}`)}
+                    </span>
+                    <span className="tnum text-xs text-muted-foreground">
+                      {t("gold.signal.detail", {
+                        pct: Math.abs(signal.diffPct).toFixed(2),
+                        amount: formatMoney(Math.abs(signal.diff), { currency: "INR" }),
+                        direction: t(`gold.signal.${signal.diff < 0 ? "under" : "over"}`),
+                        days,
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    {windowAverages
+                      .filter((w) => w.average > 0)
+                      .map((w) => (
+                        <span key={w.days} className="tnum">
+                          {t("gold.signal.avgDays", { days: w.days })}{" "}
+                          <span className="font-medium text-foreground">
+                            {formatMoney(w.average, { currency: "INR" })}
+                          </span>
+                        </span>
+                      ))}
+                  </div>
                 </div>
               )}
             </CardContent>

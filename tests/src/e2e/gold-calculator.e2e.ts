@@ -88,6 +88,14 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
   await expect(page.locator(".recharts-bar").first()).toBeVisible();
   await expect(page.locator(".recharts-area")).toHaveCount(0);
 
+  // Where today sits against the period's average, in words and in shading.
+  await expect(page.getByText(/Good buy|About normal|Dear right now/)).toBeVisible();
+  await expect(page.getByText(/the 30-day average/)).toBeVisible();
+  await expect(page.getByText(/7d avg/)).toBeVisible();
+  // Two shaded zones (cheap, dear) plus the average line.
+  expect(await page.locator(".recharts-reference-area").count()).toBe(2);
+  await expect(page.locator(".recharts-reference-line").first()).toBeAttached();
+
   // The calculator, at the Chennai counter rate of ₹13,230 a gram (22K).
   // A ring at 20%: metal 13,230 + making 2,646 + GST 3% of 15,876 = ₹16,352.28.
   await page.getByRole("button", { name: /Ring 20%/i }).click();
@@ -96,6 +104,9 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
   // One sovereign is 8 grams — the unit gold is actually bought in here.
   await expect(page.getByText("1 sovereign")).toBeVisible();
   await expect(page.getByText("₹1,30,818.24")).toBeVisible(); // 8 g, all in
+
+  // Both totals are on the row: ₹1,27,008 before GST, ₹1,30,818.24 with it.
+  await expect(page.getByText("₹1,27,008")).toBeVisible();
 
   // Making charges are the swing factor, so they're editable: the same sovereign
   // as a plain bangle costs noticeably less.
@@ -109,7 +120,9 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
 
   // GST is a policy that can change, so it's an input too, not a constant.
   await page.locator("#calc-gst").fill("0");
-  await expect(page.getByText("₹1,18,540.80")).toBeVisible(); // 8 g with no GST
+  // formatMoney caps decimals rather than padding them, so this is ".8" not ".80".
+  // With no GST the before-GST and total columns agree, hence first().
+  await expect(page.getByText("₹1,18,540.8").first()).toBeVisible();
 
   // On a phone the table is wider than the screen by design: it has to scroll in
   // its own box rather than pushing the page sideways.
