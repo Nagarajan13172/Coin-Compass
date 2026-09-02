@@ -76,3 +76,27 @@ export const AVERAGE_WINDOWS = [7, 30, 90] as const;
 export function averagesFor(values: number[]): { days: number; average: number }[] {
   return AVERAGE_WINDOWS.map((days) => ({ days, average: movingAverage(values, days) }));
 }
+
+export interface PeriodRange {
+  low: number;
+  high: number;
+  /** Where today sits between them, 0 (at the low) to 100 (at the high). */
+  position: number;
+}
+
+/**
+ * The period's floor and ceiling, and where today stands between them.
+ *
+ * The average says whether today is cheap on balance; the range says how much
+ * room there was either way. A rate 0.5% under the average means something
+ * different in a month that moved ₹80 than in one that moved ₹800.
+ */
+export function periodRange(values: number[], current: number): PeriodRange | null {
+  const clean = values.filter((v) => Number.isFinite(v) && v > 0);
+  if (clean.length < 2) return null;
+  const low = Math.min(...clean);
+  const high = Math.max(...clean);
+  if (high <= low) return null;
+  const position = Math.round(((current - low) / (high - low)) * 100);
+  return { low, high, position: Math.min(100, Math.max(0, position)) };
+}

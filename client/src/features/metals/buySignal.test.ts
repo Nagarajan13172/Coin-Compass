@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { averagesFor, buySignal, movingAverage, NEUTRAL_BAND_PCT } from "./buySignal";
+import { averagesFor, buySignal, movingAverage, NEUTRAL_BAND_PCT, periodRange } from "./buySignal";
 
 /** 10 days of rates, newest last — the order the history arrives in. */
 const SERIES = [13000, 13100, 13200, 13300, 13400, 13500, 13600, 13700, 13800, 13900];
@@ -70,5 +70,26 @@ describe("the three windows", () => {
     expect(rows.map((r) => r.days)).toEqual([7, 30, 90]);
     // Ten rising days: the shorter the window, the higher the average.
     expect(rows[0].average).toBeGreaterThan(rows[2].average);
+  });
+});
+
+describe("period range", () => {
+  it("finds the floor and ceiling, and places today between them", () => {
+    const r = periodRange(SERIES, 13450)!;
+    expect(r).toMatchObject({ low: 13000, high: 13900 });
+    expect(r.position).toBe(50); // exactly halfway
+  });
+
+  it("pins today to the ends rather than reporting past them", () => {
+    // A rate outside the period (today's, not yet in the history) still reads
+    // sensibly instead of showing 140%.
+    expect(periodRange(SERIES, 14500)!.position).toBe(100);
+    expect(periodRange(SERIES, 12000)!.position).toBe(0);
+  });
+
+  it("says nothing when there is no range to speak of", () => {
+    expect(periodRange([13000, 13000, 13000], 13000)).toBeNull(); // flat
+    expect(periodRange([13000], 13000)).toBeNull(); // one point
+    expect(periodRange([], 13000)).toBeNull();
   });
 });

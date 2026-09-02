@@ -127,6 +127,17 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
   // With no GST the before-GST and total columns agree, hence first().
   await expect(page.getByText("₹1,18,540.8").first()).toBeVisible();
 
+  // Silver is a different metal in more than name: one click on the chart's tab
+  // moves the calculator with it, and the weights become silver's own — nobody
+  // buys 8 grams of it, and nothing is counted in sovereigns.
+  await page.getByRole("tab", { name: "Silver" }).first().click();
+  // "1 kg" appears twice now: the silver card's stat and the table row.
+  await expect(page.getByText("1 kg").first()).toBeVisible();
+  await expect(page.getByText("1 sovereign")).toHaveCount(0);
+  await expect(page.getByText("100 g").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Gold" }).first().click();
+  await expect(page.getByText("1 sovereign")).toBeVisible();
+
   // On a phone the table is wider than the screen by design: it has to scroll in
   // its own box rather than pushing the page sideways.
   await page.setViewportSize({ width: 360, height: 800 });

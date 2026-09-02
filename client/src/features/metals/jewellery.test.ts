@@ -60,8 +60,12 @@ describe("jewellery cost — weights", () => {
     expect(toSovereigns(4)).toBe(0.5);
   });
 
-  it("lists the everyday weights, in order", () => {
+  it("lists gold's everyday weights, in order", () => {
     expect(weightRows(0)).toEqual([1, 8, 16, 24, 40]);
+  });
+
+  it("uses silver's own ladder — nobody buys 8 grams of silver", () => {
+    expect(weightRows(0, "silver")).toEqual([10, 50, 100, 250, 500, 1000]);
   });
 
   it("slots a custom weight into place without duplicating one already there", () => {

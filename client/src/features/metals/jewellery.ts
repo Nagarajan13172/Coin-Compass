@@ -75,12 +75,16 @@ export function toSovereigns(grams: number): number {
 }
 
 /**
- * The weights a table should show: the everyday ones, plus whatever the user
- * typed, without repeating a weight that's already listed.
+ * The weights a table should show: the everyday ones for that metal, plus
+ * whatever the user typed, without repeating a weight already listed.
+ *
+ * The two metals are bought in different units and it isn't a detail. Gold goes
+ * by the gram and the sovereign — 8, 16, 24 grams. Nobody buys 8 grams of
+ * silver; it's sold by the 100 grams and the kilo, so showing gold's ladder for
+ * silver produces a table of amounts no one would ever ask for.
  */
-export function weightRows(custom: number): number[] {
-  const standard = [1, 8, 16, 24, 40];
-  const rows = [...standard];
+export function weightRows(custom: number, metal: "gold" | "silver" = "gold"): number[] {
+  const rows = metal === "silver" ? [10, 50, 100, 250, 500, 1000] : [1, 8, 16, 24, 40];
   const extra = round2(custom);
   if (extra > 0 && !rows.includes(extra)) rows.push(extra);
   return rows.sort((a, b) => a - b);

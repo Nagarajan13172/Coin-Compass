@@ -142,7 +142,8 @@
         "total": "Total",
         "beforeGst": "Before GST"
       },
-      "footnote": "All-in that works out to {{perGram}} per gram. A jeweller may also charge wastage separately, and hallmarking per piece."
+      "footnote": "All-in that works out to {{perGram}} per gram. A jeweller may also charge wastage separately, and hallmarking per piece.",
+      "kg": "{{kg}} kg"
     },
     "signal": {
       "good": "Good buy",
@@ -156,8 +157,13 @@
         "good": "Below its recent average — a reasonable day to buy.",
         "fair": "Sitting at its usual level. No rush either way.",
         "high": "Above its recent average. Waiting a while may cost less."
-      }
-    }
+      },
+      "range": "{{days}}-day range {{low}} – {{high}} · today sits {{position}}% up it",
+      "rangeAtLow": "{{days}}-day range {{low}} – {{high}} · today is the lowest it's been",
+      "rangeAtHigh": "{{days}}-day range {{low}} – {{high}} · today is the highest it's been"
+    },
+    "per100g": "100 g",
+    "perKg": "1 kg"
   },
   "directionHelp": {
     "given": "You lent them money — they owe you.",

@@ -29,15 +29,19 @@ type Purity = "22k" | "24k" | "18k";
 export function JewelleryCalculator({
   gold,
   silver,
+  metal,
+  onMetalChange,
   /** The city-resolved 22K rate from the headline card, so both agree. */
   goldRate22k,
 }: {
   gold: MetalPrice | null;
   silver: MetalPrice | null;
+  /** Which metal the page is looking at — shared with the chart above. */
+  metal: "gold" | "silver";
+  onMetalChange: (m: "gold" | "silver") => void;
   goldRate22k?: number;
 }) {
   const { t } = useTranslation("credits");
-  const [metal, setMetal] = useState<"gold" | "silver">("gold");
   const [purity, setPurity] = useState<Purity>("22k");
   const [makingPct, setMakingPct] = useState("12");
   const [gstPct, setGstPct] = useState(String(GST_PCT));
@@ -56,7 +60,7 @@ export function JewelleryCalculator({
 
   const making = Number(makingPct) || 0;
   const gst = Number(gstPct) || 0;
-  const rows = weightRows(Number(customGrams) || 0);
+  const rows = weightRows(Number(customGrams) || 0, metal);
   const customWeight = Number(customGrams) || 0;
 
   if (!price) return null;
@@ -69,7 +73,7 @@ export function JewelleryCalculator({
           {t("gold.calc.title")}
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={metal} onValueChange={(v) => setMetal(v as "gold" | "silver")}>
+          <Tabs value={metal} onValueChange={(v) => onMetalChange(v as "gold" | "silver")}>
             <TabsList className="h-8">
               <TabsTrigger value="gold" disabled={!gold}>
                 {t("gold.metal.gold")}
@@ -152,7 +156,7 @@ export function JewelleryCalculator({
               onChange={(e) => setCustomGrams(e.target.value)}
               placeholder={t("gold.calc.customPlaceholder")}
             />
-            {customWeight > 0 && (
+            {customWeight > 0 && metal === "gold" && (
               <p className="pt-0.5 text-xs text-muted-foreground">
                 {t("gold.calc.sovereigns", { count: toSovereigns(customWeight) })}
               </p>
@@ -185,7 +189,7 @@ export function JewelleryCalculator({
             <tbody>
               {rows.map((grams) => {
                 const c = jewelleryCost(rate, grams, making, gst);
-                const isSovereign = grams % GRAMS_PER_SOVEREIGN === 0;
+                const isSovereign = metal === "gold" && grams % GRAMS_PER_SOVEREIGN === 0;
                 const isCustom = grams === customWeight;
                 return (
                   <tr
@@ -193,7 +197,9 @@ export function JewelleryCalculator({
                     className={cn("border-b last:border-0", isCustom && "bg-primary/5")}
                   >
                     <td className="py-2.5">
-                      <span className="tnum font-medium">{grams} g</span>
+                      <span className="tnum font-medium">
+                        {grams >= 1000 ? t("gold.calc.kg", { kg: grams / 1000 }) : `${grams} g`}
+                      </span>
                       {isSovereign && (
                         <Badge variant="secondary" className="ml-2 text-[10px] font-normal">
                           {t("gold.calc.sovereigns", { count: toSovereigns(grams) })}

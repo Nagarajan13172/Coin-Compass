@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { BuySignal } from "./buySignal";
+import type { BuySignal, PeriodRange } from "./buySignal";
 
 /**
  * The verdict: is today cheap, dear, or ordinary against its own recent history?
@@ -18,12 +18,15 @@ export function BuySignalBanner({
   signal,
   days,
   averages,
+  range = null,
   className,
 }: {
   signal: BuySignal;
   /** The window the verdict was measured over — the range on screen. */
   days: number;
   averages: { days: number; average: number }[];
+  /** The period's floor and ceiling, when there's a range worth reporting. */
+  range?: PeriodRange | null;
   className?: string;
 }) {
   const { t } = useTranslation("credits");
@@ -75,6 +78,25 @@ export function BuySignalBanner({
             })}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">{t(`gold.signal.advice.${verdict}`)}</p>
+          {range && (
+            <p className="tnum mt-1.5 text-xs text-muted-foreground">
+              {/* "sits 0% up it" is a clumsy way to say today is the cheapest
+                  the period has been — which is the most interesting case. */}
+              {t(
+                range.position <= 2
+                  ? "gold.signal.rangeAtLow"
+                  : range.position >= 98
+                    ? "gold.signal.rangeAtHigh"
+                    : "gold.signal.range",
+                {
+                  low: formatMoney(range.low, { currency: "INR" }),
+                  high: formatMoney(range.high, { currency: "INR" }),
+                  position: range.position,
+                  days,
+                }
+              )}
+            </p>
+          )}
         </div>
       </div>
 

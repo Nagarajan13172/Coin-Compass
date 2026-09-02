@@ -34,7 +34,7 @@ import { METAL_META } from "@/features/metals/meta";
 import { MetalChange } from "@/features/metals/MetalChange";
 import { MetalHistoryChart } from "@/features/metals/MetalHistoryChart";
 import { JewelleryCalculator } from "@/features/metals/JewelleryCalculator";
-import { averagesFor, buySignal, movingAverage } from "@/features/metals/buySignal";
+import { averagesFor, buySignal, movingAverage, periodRange } from "@/features/metals/buySignal";
 import { BuySignalBanner } from "@/features/metals/BuySignalBanner";
 import { metalChartSeries } from "@/features/metals/cities";
 import {
@@ -115,6 +115,12 @@ function MetalBigCard({ price, metal, city }: { price: MetalPrice; metal: Metal;
             <Stat label={t("gold.perGram18k")} value={resolved.gram18k} />
           </div>
         )}
+        {!isGold && (
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label={t("gold.per100g")} value={price.pricePerGram24k * 100} />
+            <Stat label={t("gold.perKg")} value={price.pricePerGram24k * 1000} />
+          </div>
+        )}
         <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
           <span className="tnum">
             {t("gold.spotOz", { value: formatMoney(price.pricePerOunce, { currency: "INR", compact: true }) })}
@@ -158,6 +164,7 @@ export default function GoldPage() {
     () => buySignal(series.at(-1) ?? 0, movingAverage(series, days)),
     [series, days]
   );
+  const range = useMemo(() => periodRange(series, series.at(-1) ?? 0), [series]);
 
   async function refreshNow() {
     try {
@@ -281,6 +288,7 @@ export default function GoldPage() {
                 signal={signal}
                 days={days}
                 averages={windowAverages}
+                range={range}
                 className="mt-4"
               />
             </CardContent>
@@ -289,6 +297,8 @@ export default function GoldPage() {
           <JewelleryCalculator
             gold={latest.gold}
             silver={latest.silver}
+            metal={metal}
+            onMetalChange={setMetal}
             goldRate22k={latest.gold && city ? resolveCityRate(latest.gold, city).gram22k : undefined}
           />
 
