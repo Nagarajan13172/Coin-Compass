@@ -45,6 +45,10 @@ Grouped by what they help you do:
 ### 📈 Grow (wealth)
 - **Net Worth** — Assets (Savings: FD/RD/Emergency/Retirement; Investments: Stocks/MF/Real
   estate/Bonds/Gold) minus liabilities, with a **money‑map** overview and a **trend** over time.
+- **Deposits** — paying into an RD/FD is a **transfer into an asset, not a spend**: the bank
+  balance falls, the deposit rises, net worth holds. Withdrawals split principal from interest
+  (interest is booked as income), recurring rules can pay instalments automatically, and past
+  instalments logged as expenses can be reclassified in place.
 - **Gold & Silver** — live daily rates (incl. GRT city retail rates), 22K/24K per gram, purity,
   price history, and a value calculator.
 

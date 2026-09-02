@@ -76,6 +76,8 @@ groups by day with a running per‑day total and infinite‑scrolls.
    delete a rule.
 5. **Loan EMI:** set **"Apply to loan"** on a recurring expense — each posting reduces that
    loan (see §7).
+6. **RD instalment:** set **"Pay into deposit"** — each posting moves the money into that
+   deposit instead of spending it, so it keeps counting as an asset (see §8).
 
 ---
 
@@ -117,6 +119,29 @@ Each loan card shows outstanding, EMI, interest rate, **tenure left (+ est. clos
 - **Assets:** add holdings under **Saving** (Fixed/Recurring Deposit, Emergency, Retirement) or
   **Investment** (Stocks, Mutual Funds, Real Estate, Bonds, Gold). Jewellery → Gold; house →
   Real Estate.
+
+**Paying into a deposit (RD / FD / savings pot)**
+
+Money you put into a deposit is **saving, not spending** — so the app records it as a transfer,
+never an expense. Your bank balance falls, the deposit rises by the same amount, and your net
+worth doesn't move.
+
+- On any asset except Stocks and Mutual Funds (those are valued from their lots, so their money
+  moves live on the Stocks and Funds pages), the ⋮ menu offers:
+  - **Pay in** — record an instalment: pick the account it left, the amount and the date.
+  - **Withdraw** — a maturity payout or a part withdrawal. Anything **above** the principal you
+    paid in is booked as **Deposit Interest** income, so your net worth rises by exactly the
+    interest earned. Tick **Close this deposit** for a matured FD/RD.
+  - **Import past payments** — if you were recording RD instalments as expenses before, this
+    finds them (savings‑group spends, or ones naming the deposit) and rewrites them in place as
+    payments into it. Nothing is entered twice; the old rows simply stop counting as spending.
+- **Monthly RD instalments:** on a recurring rule, set **"Pay into deposit"** — each run pays
+  into the deposit instead of posting an expense. This is the RD equivalent of a SIP.
+- Deposit payments appear in the ledger under the deposit's own name, moving between your
+  account and the auto‑managed **Savings & Deposits** bucket. That bucket is excluded from your
+  totals on purpose — the holding already carries the value — so nothing is counted twice.
+- Deleting a deposit payment reverses it exactly: the money returns to the account and the
+  deposit drops back. To change an amount, delete the payment and record it again.
 
 **Gold page**
 - Live **gold & silver** rates (choose your city for GRT retail rates), 22K/24K per gram, daily

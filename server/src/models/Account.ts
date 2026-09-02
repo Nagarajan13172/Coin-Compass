@@ -14,6 +14,11 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 //                a purchase stays a balanced transfer instead of vanishing from
 //                the ledger. Excluded from totals (includeInTotal: false) because
 //                the lots supply the market value; see ensureSecuritiesAccount.
+//   deposits   — auto-managed, one per user. The same trick for savings deposits
+//                (RD/FD/emergency fund): paying into one is a TRANSFER into this
+//                bucket, never an expense, so the money leaves your bank without
+//                leaving your net worth. Excluded from totals because the Holding
+//                carries the value; see ensureDepositsAccount.
 export const ACCOUNT_TYPES = [
   "cash",
   "bank",
@@ -25,6 +30,7 @@ export const ACCOUNT_TYPES = [
   "payable",
   "demat",
   "securities",
+  "deposits",
 ] as const;
 
 const accountSchema = new Schema(

@@ -27,6 +27,8 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useLoans } from "@/hooks/useLoans";
 import { useGoals } from "@/hooks/useGoals";
+import { useHoldings } from "@/hooks/useHoldings";
+import { useCanSeeWealth } from "@/hooks/useAuth";
 import { useCreateRecurring, useUpdateRecurring } from "@/hooks/useRecurring";
 import { RecordMeta } from "@/components/common/RecordMeta";
 import { categoryLabel } from "@/lib/i18nLabels";
@@ -36,6 +38,7 @@ import { useTranslation } from "react-i18next";
 
 const NO_LOAN = "__none__";
 const NO_GOAL = "__none__";
+const NO_HOLDING = "__none__";
 
 interface Props {
   open: boolean;
@@ -95,6 +98,10 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const { data: accounts } = useAccounts();
   const { data: loans } = useLoans();
   const { data: goals } = useGoals();
+  // Holdings sit behind the wealth lock, so only ask for them when this session
+  // may see them — otherwise every rule dialog would fire a 403.
+  const canSeeWealth = useCanSeeWealth();
+  const { data: holdings } = useHoldings({ enabled: canSeeWealth });
   const create = useCreateRecurring();
   const update = useUpdateRecurring();
   const isEdit = Boolean(recurring);
@@ -112,6 +119,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const [note, setNote] = useState("");
   const [loanId, setLoanId] = useState("");
   const [goalId, setGoalId] = useState("");
+  const [holdingId, setHoldingId] = useState("");
   // A SIP: the rule buys this scheme instead of posting an ordinary transaction.
   const [fund, setFund] = useState<FundHit | null>(null);
   const [fundFolio, setFundFolio] = useState("");
@@ -141,6 +149,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
     setNote(recurring?.note ?? "");
     setLoanId(recurring?.loan?._id ?? "");
     setGoalId(recurring?.goal?._id ?? "");
+    setHoldingId(typeof recurring?.holding === "object" ? (recurring?.holding?._id ?? "") : (recurring?.holding ?? ""));
     setFund(
       recurring?.fund
         ? ({ schemeCode: recurring.fund, name: recurring.payee || recurring.fund } as FundHit)
@@ -176,6 +185,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
       note,
       loan: type !== "income" && loanId ? loanId : null,
       goal: type !== "income" && goalId ? goalId : null,
+      holding: type !== "income" && holdingId ? holdingId : null,
       fund: type !== "income" && fund ? fund.schemeCode : null,
       fundFolio: fundFolio.trim(),
     };
@@ -402,6 +412,50 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
               );
             })()}
 
+          {/* An RD instalment. The rule then pays into the deposit rather than
+              posting an expense, so the money keeps counting as an asset instead
+              of reading as a monthly spend. Exclusive with a loan, a goal or a
+              SIP for the same reason those are exclusive with each other. */}
+          {type !== "income" &&
+            (() => {
+              const options = (holdings ?? []).filter(
+                (h) => h.subtype !== "stocks" && h.subtype !== "mutual_funds"
+              );
+              if (options.length === 0) return null;
+              return (
+                <div className="space-y-1.5">
+                  <Label>{t("deposit.payInto", { ns: "wealth" })}</Label>
+                  <Select
+                    value={holdingId || NO_HOLDING}
+                    onValueChange={(v) => {
+                      const next = v === NO_HOLDING ? "" : v;
+                      setHoldingId(next);
+                      if (next) {
+                        setGoalId("");
+                        setLoanId("");
+                        setFund(null);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_HOLDING}>{t("labels.none", { ns: "common" })}</SelectItem>
+                      {options.map((h) => (
+                        <SelectItem key={h._id} value={h._id}>
+                          {h.name} · {formatMoney(h.value)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {holdingId && (
+                    <p className="text-xs text-muted-foreground">{t("deposit.ruleHint", { ns: "wealth" })}</p>
+                  )}
+                </div>
+              );
+            })()}
+
           {/* A SIP. The rule then buys units at the day's NAV rather than posting
               a plain expense, so it can't also feed a goal or pay a loan. */}
           {type !== "income" && (
@@ -415,6 +469,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
                   if (hit) {
                     setGoalId("");
                     setLoanId("");
+                    setHoldingId("");
                   }
                 }}
               />

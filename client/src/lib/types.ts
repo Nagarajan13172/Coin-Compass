@@ -1,7 +1,8 @@
 export type TxnType = "income" | "expense" | "transfer";
 export type CategoryType = "income" | "expense";
-// "receivable"/"payable"/"securities" are auto-managed buckets the app creates
-// (Money Lent, Money Owed, Stock Investments); the rest a user makes by hand.
+// "receivable"/"payable"/"securities"/"deposits" are auto-managed buckets the app
+// creates (Money Lent, Money Owed, Stock Investments, Savings & Deposits); the
+// rest a user makes by hand.
 export type AccountType =
   | "cash"
   | "bank"
@@ -12,7 +13,8 @@ export type AccountType =
   | "demat"
   | "receivable"
   | "payable"
-  | "securities";
+  | "securities"
+  | "deposits";
 
 /** Account types a user can create. The system buckets are never offered. */
 export const CREATABLE_ACCOUNT_TYPES = [
@@ -131,6 +133,12 @@ export interface Transaction {
   goal?: RefLite | string | null;
   /** How much of this transaction was applied to the goal (for exact reversal). */
   goalContribution?: number;
+  /** When set, this leg paid into — or took money out of — a savings deposit
+   *  (RD/FD). It is a transfer, not a spend: see the server's depositService. */
+  holding?: HoldingRef | string | null;
+  /** The signed change this leg made to the deposit's value (for exact reversal):
+   *  positive paying in, negative taking out, zero on the interest leg. */
+  holdingContribution?: number;
   /** When set, this transaction is the reflected side of a Credit entry (money to/from a person).
    *  `split` on the credit means the credit is one person's share of a shared bill. */
   credit?: { _id: string; person: string; direction: CreditDirection; split?: string | null } | string | null;
@@ -184,6 +192,8 @@ export interface Recurring {
   /** A SIP: AMFI scheme code whose units each occurrence buys at the day's NAV. */
   fund?: string | null;
   fundFolio?: string;
+  /** An RD instalment: the deposit each occurrence pays into. */
+  holding?: RefLite | string | null;
   frequency: Frequency;
   interval: number;
   startDate: string;
@@ -247,6 +257,15 @@ export type HoldingSubtype =
   | "real_estate"
   | "bonds"
   | "gold";
+
+/** The slice of a Holding a populated transaction carries. */
+export interface HoldingRef {
+  _id: string;
+  name: string;
+  class: HoldingClass;
+  subtype: HoldingSubtype;
+  provider?: string;
+}
 
 export interface Holding {
   _id: string;

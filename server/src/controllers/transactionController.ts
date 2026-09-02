@@ -10,6 +10,7 @@ import {
   reverseGoalContribution,
 } from "../services/goalService";
 import { unlinkCreditTransaction, deleteCreditForTransaction } from "../services/creditService";
+import { reverseHoldingContribution } from "../services/depositService";
 import { splitIdForTransaction, unlinkSplitForTransaction } from "../services/splitService";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
@@ -20,6 +21,7 @@ const POPULATE = [
   { path: "category", select: "name color icon type" },
   { path: "loan", select: "name" },
   { path: "goal", select: "name color icon" },
+  { path: "holding", select: "name class subtype provider" },
   // `split` on the credit too: a participant's transfer leg reaches its shared bill
   // through the credit, and the ledger needs it to collapse the bill into one row.
   { path: "credit", select: "person direction split" },
@@ -95,6 +97,34 @@ function assertStockLegUnchanged(
     sameId(txn.toAccount, patch.toAccount);
 
   if (!untouched) assertNotStockLinked(txn, "edit");
+}
+
+/**
+ * A deposit leg (see depositService): the transfer that moved an RD instalment
+ * out of the bank, or the payout that brought it back. Its amount IS the holding's
+ * value — editing one here would leave the deposit claiming money the ledger says
+ * never moved — so money-moving edits are refused and the user is sent to the
+ * Deposit / Withdraw actions that own it. Notes and tags stay editable.
+ */
+function assertHoldingLegUnchanged(
+  txn: { holding?: unknown; amount: number; type: string; account: unknown; toAccount?: unknown },
+  patch: Record<string, unknown>
+): void {
+  if (!txn.holding) return;
+
+  const sameId = (a: unknown, b: unknown) => b === undefined || String(a ?? "") === String(b ?? "");
+  const untouched =
+    (patch.amount === undefined || patch.amount === txn.amount) &&
+    (patch.type === undefined || patch.type === txn.type) &&
+    sameId(txn.account, patch.account) &&
+    sameId(txn.toAccount, patch.toAccount);
+
+  if (untouched) return;
+  throw new HttpError(
+    400,
+    "This is a deposit payment. Change it from the Net Worth page instead.",
+    "TXN_HOLDING_EDIT"
+  );
 }
 
 /** Accept a single value or a comma-separated list ("a,b" → { $in: ["a","b"] }). */
@@ -311,6 +341,7 @@ export async function updateTransaction(req: Request, res: Response) {
   if (!txn) throw new HttpError(404, "Transaction not found");
 
   assertStockLegUnchanged(txn, data);
+  assertHoldingLegUnchanged(txn, data);
   if (data.goal !== undefined) await assertGoalTakesContributions(data.goal, uid);
 
   const prevLoan = txn.loan;
@@ -398,13 +429,18 @@ export async function deleteTransaction(req: Request, res: Response) {
   const splitId = await splitIdForTransaction(uid, txn);
   if (splitId) await unlinkSplitForTransaction(uid, splitId);
 
-  // Loan/goal/credit-linked transactions carry stored side effects (a loan's outstanding,
-  // a goal's saved total, a paired Credit entry) that can't be cleanly reconstructed on
-  // restore — so they're still removed permanently, reversing those effects exactly as before.
-  if (txn.loan || txn.goal || txn.credit) {
+  // Loan/goal/credit/deposit-linked transactions carry stored side effects (a loan's
+  // outstanding, a goal's saved total, a paired Credit entry, a deposit's value) that
+  // can't be cleanly reconstructed on restore — so they're still removed permanently,
+  // reversing those effects exactly as before.
+  if (txn.loan || txn.goal || txn.credit || txn.holding) {
     await Transaction.deleteOne({ _id: txn._id });
     if (txn.loan) await reverseLoanPayment(txn.loan, uid, txn.loanPrincipal ?? txn.amount, txn.loanInterest ?? 0);
     if (txn.goal) await reverseGoalContribution(txn.goal, uid, txn.goalContribution ?? txn.amount);
+    // A deposit leg carries the SIGNED change it made, so this puts back exactly
+    // what it took — undoing an instalment lowers the deposit, undoing a payout
+    // raises it again. The interest leg contributed nothing and reverses to nothing.
+    if (txn.holding) await reverseHoldingContribution(txn.holding, uid, txn.holdingContribution ?? 0);
     if (txn.credit) await deleteCreditForTransaction(uid, txn.credit);
     return res.json({ ok: true, recoverable: false });
   }

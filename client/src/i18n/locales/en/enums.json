@@ -9,7 +9,8 @@
     "receivable": "Money Lent",
     "payable": "Money Owed",
     "demat": "Demat",
-    "securities": "Stock Investments"
+    "securities": "Stock Investments",
+    "deposits": "Savings & Deposits"
   },
   "loan": {
     "home": "Home",

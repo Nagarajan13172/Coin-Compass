@@ -20,6 +20,7 @@ const populate = [
   { path: "category", select: "name color icon type" },
   { path: "loan", select: "name" },
   { path: "goal", select: "name color icon" },
+  { path: "holding", select: "name class subtype" },
 ];
 
 /** Attach the next few scheduled run dates so the client can preview upcoming occurrences. */

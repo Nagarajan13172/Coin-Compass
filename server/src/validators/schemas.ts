@@ -172,6 +172,9 @@ const recurringBase = z.object({
   // A SIP: AMFI's scheme code, so each run buys `amount` worth of that fund.
   fund: z.string().trim().max(20).nullish(),
   fundFolio: z.string().trim().max(40).default(""),
+  // An RD instalment: each run pays `amount` into this deposit instead of
+  // posting an ordinary transaction (see depositService).
+  holding: optionalObjectId,
   frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).default("monthly"),
   interval: z.number().int().positive().default(1),
   startDate: z.coerce.date().default(() => new Date()),
@@ -280,6 +283,24 @@ export const holdingSchema = holdingBase.refine(subtypeMatchesClass, {
 });
 // Partial updates skip the cross-field check (class/subtype may arrive separately).
 export const holdingUpdateSchema = holdingBase.partial();
+
+/** Paying into a deposit: which account the money leaves, and when. */
+export const holdingDepositSchema = z.object({
+  account: objectId,
+  amount: z.number().positive(),
+  date: z.coerce.date().default(() => new Date()),
+  note: z.string().max(280).default(""),
+});
+
+/** Taking money out. `close` removes the holding once the payout is recorded. */
+export const holdingWithdrawSchema = holdingDepositSchema.extend({
+  close: z.boolean().default(false),
+});
+
+/** Reclassifying past expenses as payments into this deposit. */
+export const holdingAdoptSchema = z.object({
+  transactions: z.array(objectId).min(1).max(500),
+});
 
 const loanBase = z.object({
   name: z.string().min(1).max(80),

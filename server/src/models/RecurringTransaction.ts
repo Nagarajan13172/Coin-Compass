@@ -26,6 +26,11 @@ const recurringSchema = new Schema(
     fund: { type: String, default: null, trim: true },
     /** The folio the SIP's units are allotted into. A label, as on the lot. */
     fundFolio: { type: String, default: "", trim: true },
+    // An RD instalment (or any standing order into a deposit): each posted
+    // occurrence pays `amount` into this holding instead of posting an ordinary
+    // transaction. The deposit brings its own ledger leg (bank → Deposits), so the
+    // money leaves the account without ever being counted as spending.
+    holding: { type: Schema.Types.ObjectId, ref: "Holding", default: null },
     // recurrence rule
     frequency: { type: String, enum: RECURRENCE_FREQUENCIES, default: "monthly" },
     interval: { type: Number, default: 1, min: 1 }, // every N frequency units

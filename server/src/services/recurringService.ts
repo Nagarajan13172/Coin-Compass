@@ -3,6 +3,7 @@ import { Transaction } from "../models/Transaction";
 import { applyLoanPayment } from "./loanService";
 import { applyGoalContribution } from "./goalService";
 import { buyFund } from "./fundService";
+import { depositToHolding } from "./depositService";
 import { notify } from "./notificationService";
 import { ruleTitle, postedDedupeKey, endedDedupeKey } from "./notificationLogic";
 import { addDays, addMonths, addYears } from "../utils/dateRange";
@@ -99,6 +100,32 @@ async function postDueForRule(rule: RuleDoc, now: Date): Promise<number> {
         });
       } catch (e) {
         console.error("[recurring] SIP purchase failed for rule", String(rule._id), e);
+        break;
+      }
+      created += 1;
+      rule.lastRun = new Date(next);
+      next = advance(next, rule.frequency, rule.interval);
+      iterations += 1;
+      continue;
+    }
+
+    // An RD instalment is the same idea as a SIP: it doesn't post an ordinary
+    // transaction, it pays into a deposit — and that deposit brings its own
+    // ledger leg (bank → Deposits), so the instalment never lands in a spending
+    // chart. Same failure handling: stop without advancing so the instalment is
+    // retried rather than silently skipped.
+    if (rule.holding) {
+      try {
+        await depositToHolding(String(rule.user), {
+          holding: String(rule.holding),
+          account: String(rule.account),
+          amount: rule.amount,
+          date: new Date(next),
+          note: rule.note ?? "",
+          recurring: rule._id,
+        });
+      } catch (e) {
+        console.error("[recurring] deposit failed for rule", String(rule._id), e);
         break;
       }
       created += 1;
@@ -241,6 +268,26 @@ export async function postOneOccurrence(
 
   const date = opts.date ? new Date(opts.date) : new Date(rule.nextRun);
   const amount = opts.amount != null ? opts.amount : rule.amount;
+
+  // An RD rule pays into its deposit here too, exactly as the scheduled run does
+  // — otherwise "Post now" would book the instalment as a plain expense and the
+  // deposit would quietly fall behind the ledger.
+  if (rule.holding) {
+    await depositToHolding(String(rule.user), {
+      holding: String(rule.holding),
+      account: String(rule.account),
+      amount,
+      date,
+      note: rule.note ?? "",
+      recurring: rule._id,
+    });
+    rule.lastRun = date;
+    const nextDue = advance(new Date(rule.nextRun), rule.frequency, rule.interval);
+    rule.nextRun = nextDue;
+    if (rule.endDate && nextDue > rule.endDate) rule.active = false;
+    await rule.save();
+    return rule as unknown as RuleDoc;
+  }
 
   const posted = await Transaction.create({
     user: rule.user,

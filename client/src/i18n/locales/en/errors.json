@@ -13,7 +13,7 @@
   "CREDIT_NOT_FOUND": "Credit entry not found",
   "CREDIT_ACCOUNT_REQUIRED": "Pick an account to reflect this in your balances",
   "GOAL_NOT_FOUND": "Goal not found",
-  "HOLDING_NOT_FOUND": "Holding not found",
+  "HOLDING_NOT_FOUND": "Asset not found",
   "SIGNIN_SESSION_EXPIRED": "Your sign-in session expired. Please sign in again.",
   "CODE_INCORRECT": "That code is incorrect or expired",
   "CODE_INCORRECT_RETRY": "That code is incorrect or expired. Try again.",
@@ -80,5 +80,9 @@
   "TXN_STOCK_SALE_EDIT": "This is part of a stock sale. Edit the sale from the Stocks page instead.",
   "STOCK_SPLIT_NOT_FOUND": "That corporate action isn’t on record",
   "GOAL_TRACKS_ACCOUNT": "This goal tracks an account — pay into that wallet instead",
-  "ACCOUNT_ALREADY_LINKED": "That account already funds {{name}}"
+  "ACCOUNT_ALREADY_LINKED": "That account already funds {{name}}",
+  "HOLDING_LOT_OWNED": "{{name}} is valued from its lots. Record this on the {{owner}} page instead.",
+  "DEPOSIT_NO_AMOUNT": "Enter an amount greater than 0",
+  "ACCOUNT_SYSTEM_MANAGED": "That account is managed by the app",
+  "TXN_HOLDING_EDIT": "This is a deposit payment. Change it from the Net Worth page instead."
 }

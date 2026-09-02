@@ -9,7 +9,8 @@ import { useCreateTransaction, useDeleteTransaction, useRestoreTransaction } fro
 import { fmtDate } from "@/lib/dates";
 import { transactionSummary } from "@/lib/format";
 import { categoryLabel } from "@/lib/i18nLabels";
-import type { RefLite, Transaction } from "@/lib/types";
+import { SUBTYPE_META } from "@/lib/networth";
+import type { HoldingRef, RefLite, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function ref(v: RefLite | string | null | undefined): RefLite | null {
@@ -49,9 +50,23 @@ export function TransactionRow({
   const category = ref(txn.category);
 
   const isTransfer = txn.type === "transfer";
-  const title = isTransfer ? t("txnType.transfer", { ns: "common" }) : categoryLabel(category?.name);
-  const icon = isTransfer ? "repeat" : category?.icon;
-  const color = isTransfer ? "#3B82F6" : category?.color;
+  // A deposit leg is a transfer, but calling it one tells the user nothing: what
+  // they want to see is which deposit their money went into. So it wears the
+  // holding's name and its subtype's icon instead of the generic transfer look.
+  // (The interest leg is an income row and already carries its own category.)
+  const holding = txn.holding && typeof txn.holding === "object" ? (txn.holding as HoldingRef) : null;
+  const depositLeg = isTransfer && holding ? holding : null;
+  const title = depositLeg
+    ? depositLeg.name
+    : isTransfer
+      ? t("txnType.transfer", { ns: "common" })
+      : categoryLabel(category?.name);
+  const icon = depositLeg ? SUBTYPE_META[depositLeg.subtype]?.icon : isTransfer ? "repeat" : category?.icon;
+  const color = depositLeg
+    ? SUBTYPE_META[depositLeg.subtype]?.color
+    : isTransfer
+      ? "#3B82F6"
+      : category?.color;
 
   const note = txn.note?.trim();
   const noteIsCategory = note && category?.name && note.toLowerCase() === category.name.toLowerCase();

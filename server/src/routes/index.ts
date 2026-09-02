@@ -157,6 +157,11 @@ router.use("/funds", asyncHandler(requireWealthAccess));
 
 router.get("/holdings", asyncHandler(holdings.listHoldings));
 router.post("/holdings", asyncHandler(holdings.createHolding));
+// Deposits: paying into a saving holding is a transfer, not a spend — see depositService.
+router.post("/holdings/:id/deposit", asyncHandler(holdings.depositHolding));
+router.post("/holdings/:id/withdraw", asyncHandler(holdings.withdrawHolding));
+router.get("/holdings/:id/candidates", asyncHandler(holdings.holdingCandidates));
+router.post("/holdings/:id/adopt", asyncHandler(holdings.adoptHoldingTransactions));
 router.patch("/holdings/:id", asyncHandler(holdings.updateHolding));
 router.delete("/holdings/:id", asyncHandler(holdings.deleteHolding));
 

@@ -41,6 +41,16 @@ const transactionSchema = new Schema(
     // edit/delete can reverse exactly what was applied (mirrors loan/loanPrincipal).
     goal: { type: Schema.Types.ObjectId, ref: "Goal", default: null },
     goalContribution: { type: Number, default: 0 },
+    // A savings deposit (RD / FD / emergency fund — see depositService): the
+    // transfer leg moving cash between a real account and the auto-managed
+    // Deposits bucket. `holdingContribution` is the SIGNED change this leg made
+    // to the holding's value — positive when paying in, negative when taking
+    // money out — so an edit or delete reverses exactly what was applied
+    // (mirrors loan/loanPrincipal and goal/goalContribution). The interest leg of
+    // a withdrawal carries the holding too, but contributes 0: the interest was
+    // never part of the deposit's principal.
+    holding: { type: Schema.Types.ObjectId, ref: "Holding", default: null },
+    holdingContribution: { type: Number, default: 0 },
     // Stock purchase: the transfer moving cash from the demat account into the
     // Securities bucket. Set on the transfer leg; the lot links back via
     // StockLot.buyTransaction.
@@ -73,6 +83,7 @@ transactionSchema.index({ user: 1, account: 1 });
 transactionSchema.index({ user: 1, category: 1 });
 transactionSchema.index({ user: 1, type: 1 });
 transactionSchema.index({ user: 1, recurring: 1 });
+transactionSchema.index({ user: 1, holding: 1 });
 // Trash listing + purge sweep scan by deletion time.
 transactionSchema.index({ user: 1, deletedAt: 1 });
 

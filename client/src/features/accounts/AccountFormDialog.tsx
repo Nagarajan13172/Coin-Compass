@@ -39,6 +39,7 @@ const TYPE_ICON: Record<AccountType, string> = {
   wallet: "wallet",
   upi: "smartphone",
   savings: "piggy-bank",
+  deposits: "piggy-bank",
   demat: "trending-up",
   // Auto-managed buckets never reach this picker, but the map stays exhaustive
   // so adding an account type can't silently skip an icon.

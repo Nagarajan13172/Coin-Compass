@@ -3,8 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import {
+  ArrowDownLeft,
   ArrowRight,
+  ArrowUpRight,
   HandCoins,
+  History,
   Landmark,
   MoreVertical,
   Pencil,
@@ -32,6 +35,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { HoldingFormDialog } from "@/features/networth/HoldingFormDialog";
+import { DepositDialog, type DepositMode } from "@/features/networth/DepositDialog";
+import { AdoptDepositsDialog } from "@/features/networth/AdoptDepositsDialog";
 import { NetWorthTrend } from "@/features/networth/NetWorthTrend";
 import { useHoldings, useDeleteHolding } from "@/hooks/useHoldings";
 import { useLoans } from "@/hooks/useLoans";
@@ -71,6 +76,16 @@ function holdingsToData(list: Holding[]): CategoryDatum[] {
       };
     })
     .sort((a, b) => b.total - a.total);
+}
+
+/**
+ * Whether money can be paid into this holding from the ledger. Stocks and mutual
+ * funds are valued from their lots, so their cash movements belong to the Stocks
+ * and Funds pages — paying in here would count the same money twice. Everything
+ * else (deposits, gold, property) carries its own value and can take a deposit.
+ */
+function takesDeposits(h: Holding): boolean {
+  return h.subtype !== "stocks" && h.subtype !== "mutual_funds";
 }
 
 export default function NetWorthPage() {
@@ -440,6 +455,8 @@ function AssetsTab({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Holding | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Holding | null>(null);
+  const [depositTarget, setDepositTarget] = useState<{ holding: Holding; mode: DepositMode } | null>(null);
+  const [adoptTarget, setAdoptTarget] = useState<Holding | null>(null);
 
   function openNew() {
     setEditing(null);
@@ -601,6 +618,23 @@ function AssetsTab({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  {takesDeposits(h) && (
+                                    <>
+                                      <DropdownMenuItem
+                                        onClick={() => setDepositTarget({ holding: h, mode: "in" })}
+                                      >
+                                        <ArrowDownLeft /> {t("deposit.payIn")}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => setDepositTarget({ holding: h, mode: "out" })}
+                                      >
+                                        <ArrowUpRight /> {t("deposit.withdraw")}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => setAdoptTarget(h)}>
+                                        <History /> {t("adopt.action")}
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setEditing(h);
@@ -641,6 +675,13 @@ function AssetsTab({
       )}
 
       <HoldingFormDialog open={open} onOpenChange={setOpen} holding={editing} />
+
+      <DepositDialog
+        holding={depositTarget?.holding ?? null}
+        mode={depositTarget?.mode ?? "in"}
+        onClose={() => setDepositTarget(null)}
+      />
+      <AdoptDepositsDialog holding={adoptTarget} onClose={() => setAdoptTarget(null)} />
 
       {deleteTarget && (
         <ConfirmDeleteDialog
