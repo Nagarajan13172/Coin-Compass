@@ -89,3 +89,43 @@ export function weightRows(custom: number, metal: "gold" | "silver" = "gold"): n
   if (extra > 0 && !rows.includes(extra)) rows.push(extra);
   return rows.sort((a, b) => a - b);
 }
+
+export interface BudgetBuys {
+  /** What the budget buys, rounded down to the milligram. */
+  grams: number;
+  /** What that weight actually costs — at or just under the budget, never over. */
+  cost: JewelleryCost;
+  /** Budget minus that cost: what you'd walk out with. */
+  leftover: number;
+}
+
+/**
+ * The question asked at the counter: "I have ₹50,000 — what does that get me?"
+ *
+ * The table answers weight → cost; this is the same sum rearranged. A budget of
+ * T buys T / (rate × (1 + making) × (1 + gst)) grams.
+ *
+ * The weight is rounded DOWN to three decimals, which is where jewellers' scales
+ * stop. Rounding up would name a piece that costs more than the money in hand —
+ * a small error that lands at exactly the wrong moment.
+ */
+export function weightForBudget(
+  budget: number,
+  ratePerGram: number,
+  makingPct: number,
+  gstPct: number = GST_PCT
+): BudgetBuys {
+  const rate = Math.max(0, ratePerGram);
+  const total = Math.max(0, budget);
+  const making = Math.max(0, makingPct);
+  const gst = Math.max(0, gstPct);
+
+  const perGram = rate * (1 + making / 100) * (1 + gst / 100);
+  if (!perGram || !total) {
+    return { grams: 0, cost: jewelleryCost(rate, 0, making, gst), leftover: round2(total) };
+  }
+
+  const grams = Math.floor((total / perGram) * 1000) / 1000;
+  const cost = jewelleryCost(rate, grams, making, gst);
+  return { grams, cost, leftover: round2(total - cost.total) };
+}

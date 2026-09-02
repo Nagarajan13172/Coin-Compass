@@ -143,7 +143,12 @@
         "beforeGst": "Before GST"
       },
       "footnote": "All-in that works out to {{perGram}} per gram. A jeweller may also charge wastage separately, and hallmarking per piece.",
-      "kg": "{{kg}} kg"
+      "kg": "{{kg}} kg",
+      "budget": "Or start from a budget",
+      "budgetHint": "Enter what you want to spend and we'll work back to the weight.",
+      "budgetBuys": "{{grams}} g",
+      "budgetBreakdown": "{{metal}} metal + {{making}} making + {{gst}} GST = {{total}}",
+      "budgetLeftover": "{{amount}} left over"
     },
     "signal": {
       "good": "Good buy",

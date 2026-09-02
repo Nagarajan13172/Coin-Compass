@@ -127,6 +127,20 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
   // With no GST the before-GST and total columns agree, hence first().
   await expect(page.getByText("₹1,18,540.8").first()).toBeVisible();
 
+  // The counter question, the other way round: at ₹13,230/g with 20% making and
+  // 3% GST an all-in gram is ₹16,352.28, so ₹50,000 buys 3.057 g — and the
+  // weight rounds DOWN, so the piece never costs more than the money in hand.
+  // Self-contained: the step before this one leaves GST at 0.
+  await page.locator("#calc-gst").fill("3");
+  await page.getByRole("button", { name: /Ring 20%/i }).click();
+  await page.locator("#calc-budget").fill("50000");
+  await expect(page.getByText("3.057 g").first()).toBeVisible();
+  // The exact total depends on the city-resolved rate, so assert the property
+  // that matters — it lands under the budget, with the change accounted for.
+  // The arithmetic itself is pinned in jewellery.test.ts.
+  await expect(page.getByText(/left over/)).toBeVisible();
+  await page.locator("#calc-budget").fill("");
+
   // Silver is a different metal in more than name: one click on the chart's tab
   // moves the calculator with it, and the weights become silver's own — nobody
   // buys 8 grams of it, and nothing is counted in sovereigns.

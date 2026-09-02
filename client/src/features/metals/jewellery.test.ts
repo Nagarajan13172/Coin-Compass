@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { GRAMS_PER_SOVEREIGN, GST_PCT, jewelleryCost, toSovereigns, weightRows } from "./jewellery";
+import {
+  GRAMS_PER_SOVEREIGN,
+  GST_PCT,
+  jewelleryCost,
+  toSovereigns,
+  weightForBudget,
+  weightRows,
+} from "./jewellery";
 
 /** A round rate, so every expected figure below can be checked by hand. */
 const RATE = 7000; // ₹7,000 per gram of 22K
@@ -72,5 +79,41 @@ describe("jewellery cost — weights", () => {
     expect(weightRows(12)).toEqual([1, 8, 12, 16, 24, 40]);
     expect(weightRows(8)).toEqual([1, 8, 16, 24, 40]);
     expect(weightRows(0.5)).toEqual([0.5, 1, 8, 16, 24, 40]);
+  });
+});
+
+describe("what a budget buys", () => {
+  it("turns rupees into a weight, charges and all", () => {
+    // ₹50,000 at ₹7,000/g, 20% making, 3% GST:
+    // an all-in gram costs 7,000 × 1.20 × 1.03 = ₹8,652, so ₹50,000 buys 5.779 g.
+    const b = weightForBudget(50000, RATE, 20);
+    expect(b.grams).toBe(5.779);
+    expect(b.cost.total).toBeLessThanOrEqual(50000);
+    expect(b.leftover).toBeGreaterThanOrEqual(0);
+  });
+
+  it("never names a piece that costs more than the money in hand", () => {
+    // Rounding up would be off by under a rupee — at exactly the wrong moment.
+    for (const budget of [1000, 12345, 50000, 99999, 250000]) {
+      const b = weightForBudget(budget, RATE, 20);
+      expect(b.cost.total).toBeLessThanOrEqual(budget);
+      expect(b.leftover).toBeLessThan(b.cost.perGram || Infinity);
+    }
+  });
+
+  it("buys more when the making charges are lower", () => {
+    expect(weightForBudget(50000, RATE, 8).grams).toBeGreaterThan(
+      weightForBudget(50000, RATE, 20).grams
+    );
+  });
+
+  it("agrees with the table it sits under", () => {
+    const b = weightForBudget(50000, RATE, 12);
+    expect(b.cost).toEqual(jewelleryCost(RATE, b.grams, 12));
+  });
+
+  it("buys nothing on no budget, or before a rate has loaded", () => {
+    expect(weightForBudget(0, RATE, 12).grams).toBe(0);
+    expect(weightForBudget(50000, 0, 12)).toMatchObject({ grams: 0, leftover: 50000 });
   });
 });

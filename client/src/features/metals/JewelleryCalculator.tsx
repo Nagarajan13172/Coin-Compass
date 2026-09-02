@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AmountInput } from "@/components/common/AmountInput";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -14,6 +15,7 @@ import {
   MAKING_PRESETS,
   jewelleryCost,
   toSovereigns,
+  weightForBudget,
   weightRows,
 } from "./jewellery";
 import type { MetalPrice } from "@/lib/types";
@@ -46,6 +48,7 @@ export function JewelleryCalculator({
   const [makingPct, setMakingPct] = useState("12");
   const [gstPct, setGstPct] = useState(String(GST_PCT));
   const [customGrams, setCustomGrams] = useState("");
+  const [budget, setBudget] = useState("");
 
   const price = metal === "gold" ? gold : silver;
 
@@ -226,6 +229,59 @@ export function JewelleryCalculator({
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* The same sum the other way round: the table goes weight → cost, this
+            goes cost → weight, which is how the question is actually asked. */}
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="min-w-0 flex-1 basis-52 space-y-1.5">
+              <Label htmlFor="calc-budget">{t("gold.calc.budget")}</Label>
+              <AmountInput
+                id="calc-budget"
+                value={budget}
+                onChange={setBudget}
+                placeholder="50,000"
+              />
+            </div>
+            {(() => {
+              const b = weightForBudget(Number(budget) || 0, rate, making, gst);
+              if (!b.grams) {
+                return (
+                  <p className="flex-1 basis-64 pb-2 text-sm text-muted-foreground">
+                    {t("gold.calc.budgetHint")}
+                  </p>
+                );
+              }
+              return (
+                <div className="min-w-0 flex-1 basis-64 pb-0.5">
+                  <p className="tnum text-lg font-bold leading-tight">
+                    {t("gold.calc.budgetBuys", { grams: b.grams })}
+                    {metal === "gold" && b.grams >= 1 && (
+                      <span className="ml-2 text-sm font-medium text-muted-foreground">
+                        {t("gold.calc.sovereigns", { count: toSovereigns(b.grams) })}
+                      </span>
+                    )}
+                  </p>
+                  <p className="tnum mt-1 text-xs text-muted-foreground">
+                    {t("gold.calc.budgetBreakdown", {
+                      metal: formatMoney(b.cost.metalValue, { currency: "INR" }),
+                      making: formatMoney(b.cost.makingCharges, { currency: "INR" }),
+                      gst: formatMoney(b.cost.gst, { currency: "INR" }),
+                      total: formatMoney(b.cost.total, { currency: "INR" }),
+                    })}
+                  </p>
+                  {b.leftover > 0 && (
+                    <p className="tnum mt-0.5 text-xs text-muted-foreground">
+                      {t("gold.calc.budgetLeftover", {
+                        amount: formatMoney(b.leftover, { currency: "INR" }),
+                      })}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
         </div>
 
         <p className="text-xs text-muted-foreground">
