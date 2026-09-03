@@ -269,6 +269,9 @@ const holdingBase = z.object({
   // rather store an odd figure than reject the user's real one.
   interestRate: z.number().min(0).max(1000).nullish(),
   maturityValue: z.number().min(0).nullish(),
+  // How many instalments an RD runs for, and where the payout lands.
+  termCount: z.number().int().min(1).max(600).nullish(),
+  payoutAccount: optionalObjectId,
 });
 
 /** Subtype must belong to the chosen class (saving vs investment). */
@@ -315,6 +318,9 @@ export const holdingDepositSchema = z.object({
 export const holdingWithdrawSchema = holdingDepositSchema.extend({
   close: z.boolean().default(false),
 });
+
+/** Adopting a hand-built recurring rule as a deposit's schedule. */
+export const holdingLinkRuleSchema = z.object({ recurring: objectId });
 
 /** Reclassifying past expenses as payments into this deposit. */
 export const holdingAdoptSchema = z.object({

@@ -21,7 +21,14 @@ import {
 } from "@/components/ui/select";
 import { useCreateHolding, useUpdateHolding } from "@/hooks/useHoldings";
 import { useSettings } from "@/hooks/useSettings";
-import { SAVING_SUBTYPES, INVESTMENT_SUBTYPES, holdingGrowth, formatMonths } from "@/lib/networth";
+import {
+  SAVING_SUBTYPES,
+  INVESTMENT_SUBTYPES,
+  MATURING_SUBTYPES,
+  SCHEDULABLE_SUBTYPES,
+  holdingGrowth,
+  formatMonths,
+} from "@/lib/networth";
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
@@ -29,12 +36,20 @@ import { InstalmentFields, type InstalmentState } from "./InstalmentFields";
 import { cadenceToRule, ruleToCadence } from "@/lib/instalments";
 import type { Holding, HoldingClass, HoldingSubtype } from "@/lib/types";
 
+/** The payout account as an id, however the API happened to send it. */
+function payoutId(holding?: Holding | null): string {
+  const p = holding?.payoutAccount;
+  if (!p) return "";
+  return typeof p === "string" ? p : p._id;
+}
+
 /**
- * Subtypes whose value comes from priced lots — the Stocks and Funds pages own
- * those ledgers, so a standing order here would double-count.
+ * A fixed deposit is one lump sum, not a schedule, so offering it a monthly
+ * instalment describes something that doesn't exist. See SCHEDULABLE_SUBTYPES
+ * for why stocks and funds are excluded too.
  */
 function takesInstalments(subtype: HoldingSubtype): boolean {
-  return subtype !== "stocks" && subtype !== "mutual_funds";
+  return SCHEDULABLE_SUBTYPES.includes(subtype);
 }
 
 const NO_INSTALMENT: InstalmentState = {
@@ -43,6 +58,8 @@ const NO_INSTALMENT: InstalmentState = {
   account: "",
   cadence: "month",
   startDate: "",
+  termCount: "",
+  payoutAccount: "",
 };
 
 /** ISO timestamp → the yyyy-mm-dd a <input type="date"> expects (no TZ shift). */
@@ -100,8 +117,15 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
             account: typeof sched.account === "string" ? sched.account : sched.account._id,
             cadence: ruleToCadence(sched.frequency, sched.interval),
             startDate: toDateInput(sched.startDate),
+            termCount: holding?.termCount != null ? String(holding.termCount) : "",
+            payoutAccount: payoutId(holding),
           }
-        : { ...NO_INSTALMENT, startDate: new Date().toISOString().slice(0, 10) }
+        : {
+            ...NO_INSTALMENT,
+            startDate: new Date().toISOString().slice(0, 10),
+            termCount: holding?.termCount != null ? String(holding.termCount) : "",
+            payoutAccount: payoutId(holding),
+          }
     );
     // Open the growth section automatically if this holding already uses it.
     setShowGrowth(
@@ -144,12 +168,17 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
         const amt = Number(instalment.amount);
         if (!(amt > 0)) return toast.error(t("instalment.enterAmount"));
         if (!instalment.account) return toast.error(t("instalment.pickAccount"));
+        // An RD without a term isn't an RD — it's an open-ended standing order,
+        // with no progress to show and no maturity to reach.
+        if (subtype === "recurring_deposit" && !(Number(instalment.termCount) > 0))
+          return toast.error(t("instalment.enterTerm"));
         instalmentPayload = {
           amount: amt,
           account: instalment.account,
           ...cadenceToRule(instalment.cadence),
           startDate: instalment.startDate || new Date().toISOString().slice(0, 10),
-          // The deposit matures, so the standing order stops with it.
+          // With a term the server derives the last instalment's date; without
+          // one, the deposit's own maturity is the only end there is.
           endDate: maturityDate || null,
         };
       } else {
@@ -170,6 +199,10 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
       interestRate: rate === "" ? null : Number(rate),
       maturityValue: maturityValue === "" ? null : Number(maturityValue),
       ...(showsInstalment ? { instalment: instalmentPayload } : {}),
+      // Facts about the deposit, not about the schedule — the term is what the
+      // bank agreed to, and the payout account is where it all comes back.
+      termCount: instalment.termCount === "" ? null : Number(instalment.termCount),
+      payoutAccount: instalment.payoutAccount || null,
     };
     try {
       if (isEdit && holding) {
@@ -392,12 +425,15 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
               {t("holdingForm.addGrowthDetails")}
             </button>
           )}
-          {takesInstalments(subtype) && (
+          {(takesInstalments(subtype) || MATURING_SUBTYPES.includes(subtype)) && (
             <InstalmentFields
               state={instalment}
               onChange={setInstalment}
               maturityDate={maturityDate || undefined}
               nextRun={instalment.on ? (holding?.instalment?.nextRun ?? null) : null}
+              schedulable={takesInstalments(subtype)}
+              needsTerm={subtype === "recurring_deposit"}
+              matures={MATURING_SUBTYPES.includes(subtype)}
             />
           )}
 

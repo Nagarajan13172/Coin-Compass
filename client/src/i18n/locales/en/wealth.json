@@ -335,6 +335,27 @@
       "quarter": "quarterly",
       "halfYear": "half-yearly",
       "year": "yearly"
-    }
+    },
+    "term": "Number of instalments",
+    "termHint": "How many payments in all — a 12-month RD is 12. The schedule stops after the last one.",
+    "enterTerm": "Set how many instalments this deposit runs for",
+    "termTotal": "{{count}} instalments of it, {{total}} in all, ending {{date}}.",
+    "payoutTo": "When it matures, pay out to",
+    "payoutLater": "Decide at maturity",
+    "termProgress": "{{paid}} of {{count}} paid",
+    "payOut": "Pay out"
+  },
+  "linkRule": {
+    "action": "Link a recurring rule",
+    "title": "Link a recurring rule",
+    "subtitle": "Already running this deposit as a recurring payment? Claim that rule instead of building a second one.",
+    "loading": "Looking for rules…",
+    "none": "No recurring rules are free to link — every one already feeds a loan, a goal, a SIP or another deposit.",
+    "untitled": "Recurring payment",
+    "ends": "ends {{date}}",
+    "preview": "This rule will pay into {{name}} from its next run onwards, instead of posting an expense. It keeps its schedule and its history — nothing is duplicated.",
+    "submit": "Link rule",
+    "linked": "Rule linked to this deposit",
+    "linkedWithTerm": "Rule linked — {{count}} instalments, read from its end date"
   }
 }

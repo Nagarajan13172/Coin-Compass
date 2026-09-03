@@ -13,6 +13,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/common/AmountInput";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -56,11 +57,24 @@ export function DepositDialog({ holding, mode, onClose }: Props) {
 
   useEffect(() => {
     if (!holding) return;
-    setAmount("");
-    setAccount(accounts[0]?._id ?? "");
+    // A matured deposit has one obvious answer to every question this dialog
+    // asks: take out everything it holds, send it where the deposit said to send
+    // it, and close it. Pre-filling them isn't a shortcut — it's the difference
+    // between a form and a confirmation.
+    const term = holding.termCount ?? 0;
+    const matured = mode === "out" && term > 0 && (holding.paid?.count ?? 0) >= term;
+    const payout =
+      typeof holding.payoutAccount === "string"
+        ? holding.payoutAccount
+        : (holding.payoutAccount?._id ?? "");
+
+    setAmount(matured ? String(holding.value ?? 0) : "");
+    setAccount(
+      (mode === "out" && payout && accounts.some((a) => a._id === payout) ? payout : accounts[0]?._id) ?? ""
+    );
     setDate(new Date().toISOString().slice(0, 10));
     setNote("");
-    setClose(false);
+    setClose(matured);
     // Re-seeding on every accounts render would fight the user's own choice, so
     // this deliberately keys off the holding the dialog was opened for.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,12 +136,14 @@ export function DepositDialog({ holding, mode, onClose }: Props) {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="deposit-amount">{t("deposit.amount")}</Label>
-            <Input
+            {/* Every other money field in the app groups its digits; this one
+                didn't, and a pre-filled maturity payout is exactly where
+                "12000" is hardest to read. */}
+            <AmountInput
               id="deposit-amount"
-              inputMode="decimal"
               autoFocus
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={setAmount}
               placeholder={t("placeholders.eg5000")}
             />
             {!payingIn && held > 0 && (

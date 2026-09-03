@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
-import type { Holding, Transaction } from "@/lib/types";
+import type { Holding, Recurring, Transaction } from "@/lib/types";
 
 /**
  * Holdings sit behind the wealth lock, so callers outside the Net Worth page
@@ -100,6 +100,27 @@ export function useAdoptTransactions() {
   return useMutation({
     mutationFn: async ({ id, transactions }: { id: string; transactions: string[] }) =>
       (await api.post<{ adopted: number; total: number }>(`/holdings/${id}/adopt`, { transactions })).data,
+    onSuccess: invalidateLedger,
+  });
+}
+
+/**
+ * Recurring rules that could be adopted as a deposit's schedule — the RD someone
+ * has been running by hand since before deposits existed.
+ */
+export function useLinkableRules(enabled: boolean) {
+  return useQuery({
+    queryKey: ["holdings", "linkable-rules"],
+    enabled,
+    queryFn: async () => (await api.get<Recurring[]>("/holdings/rules")).data,
+  });
+}
+
+/** Claim one of those rules, keeping its id, its schedule and its history. */
+export function useLinkHoldingRule() {
+  return useMutation({
+    mutationFn: async ({ id, recurring }: { id: string; recurring: string }) =>
+      (await api.post<{ termCount: number | null }>(`/holdings/${id}/link-rule`, { recurring })).data,
     onSuccess: invalidateLedger,
   });
 }
