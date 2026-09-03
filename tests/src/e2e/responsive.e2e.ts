@@ -224,3 +224,28 @@ test("a phone gets the form alone, with no brand panel to scroll past", async ({
   );
   expect(doc).toBeLessThanOrEqual(1);
 });
+
+/**
+ * Every candidate panel, at the sizes that squeeze it. They are all in the tree
+ * while one is being chosen, and a variant that scrolls the sign-in page would
+ * be a bad thing to discover only after picking it.
+ */
+test("no candidate panel makes the sign-in page scroll", async ({ page }) => {
+  test.setTimeout(120_000);
+  for (const panel of ["brief", "product", "editorial", "chart"]) {
+    for (const size of [
+      { width: 1024, height: 600 },
+      { width: 1366, height: 660 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(size);
+      await page.goto(`/login?panel=${panel}`);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
+      const doc = await page.evaluate(() => ({
+        x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        y: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+      }));
+      expect(doc, `panel=${panel} at ${size.width}x${size.height}`).toEqual({ x: 0, y: 0 });
+    }
+  }
+});
