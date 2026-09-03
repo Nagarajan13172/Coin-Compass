@@ -169,3 +169,58 @@ ${JSON.stringify(m.problems, null, 2)}`).toEqual([]);
   }));
   expect(doc.scrollWidth).toBeLessThanOrEqual(doc.vw + 1);
 });
+
+/**
+ * The signed-out pages are two columns on a laptop and one on a phone.
+ *
+ * The brand panel is decoration around the only thing that matters — the form —
+ * so it must never be the reason a sign-in page scrolls. It sheds its pieces as
+ * the window gets shorter rather than pushing the page taller, and it isn't
+ * rendered at all on a phone.
+ */
+const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"];
+
+test("the signed-out pages fit the window they're given", async ({ page }) => {
+  test.setTimeout(120_000);
+  // A short laptop, a tall one, and the narrowest width that still splits.
+  const SIZES = [
+    { width: 1024, height: 600 },
+    { width: 1366, height: 660 },
+    { width: 1440, height: 900 },
+    { width: 1024, height: 768 },
+  ];
+
+  for (const size of SIZES) {
+    await page.setViewportSize(size);
+    for (const route of AUTH_ROUTES) {
+      await page.goto(route);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
+      const doc = await page.evaluate(() => ({
+        x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        y: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+      }));
+      expect(doc.x, `${route} at ${size.width}x${size.height} scrolls sideways`).toBeLessThanOrEqual(1);
+      // A short form must never scroll: if it does, the panel beside it grew the
+      // page, which is the regression this guards. Signup is excluded because
+      // its own fields genuinely outgrow a 600px laptop — that's the form asking
+      // for room, not the decoration.
+      if (route !== "/signup") {
+        expect(doc.y, `${route} at ${size.width}x${size.height} scrolls vertically`).toBeLessThanOrEqual(1);
+      }
+      // The panel is there to say what the app is; the form is there to be used.
+      await expect(page.getByText("CoinCompass").first()).toBeVisible();
+    }
+  }
+});
+
+test("a phone gets the form alone, with no brand panel to scroll past", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
+  // The headline belongs to the panel, and the panel has no room here.
+  await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
+  const doc = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+  );
+  expect(doc).toBeLessThanOrEqual(1);
+});
