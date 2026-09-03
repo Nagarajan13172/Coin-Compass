@@ -70,9 +70,9 @@ import { useGoals } from "@/hooks/useGoals";
 import { useLoans } from "@/hooks/useLoans";
 import { PeopleSection } from "@/features/people/PeopleSection";
 import { GroupsSection } from "@/features/people/GroupsSection";
+import { APP_VERSION } from "@/lib/appInfo";
 import type { ImportResult } from "@/lib/types";
 
-const APP_VERSION = "1.0.0";
 
 export default function SettingsPage() {
   const { data: settings } = useSettings();
