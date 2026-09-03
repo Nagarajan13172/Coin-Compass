@@ -15,7 +15,11 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { fundingAccounts } from "@/lib/accounts";
 import { dateFnsLocale } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
-import { CADENCES, type CadenceKey } from "@/lib/instalments";
+import { CADENCES, lastInstalment, type CadenceKey } from "@/lib/instalments";
+import { cn } from "@/lib/utils";
+
+/** Select needs a non-empty value for "decide later". */
+const NO_PAYOUT = "__none__";
 
 /**
  * The standing order that feeds a deposit, asked for on the deposit itself.
@@ -30,26 +34,42 @@ import { CADENCES, type CadenceKey } from "@/lib/instalments";
 /** dd MMM yyyy, in the user's language — the same shape the Recurring page uses. */
 const fmt = (iso: string) => format(new Date(iso), "dd MMM yyyy", { locale: dateFnsLocale() });
 
+/** Terms people actually take, as one-tap chips. Any number is still allowed. */
+const TERM_PRESETS = [6, 12, 24, 36];
+
 export interface InstalmentState {
   on: boolean;
   amount: string;
   account: string;
   cadence: CadenceKey;
   startDate: string;
+  /** How many instalments in all. Required for an RD — that's what an RD is. */
+  termCount: string;
+  /** Where the maturity payout lands. */
+  payoutAccount: string;
 }
 
 export function InstalmentFields({
   state,
   onChange,
-  /** The deposit's maturity date, which doubles as the schedule's end. */
+  /** The deposit's maturity date, used when there is no fixed term. */
   maturityDate,
   /** When the schedule already exists, the date the next instalment is due. */
   nextRun,
+  /** Whether a standing order makes sense here at all — an FD is a lump sum. */
+  schedulable = true,
+  /** A recurring deposit runs for an agreed number of payments; others needn't. */
+  needsTerm = false,
+  /** Deposits that mature, and so have a payout to send somewhere. */
+  matures = false,
 }: {
   state: InstalmentState;
   onChange: (next: InstalmentState) => void;
   maturityDate?: string;
   nextRun?: string | null;
+  schedulable?: boolean;
+  needsTerm?: boolean;
+  matures?: boolean;
 }) {
   const { t } = useTranslation("wealth");
   const { data: accounts } = useAccounts();
@@ -57,6 +77,39 @@ export function InstalmentFields({
   const set = (patch: Partial<InstalmentState>) => onChange({ ...state, ...patch });
 
   const accountName = options.find((a) => a._id === state.account)?.name;
+  const amountNum = Number(state.amount) || 0;
+  const term = Number(state.termCount) || 0;
+  // The last instalment, so the form can say when this finishes rather than
+  // leaving the user to count twelve months forward in their head.
+  const lastDue = term > 0 && state.startDate ? lastInstalment(state.startDate, state.cadence, term) : null;
+
+  const payoutField = matures ? (
+    <div className="space-y-1.5">
+      <Label>{t("instalment.payoutTo")}</Label>
+      <Select
+        value={state.payoutAccount || NO_PAYOUT}
+        onValueChange={(v) => set({ payoutAccount: v === NO_PAYOUT ? "" : v })}
+      >
+        <SelectTrigger id="inst-payout">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_PAYOUT}>{t("instalment.payoutLater")}</SelectItem>
+          {options.map((a) => (
+            <SelectItem key={a._id} value={a._id}>
+              {a.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ) : null;
+
+  // A lump-sum deposit has no schedule to describe, but it still matures, and
+  // where the payout lands is worth settling now rather than at the counter.
+  if (!schedulable) {
+    return payoutField && <div className="rounded-lg border p-3">{payoutField}</div>;
+  }
 
   return (
     <div className="space-y-3 rounded-lg border p-3">
@@ -131,6 +184,39 @@ export function InstalmentFields({
             </div>
           </div>
 
+          {needsTerm && (
+            <div className="space-y-1.5">
+              <Label htmlFor="inst-term">{t("instalment.term")}</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  id="inst-term"
+                  inputMode="numeric"
+                  className="w-24"
+                  value={state.termCount}
+                  onChange={(e) => set({ termCount: e.target.value.replace(/[^0-9]/g, "") })}
+                  placeholder="12"
+                />
+                {/* Starting points, not rules — banks offer whatever they offer. */}
+                {TERM_PRESETS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => set({ termCount: String(n) })}
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 text-xs transition-colors hover:bg-accent",
+                      Number(state.termCount) === n && "border-primary bg-primary/10 text-primary"
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("instalment.termHint")}</p>
+            </div>
+          )}
+
+          {payoutField}
+
           {/* What will actually happen, in a sentence — because the mechanism
               (a transfer into an app-managed bucket) is not worth explaining,
               but the outcome is. */}
@@ -142,7 +228,15 @@ export function InstalmentFields({
                   every: t(`instalment.cadenceLower.${state.cadence}`),
                 })
               : t("instalment.previewIncomplete")}
-            {maturityDate && ` ${t("instalment.until", { date: fmt(maturityDate) })}`}
+            {term > 0 && amountNum > 0
+              ? ` ${t("instalment.termTotal", {
+                  count: term,
+                  total: formatMoney(term * amountNum),
+                  date: lastDue ? fmt(lastDue.toISOString()) : "",
+                })}`
+              : maturityDate
+                ? ` ${t("instalment.until", { date: fmt(maturityDate) })}`
+                : ""}
           </p>
           {nextRun && (
             <p className="text-xs text-muted-foreground">

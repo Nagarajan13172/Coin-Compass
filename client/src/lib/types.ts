@@ -283,6 +283,16 @@ export interface Holding {
   interestRate?: number | null;
   maturityValue?: number | null;
   /**
+   * How many instalments a recurring deposit runs for — the term agreed with the
+   * bank. It sets both the progress bar's denominator and the date the schedule
+   * stops.
+   */
+  termCount?: number | null;
+  /** Where the maturity payout lands, chosen when the deposit is set up. */
+  payoutAccount?: RefLite | string | null;
+  /** Instalments actually paid in so far, inlined by the API. */
+  paid?: { count: number; total: number };
+  /**
    * The standing order feeding this deposit, inlined by the API. Editing it on
    * the holding is the whole point: a recurring deposit is one fact, so it is
    * described in one place rather than assembled from a rule elsewhere.

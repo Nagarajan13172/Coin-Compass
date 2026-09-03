@@ -3,6 +3,7 @@ import { Account } from "../models/Account";
 import { Category } from "../models/Category";
 import { Holding } from "../models/Holding";
 import { Transaction } from "../models/Transaction";
+import { RecurringTransaction } from "../models/RecurringTransaction";
 import { HttpError } from "../middleware/errorHandler";
 import { round2 } from "./portfolioService";
 
@@ -325,6 +326,11 @@ export async function depositCandidates(uid: string, holdingId: string, limit = 
 
   const or: Record<string, unknown>[] = [{ category: { $in: savingsCategories.map((c) => c._id) } }];
   if (rx) or.push({ note: rx }, { payee: rx });
+  // Anything the deposit's own rule has already posted. When a rule built by
+  // hand is adopted, these are not a guess at which expenses might have been
+  // instalments — they are its instalments, by construction.
+  const rule = await RecurringTransaction.findOne({ user: uid, holding: holding._id }).select("_id").lean();
+  if (rule) or.push({ recurring: rule._id });
 
   return Transaction.find({ user: uid, type: "expense", holding: null, $or: or })
     .sort({ date: -1 })

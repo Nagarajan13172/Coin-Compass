@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CADENCES, cadenceToRule, ruleToCadence } from "./instalments";
+import { CADENCES, cadenceToRule, lastInstalment, ruleToCadence } from "./instalments";
 
 /**
  * The cadence a user picks and the (frequency, interval) pair the rule stores
@@ -39,5 +39,28 @@ describe("cadence ↔ rule", () => {
   it("treats a missing interval as one", () => {
     expect(ruleToCadence("weekly")).toBe("week");
     expect(ruleToCadence("yearly")).toBe("year");
+  });
+});
+
+describe("the last instalment of a term", () => {
+  it("counts the first payment as one of them", () => {
+    // A 12-month RD starting 3 Sep pays on 3 Sep and then eleven more times, so
+    // it finishes on 3 Aug the next year — not 3 Sep. Off by one here and the
+    // deposit either stops a month early or takes a thirteenth payment.
+    expect(lastInstalment("2026-09-03", "month", 12).toISOString().slice(0, 10)).toBe("2027-08-03");
+  });
+
+  it("handles a term of one — a single payment ends the day it starts", () => {
+    expect(lastInstalment("2026-09-03", "month", 1).toISOString().slice(0, 10)).toBe("2026-09-03");
+  });
+
+  it("steps by the cadence, not by months regardless", () => {
+    expect(lastInstalment("2026-09-03", "week", 4).toISOString().slice(0, 10)).toBe("2026-09-24");
+    expect(lastInstalment("2026-09-03", "quarter", 4).toISOString().slice(0, 10)).toBe("2027-06-03");
+    expect(lastInstalment("2026-09-03", "year", 3).toISOString().slice(0, 10)).toBe("2028-09-03");
+  });
+
+  it("treats a nonsense term as a single payment rather than reaching backwards", () => {
+    expect(lastInstalment("2026-09-03", "month", 0).toISOString().slice(0, 10)).toBe("2026-09-03");
   });
 });

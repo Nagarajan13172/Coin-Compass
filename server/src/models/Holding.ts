@@ -37,6 +37,15 @@ const holdingSchema = new Schema(
     maturityDate: { type: Date, default: null },
     interestRate: { type: Number, default: null, min: 0 }, // annual % (effective)
     maturityValue: { type: Number, default: null, min: 0 }, // expected payout at maturity
+    // A recurring deposit runs for a fixed number of instalments — a 12-month RD
+    // is 12 payments, not "until you remember to stop it". The count is what the
+    // user agreed with the bank, so it drives both the progress bar and the
+    // schedule's end date rather than being derived from a date they'd have to
+    // work out themselves.
+    termCount: { type: Number, default: null, min: 1, max: 600 },
+    // Where the maturity payout lands. Chosen up front, when the deposit is set
+    // up, so the money has somewhere to go without a decision at the end.
+    payoutAccount: { type: Schema.Types.ObjectId, ref: "Account", default: null },
   },
   { timestamps: true }
 );

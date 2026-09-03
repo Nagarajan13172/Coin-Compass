@@ -1,9 +1,11 @@
 import { Types } from "mongoose";
 import { Account } from "../models/Account";
 import { Holding } from "../models/Holding";
+import { Transaction } from "../models/Transaction";
 import { RecurringTransaction, RECURRENCE_FREQUENCIES } from "../models/RecurringTransaction";
 import { HttpError } from "../middleware/errorHandler";
-import { nextRunFrom } from "./recurringService";
+import { round2 } from "./portfolioService";
+import { advance, nextRunFrom } from "./recurringService";
 
 /**
  * The standing order that feeds a deposit — an RD instalment, or any regular
@@ -33,8 +35,32 @@ export interface InstalmentInput {
   frequency: (typeof RECURRENCE_FREQUENCIES)[number];
   interval: number;
   startDate: Date;
-  /** Usually the maturity date — after it, nothing more is due. */
+  /**
+   * How many instalments in all — the term the user agreed with the bank. It
+   * decides when the schedule ends, so the rule stops on its own after the last
+   * payment instead of running until someone notices.
+   */
+  termCount?: number | null;
+  /** An explicit end, when there is no fixed term (an open-ended savings pot). */
   endDate?: Date | null;
+}
+
+/**
+ * The date the last instalment of a fixed term falls on.
+ *
+ * A 12-month RD starting in September pays in September and then eleven more
+ * times — so the last one is eleven intervals out, not twelve. Off by one here
+ * and the deposit either stops a month early or takes a thirteenth payment.
+ */
+export function termEndDate(
+  start: Date,
+  frequency: InstalmentInput["frequency"],
+  interval: number,
+  termCount: number
+): Date {
+  let end = new Date(start);
+  for (let i = 1; i < Math.max(1, termCount); i += 1) end = advance(end, frequency, interval);
+  return end;
 }
 
 /** The rules that fund each of these holdings, keyed by holding id. */
@@ -50,6 +76,23 @@ export async function instalmentsFor(uid: unknown, holdingIds: unknown[]) {
   const byHolding = new Map<string, Record<string, unknown>>();
   for (const rule of rules) byHolding.set(String(rule.holding), rule as Record<string, unknown>);
   return byHolding;
+}
+
+/** Instalments actually paid into each holding, keyed by holding id. */
+export async function progressFor(uid: unknown, holdingIds: unknown[]) {
+  const out = new Map<string, { count: number; total: number }>();
+  if (holdingIds.length === 0) return out;
+
+  // Only the legs that put money IN. A withdrawal carries a negative
+  // contribution, and counting it would let a payout undo the progress bar
+  // rather than complete it. Imported past payments count, because they were
+  // instalments — that is what importing them said.
+  const rows = await Transaction.aggregate([
+    { $match: { user: new Types.ObjectId(String(uid)), holding: { $in: holdingIds }, holdingContribution: { $gt: 0 } } },
+    { $group: { _id: "$holding", count: { $sum: 1 }, total: { $sum: "$holdingContribution" } } },
+  ]);
+  for (const r of rows) out.set(String(r._id), { count: r.count, total: round2(r.total) });
+  return out;
 }
 
 /**
@@ -108,6 +151,11 @@ export async function syncInstalment(
   const account = await requireFundingAccount(uid, input.account);
   const start = new Date(input.startDate);
   const now = new Date();
+  // A fixed term owns the end date: the schedule stops after the agreed number
+  // of payments, whatever else the holding says about maturity.
+  const endDate = input.termCount
+    ? termEndDate(start, input.frequency, input.interval, input.termCount)
+    : (input.endDate ?? null);
   // The deposit names the rule. Without it the Recurring page and every
   // notification would say "Recurring" — a rule the app created for you, that
   // can't tell you what it's for.
@@ -132,8 +180,8 @@ export async function syncInstalment(
       interval: input.interval,
       startDate: start,
       nextRun,
-      endDate: input.endDate ?? null,
-      active: !(input.endDate && nextRun > new Date(input.endDate)),
+      endDate,
+      active: !(endDate && nextRun > endDate),
     });
     return rule.toObject();
   }
@@ -143,7 +191,7 @@ export async function syncInstalment(
   existing.account = account._id as Types.ObjectId;
   existing.frequency = input.frequency;
   existing.interval = input.interval;
-  existing.endDate = input.endDate ?? null;
+  existing.endDate = endDate;
   // Re-anchor only when the start date genuinely moved — the same rule the
   // Recurring form follows, so editing an amount never disturbs what's due next.
   if (+start !== +existing.startDate) {
@@ -153,4 +201,103 @@ export async function syncInstalment(
   if (existing.endDate && existing.nextRun > existing.endDate) existing.active = false;
   await existing.save();
   return existing.toObject();
+}
+
+/**
+ * Recurring rules that could be an RD the user set up before deposits existed —
+ * ones not already spoken for by a loan, a goal, a SIP or another deposit.
+ *
+ * Income rules are excluded: money arriving isn't an instalment.
+ */
+export async function unlinkedRules(uid: unknown) {
+  return RecurringTransaction.find({
+    user: uid,
+    holding: null,
+    goal: null,
+    loan: null,
+    fund: null,
+    type: { $ne: "income" },
+  })
+    .sort({ nextRun: 1 })
+    .populate([
+      { path: "account", select: "name color icon" },
+      { path: "category", select: "name color icon" },
+    ])
+    .lean();
+}
+
+/**
+ * How many instalments a schedule that ends on `endDate` will have run in all.
+ *
+ * Used when adopting a rule the user built by hand: they already told the app
+ * when it ends, so the term is a fact to be read off rather than a question to
+ * ask them again.
+ */
+export function termFromEnd(
+  start: Date,
+  end: Date,
+  frequency: InstalmentInput["frequency"],
+  interval: number
+): number {
+  let count = 0;
+  let at = new Date(start);
+  // 600 is the schema's ceiling; the guard is against a zero interval, not a
+  // long deposit.
+  while (at <= end && count < 600) {
+    count += 1;
+    at = advance(at, frequency, interval);
+  }
+  return count;
+}
+
+/**
+ * Adopt a recurring rule the user built by hand into a deposit.
+ *
+ * Someone who has been running an RD since before any of this existed has a
+ * rule that posts ₹7,000 a month as an expense, and a pile of transactions to
+ * match. Re-creating the schedule here would leave them with two rules and
+ * double the outgoings. So the existing rule is claimed rather than replaced:
+ * it keeps its id, its position in the schedule and its history, and the
+ * payments it has already posted are rewritten as instalments of the deposit.
+ */
+export async function linkRuleToHolding(uid: string, holdingId: unknown, ruleId: string) {
+  const holding = await Holding.findOne({ _id: holdingId, user: uid });
+  if (!holding) throw new HttpError(404, "Holding not found", "HOLDING_NOT_FOUND");
+
+  const existing = await RecurringTransaction.findOne({ user: uid, holding: holdingId });
+  if (existing) {
+    throw new HttpError(
+      400,
+      "This deposit already has a schedule. Switch it off before linking another rule.",
+      "DEPOSIT_ALREADY_SCHEDULED"
+    );
+  }
+
+  const rule = await RecurringTransaction.findOne({ _id: ruleId, user: uid });
+  if (!rule) throw new HttpError(404, "Recurring transaction not found", "RECURRING_NOT_FOUND");
+  if (rule.holding) throw new HttpError(400, "That rule already feeds a deposit", "RULE_ALREADY_LINKED");
+  if (rule.goal || rule.loan || rule.fund) {
+    throw new HttpError(
+      400,
+      "That rule already pays a loan, a goal or a SIP",
+      "RULE_ALREADY_COMMITTED"
+    );
+  }
+
+  rule.holding = holding._id as Types.ObjectId;
+  // The deposit path posts its own leg, so these stop being the rule's business.
+  rule.type = "expense";
+  rule.category = null;
+  rule.toAccount = null;
+  rule.payee = holding.name;
+  await rule.save();
+
+  // The rule already said when it ends, so the term is read off rather than
+  // asked for again.
+  if (!holding.termCount && rule.endDate) {
+    holding.termCount = termFromEnd(rule.startDate, rule.endDate, rule.frequency, rule.interval);
+    await holding.save();
+  }
+
+  return { rule: rule.toObject(), termCount: holding.termCount ?? null };
 }

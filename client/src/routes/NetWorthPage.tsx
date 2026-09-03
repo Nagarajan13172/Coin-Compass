@@ -12,6 +12,7 @@ import {
   MoreVertical,
   Pencil,
   PiggyBank,
+  Link2,
   Plus,
   Repeat,
   Trash2,
@@ -25,6 +26,7 @@ import { CategoryIcon } from "@/components/common/CategoryIcon";
 import { CountUp } from "@/components/common/CountUp";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -38,6 +40,7 @@ import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { HoldingFormDialog } from "@/features/networth/HoldingFormDialog";
 import { DepositDialog, type DepositMode } from "@/features/networth/DepositDialog";
 import { AdoptDepositsDialog } from "@/features/networth/AdoptDepositsDialog";
+import { LinkRuleDialog } from "@/features/networth/LinkRuleDialog";
 import { ruleToCadence } from "@/lib/instalments";
 import { NetWorthTrend } from "@/features/networth/NetWorthTrend";
 import { useHoldings, useDeleteHolding } from "@/hooks/useHoldings";
@@ -50,7 +53,13 @@ import { useByCategory, useSummary } from "@/hooks/useReports";
 import { periodRange } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
-import { SUBTYPE_META, CHART_PALETTE, LOAN_TYPE_META, holdingGrowth } from "@/lib/networth";
+import {
+  SUBTYPE_META,
+  CHART_PALETTE,
+  LOAN_TYPE_META,
+  SCHEDULABLE_SUBTYPES,
+  holdingGrowth,
+} from "@/lib/networth";
 import type { Account, CategoryDatum, Holding, HoldingClass, Loan, Portfolio } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -308,26 +317,58 @@ function MiniRow({ label, value, muted }: { label: string; value: string; muted?
  * have to go looking on the Recurring page to find out why, or whether it is
  * still running at all.
  */
-function InstalmentLine({ holding }: { holding: Holding }) {
+function InstalmentLine({ holding, onPayout }: { holding: Holding; onPayout: () => void }) {
   const { t } = useTranslation("wealth");
   const inst = holding.instalment;
   if (!inst) return null;
+
+  const term = holding.termCount ?? 0;
+  const paid = holding.paid?.count ?? 0;
+  const done = term > 0 && paid >= term;
 
   // Just how much and how often. The card is a third of a row wide — roughly
   // twenty-odd characters before it truncates — so the funding account and the
   // next due date are left to the form and the Recurring page, which have room
   // to show them whole. A line that ends in "· next …" tells nobody anything.
   return (
-    <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
-      <Repeat className="h-3 w-3 shrink-0" />
-      <span className="truncate">
-        {t("instalment.onCard", {
-          amount: formatMoney(inst.amount),
-          every: t(`instalment.cadenceAdverb.${ruleToCadence(inst.frequency, inst.interval)}`),
-        })}
-        {!inst.active && ` · ${t("instalment.cardPaused")}`}
-      </span>
-    </p>
+    <div className="mt-1 space-y-1">
+      <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+        <Repeat className="h-3 w-3 shrink-0" />
+        <span className="truncate">
+          {t("instalment.onCard", {
+            amount: formatMoney(inst.amount),
+            every: t(`instalment.cadenceAdverb.${ruleToCadence(inst.frequency, inst.interval)}`),
+          })}
+          {!inst.active && !done && ` · ${t("instalment.cardPaused")}`}
+        </span>
+      </p>
+      {/* A term turns a standing order into something with an end you can see
+          coming: 4 of 12 paid says both how far along and how much is left. */}
+      {term > 0 && (
+        <div className="space-y-1">
+          <Progress value={Math.min(100, (paid / term) * 100)} className="h-1" />
+          {done ? (
+            // The last instalment is in, so the only thing left to do is take the
+            // money out — said here rather than left in a menu, because nothing
+            // else on the page will tell you the deposit is finished.
+            <p className="tnum flex flex-wrap items-center gap-x-1.5 text-[11px]">
+              <span className="text-income">{t("instalment.termProgress", { paid, count: term })}</span>
+              <button
+                type="button"
+                onClick={onPayout}
+                className="font-medium text-primary hover:underline"
+              >
+                {t("instalment.payOut")}
+              </button>
+            </p>
+          ) : (
+            <p className="tnum truncate text-[11px] text-muted-foreground">
+              {t("instalment.termProgress", { paid, count: term })}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -489,6 +530,7 @@ function AssetsTab({
   const [deleteTarget, setDeleteTarget] = useState<Holding | null>(null);
   const [depositTarget, setDepositTarget] = useState<{ holding: Holding; mode: DepositMode } | null>(null);
   const [adoptTarget, setAdoptTarget] = useState<Holding | null>(null);
+  const [linkTarget, setLinkTarget] = useState<Holding | null>(null);
 
   function openNew() {
     setEditing(null);
@@ -641,7 +683,10 @@ function AssetsTab({
                                   {h.provider ? ` · ${h.provider}` : ""}
                                 </p>
                                 <HoldingGrowthLine holding={h} />
-                                <InstalmentLine holding={h} />
+                                <InstalmentLine
+                                  holding={h}
+                                  onPayout={() => setDepositTarget({ holding: h, mode: "out" })}
+                                />
                               </div>
                               <span className="tnum text-sm font-semibold">{formatMoney(h.value)}</span>
                               <DropdownMenu>
@@ -663,6 +708,13 @@ function AssetsTab({
                                       >
                                         <ArrowUpRight /> {t("deposit.withdraw")}
                                       </DropdownMenuItem>
+                                      {/* Only when there's nothing to conflict
+                                          with — one rule per deposit. */}
+                                      {!h.instalment && SCHEDULABLE_SUBTYPES.includes(h.subtype) && (
+                                        <DropdownMenuItem onClick={() => setLinkTarget(h)}>
+                                          <Link2 /> {t("linkRule.action")}
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuItem onClick={() => setAdoptTarget(h)}>
                                         <History /> {t("adopt.action")}
                                       </DropdownMenuItem>
@@ -715,6 +767,13 @@ function AssetsTab({
         onClose={() => setDepositTarget(null)}
       />
       <AdoptDepositsDialog holding={adoptTarget} onClose={() => setAdoptTarget(null)} />
+      <LinkRuleDialog
+        holding={linkTarget}
+        onClose={() => setLinkTarget(null)}
+        // Linking claims the schedule; the payments it already posted are still
+        // expenses until they're imported, so offer that straight away.
+        onLinked={(h) => setAdoptTarget(h)}
+      />
 
       {deleteTarget && (
         <ConfirmDeleteDialog

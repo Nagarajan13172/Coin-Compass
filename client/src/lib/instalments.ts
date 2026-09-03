@@ -28,3 +28,23 @@ export function ruleToCadence(frequency?: string, interval?: number): CadenceKey
   const found = CADENCES.find((c) => c.frequency === frequency && c.interval === (interval ?? 1));
   return found?.key ?? "month";
 }
+
+/**
+ * The date the last instalment of a fixed term falls on.
+ *
+ * A 12-month RD starting in September pays in September and then eleven more
+ * times, so the last one is eleven intervals out — not twelve. Mirrors
+ * termEndDate on the server, which is what actually stops the schedule.
+ */
+export function lastInstalment(startDate: string, cadence: CadenceKey, termCount: number): Date {
+  const { frequency, interval } = cadenceToRule(cadence);
+  const d = new Date(startDate);
+  const steps = Math.max(1, termCount) - 1;
+  for (let i = 0; i < steps; i += 1) {
+    if (frequency === "weekly") d.setDate(d.getDate() + 7 * interval);
+    else if (frequency === "yearly") d.setFullYear(d.getFullYear() + interval);
+    else if (frequency === "daily") d.setDate(d.getDate() + interval);
+    else d.setMonth(d.getMonth() + interval);
+  }
+  return d;
+}

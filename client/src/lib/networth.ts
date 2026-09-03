@@ -27,6 +27,29 @@ export const INVESTMENT_SUBTYPES: SubtypeMeta[] = [
 
 export const ALL_SUBTYPES = [...SAVING_SUBTYPES, ...INVESTMENT_SUBTYPES];
 
+/**
+ * Holdings a standing order can feed.
+ *
+ * Not every deposit is paid into repeatedly. A fixed deposit is one lump sum
+ * that then sits there — offering it a monthly instalment describes something
+ * that doesn't exist. A recurring deposit is the opposite: instalments are the
+ * whole idea. Emergency and retirement pots sit between the two; people top them
+ * up regularly, so the option is there without being required.
+ *
+ * Stocks and mutual funds are excluded on purpose, and it isn't an oversight: a
+ * monthly purchase of either is a SIP, which buys units at the day's price. That
+ * lives on the Recurring page as a fund rule and is valued from the lots it
+ * creates. Paying into them here would count the same money twice.
+ */
+export const SCHEDULABLE_SUBTYPES: HoldingSubtype[] = [
+  "recurring_deposit",
+  "emergency_fund",
+  "retirement_fund",
+];
+
+/** Deposits that reach a maturity, and so have a payout to send somewhere. */
+export const MATURING_SUBTYPES: HoldingSubtype[] = ["fixed_deposit", "recurring_deposit"];
+
 export const SUBTYPE_META: Record<HoldingSubtype, SubtypeMeta> = Object.fromEntries(
   ALL_SUBTYPES.map((s) => [s.value, s])
 ) as Record<HoldingSubtype, SubtypeMeta>;

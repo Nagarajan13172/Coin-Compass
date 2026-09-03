@@ -35,10 +35,17 @@ test("an RD is set up on the deposit itself, in one form", async ({ page }) => {
   await form.locator("#inst-account").click();
   await page.getByRole("option", { name: "Savings", exact: true }).click();
 
+  // An RD runs for an agreed number of payments, so the form insists on one.
+  await form.getByRole("button", { name: "12", exact: true }).click();
+  await form.locator("#inst-payout").click();
+  await page.getByRole("option", { name: "Savings", exact: true }).click();
+
   // What will happen, said in a sentence rather than left to be inferred from
-  // the mechanism (a transfer into an app-managed bucket).
+  // the mechanism (a transfer into an app-managed bucket) — including where it
+  // ends, so nobody has to count twelve months forward in their head.
   await expect(form.getByText(/₹1,000 leaves Savings every month/)).toBeVisible();
   await expect(form.getByText(/a transfer, not a spend/)).toBeVisible();
+  await expect(form.getByText(/12 instalments of it, ₹12,000 in all, ending/)).toBeVisible();
 
   await form.getByRole("button", { name: /^(Add|Save)/ }).click();
   await expect(form).toBeHidden();
@@ -46,6 +53,8 @@ test("an RD is set up on the deposit itself, in one form", async ({ page }) => {
   // The card says the deposit is being fed, so the automation isn't invisible.
   await expect(page.getByText("Car Insurance RD")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/₹1,000 monthly/)).toBeVisible();
+  // Nothing paid yet, but the end is already in view.
+  await expect(page.getByText("0 of 12 paid")).toBeVisible();
 
   // One rule exists, and it is the one just described — no second trip needed.
   await page.goto("/recurring");
@@ -98,4 +107,68 @@ test("the recurring form stops asking for what a deposit rule discards", async (
   await form.getByRole("button", { name: /^(Create|Save|Add)/ }).click();
   await expect(form).toBeHidden();
   await expect(page.getByText("Post Office RD").first()).toBeVisible({ timeout: 15_000 });
+});
+
+test("an RD already running as a plain recurring expense can be claimed", async ({ page }) => {
+  test.setTimeout(120_000);
+  const { email } = await seedUserWithData();
+  await page.context().addCookies([await browserSessionCookie(email, DEFAULT_PASSWORD)]);
+  await page.goto("/net-worth");
+
+  // The rule as someone would have built it before deposits existed: a plain
+  // monthly expense, with a category picked only because the form demanded one.
+  await page.evaluate(async () => {
+    const accounts = await (await fetch("/api/accounts", { credentials: "include" })).json();
+    const cats = await (await fetch("/api/categories?type=expense", { credentials: "include" })).json();
+    const start = new Date();
+    start.setMonth(start.getMonth() - 2);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 11);
+    await fetch("/api/recurring", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "expense",
+        amount: 7000,
+        account: accounts[0]._id,
+        category: cats[0]._id,
+        note: "Insurance",
+        frequency: "monthly",
+        interval: 1,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      }),
+    });
+  });
+
+  await page.getByRole("tab", { name: "Assets" }).click();
+  await page.getByRole("button", { name: /Add (holding|asset)/i }).first().click();
+  const form = page.getByRole("dialog");
+  await form.locator("#hold-name").fill("Insurance RD");
+  await form.getByRole("combobox").nth(1).click();
+  await page.getByRole("option", { name: /Recurring deposit/i }).click();
+  await form.locator("#hold-value").fill("0");
+  // No schedule here: the point is that one already exists.
+  await form.getByRole("button", { name: /^(Add|Save)/ }).click();
+  await expect(form).toBeHidden();
+
+  const row = page.locator("div.p-4").filter({ hasText: "Insurance RD" }).last();
+  await row.getByRole("button", { name: /Asset actions/i }).click();
+  await page.getByRole("menuitem", { name: /Link a recurring rule/i }).click();
+
+  const dialog = page.getByRole("dialog");
+  // Named by what the user typed, not by the category they had to pick.
+  await dialog.getByRole("button", { name: /Insurance/ }).click();
+  await expect(dialog.getByText(/keeps its schedule and its history/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Link rule" }).click();
+
+  // The term is read off the rule's own end date — twelve monthly payments —
+  // rather than asked for a second time.
+  await expect(page.getByText("0 of 12 paid")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/₹7,000 monthly/)).toBeVisible();
+
+  // Still one rule, now feeding the deposit rather than posting an expense.
+  await page.goto("/recurring");
+  await expect(page.getByText("Insurance RD").first()).toBeVisible({ timeout: 15_000 });
 });
