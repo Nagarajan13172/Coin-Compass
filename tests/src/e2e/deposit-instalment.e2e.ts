@@ -172,3 +172,74 @@ test("an RD already running as a plain recurring expense can be claimed", async 
   await page.goto("/recurring");
   await expect(page.getByText("Insurance RD").first()).toBeVisible({ timeout: 15_000 });
 });
+
+test("an import can be taken back, category and all", async ({ page }) => {
+  test.setTimeout(120_000);
+  const { email } = await seedUserWithData();
+  await page.context().addCookies([await browserSessionCookie(email, DEFAULT_PASSWORD)]);
+  await page.goto("/net-worth");
+
+  // Two instalments paid before the deposit existed, recorded as ordinary
+  // categorised expenses — and imported into the deposit.
+  const category = await page.evaluate(async () => {
+    const post = (url: string, body: unknown) =>
+      fetch(`/api${url}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => r.json());
+    const accounts = await (await fetch("/api/accounts", { credentials: "include" })).json();
+    const cats = await (await fetch("/api/categories?type=expense", { credentials: "include" })).json();
+    const h = await post("/holdings", {
+      name: "Car Insurance RD",
+      class: "saving",
+      subtype: "recurring_deposit",
+      value: 0,
+    });
+    const ids: string[] = [];
+    for (const back of [60, 30]) {
+      const d = new Date();
+      d.setDate(d.getDate() - back);
+      const t = await post("/transactions", {
+        type: "expense",
+        amount: 7000,
+        account: accounts[0]._id,
+        category: cats[0]._id,
+        date: d.toISOString(),
+        note: "Car Insurance RD instalment",
+      });
+      ids.push(t._id);
+    }
+    await post(`/holdings/${h._id}/adopt`, { transactions: ids });
+    return cats[0].name as string;
+  });
+
+  await page.reload();
+  await page.getByRole("tab", { name: "Assets" }).click();
+  const row = page.locator("div.p-4").filter({ hasText: "Car Insurance RD" }).last();
+  await expect(row.getByText("₹14,000")).toBeVisible({ timeout: 15_000 });
+
+  await row.getByRole("button", { name: /Asset actions/i }).click();
+  await page.getByRole("menuitem", { name: /Undo import/i }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(/Put back the 2 payments/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Undo import" }).click();
+  await expect(dialog).toBeHidden();
+
+  // The deposit gives back what the import added...
+  await expect(
+    page.locator("div.p-4").filter({ hasText: "Car Insurance RD" }).last().getByText("₹0")
+  ).toBeVisible({ timeout: 15_000 });
+
+  // ...and the offer to undo goes with it, since there's nothing left to put back.
+  await page.locator("div.p-4").filter({ hasText: "Car Insurance RD" }).last()
+    .getByRole("button", { name: /Asset actions/i }).click();
+  await expect(page.getByRole("menuitem", { name: /Undo import/i })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  // That the rows are expenses again, carrying the category they had, is
+  // asserted in the API suite — the transactions page filters by period, and
+  // these are two months old.
+  expect(category).toBeTruthy();
+});

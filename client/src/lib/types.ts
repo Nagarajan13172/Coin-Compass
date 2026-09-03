@@ -290,8 +290,11 @@ export interface Holding {
   termCount?: number | null;
   /** Where the maturity payout lands, chosen when the deposit is set up. */
   payoutAccount?: RefLite | string | null;
-  /** Instalments actually paid in so far, inlined by the API. */
-  paid?: { count: number; total: number };
+  /**
+   * Instalments actually paid in so far, inlined by the API. `imported` counts
+   * the ones rewritten from past expenses — the only ones an undo can put back.
+   */
+  paid?: { count: number; total: number; imported: number };
   /**
    * The standing order feeding this deposit, inlined by the API. Editing it on
    * the holding is the whole point: a recurring deposit is one fact, so it is
