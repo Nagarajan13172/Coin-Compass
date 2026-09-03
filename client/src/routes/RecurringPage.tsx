@@ -56,6 +56,10 @@ function freqLabel(r: Recurring, t: TFunction) {
 
 /** Human label for a rule — its category (translated), or the note/transfer fallback. */
 function ruleName(r: Recurring, t: TFunction) {
+  // A deposit rule is named by what it feeds. It carries no category by design
+  // — the deposit path discards one — so without this it would show up on the
+  // list as an anonymous "Recurring transaction".
+  if (r.holding && typeof r.holding === "object" && r.holding.name) return r.holding.name;
   if (r.type === "transfer") return t("txnType.transfer", { ns: "common" });
   return r.category?.name ? categoryLabel(r.category.name) : r.note || t("title.fallback");
 }
@@ -187,6 +191,7 @@ export default function RecurringPage() {
               // Surface the note so same-category rules stay distinguishable — but not
               // when it's already the title (no category) or just echoes the category.
               const note = r.note?.trim();
+              const paysDeposit = Boolean(r.holding);
               const titleIsNote = r.type !== "transfer" && !r.category?.name;
               const noteEchoesCategory =
                 note && r.category?.name && note.toLowerCase() === r.category.name.toLowerCase();
@@ -200,9 +205,12 @@ export default function RecurringPage() {
               >
                 <Card className={r.active ? undefined : "opacity-70"}>
                   <CardContent className="flex items-center gap-4 p-4">
+                    {/* A deposit rule has no category to draw from, and the
+                        generic fallback made it look like an uncategorised
+                        spend — the one thing it isn't. */}
                     <CategoryIcon
-                      icon={r.type === "transfer" ? "repeat" : r.category?.icon}
-                      color={r.type === "transfer" ? "#3B82F6" : r.category?.color}
+                      icon={paysDeposit ? "piggy-bank" : r.type === "transfer" ? "repeat" : r.category?.icon}
+                      color={paysDeposit ? "#14B8A6" : r.type === "transfer" ? "#3B82F6" : r.category?.color}
                       size="md"
                     />
                     <div className="min-w-0 flex-1">

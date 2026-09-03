@@ -12,6 +12,19 @@ export function spendableAccounts<T extends Pick<Account, "type">>(accounts: T[]
   return (accounts ?? []).filter((a) => a.type !== "securities" && a.type !== "deposits");
 }
 
+/**
+ * Accounts real money can be paid *from*: everything `spendableAccounts` allows,
+ * minus Money Lent and Money Owed.
+ *
+ * Those two are ledgers of what other people owe, not pots you can draw on, and
+ * the server refuses them outright (`ACCOUNT_SYSTEM_MANAGED`). Offering them in
+ * a "from account" picker only invites an error — or worse, a rule that quietly
+ * points at the wrong place until the day it runs.
+ */
+export function fundingAccounts<T extends Pick<Account, "type">>(accounts: T[] | undefined): T[] {
+  return spendableAccounts(accounts).filter((a) => a.type !== "receivable" && a.type !== "payable");
+}
+
 /** Human-readable label for an account's type (shown as a subtitle/badge). */
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   cash: "Cash",

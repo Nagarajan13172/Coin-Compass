@@ -13,6 +13,7 @@ import {
   Pencil,
   PiggyBank,
   Plus,
+  Repeat,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -37,6 +38,7 @@ import { CategoryDonut } from "@/features/reports/CategoryDonut";
 import { HoldingFormDialog } from "@/features/networth/HoldingFormDialog";
 import { DepositDialog, type DepositMode } from "@/features/networth/DepositDialog";
 import { AdoptDepositsDialog } from "@/features/networth/AdoptDepositsDialog";
+import { ruleToCadence } from "@/lib/instalments";
 import { NetWorthTrend } from "@/features/networth/NetWorthTrend";
 import { useHoldings, useDeleteHolding } from "@/hooks/useHoldings";
 import { useLoans } from "@/hooks/useLoans";
@@ -296,6 +298,36 @@ function MiniRow({ label, value, muted }: { label: string; value: string; muted?
       <span className="text-muted-foreground">{label}</span>
       <span className={`tnum font-medium ${muted ? "text-muted-foreground" : "text-foreground"}`}>{value}</span>
     </div>
+  );
+}
+
+/**
+ * The standing order feeding this deposit, said plainly on the card.
+ *
+ * Without it the automation is invisible: the value goes up each month and you
+ * have to go looking on the Recurring page to find out why, or whether it is
+ * still running at all.
+ */
+function InstalmentLine({ holding }: { holding: Holding }) {
+  const { t } = useTranslation("wealth");
+  const inst = holding.instalment;
+  if (!inst) return null;
+
+  // Just how much and how often. The card is a third of a row wide — roughly
+  // twenty-odd characters before it truncates — so the funding account and the
+  // next due date are left to the form and the Recurring page, which have room
+  // to show them whole. A line that ends in "· next …" tells nobody anything.
+  return (
+    <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
+      <Repeat className="h-3 w-3 shrink-0" />
+      <span className="truncate">
+        {t("instalment.onCard", {
+          amount: formatMoney(inst.amount),
+          every: t(`instalment.cadenceAdverb.${ruleToCadence(inst.frequency, inst.interval)}`),
+        })}
+        {!inst.active && ` · ${t("instalment.cardPaused")}`}
+      </span>
+    </p>
   );
 }
 
@@ -609,6 +641,7 @@ function AssetsTab({
                                   {h.provider ? ` · ${h.provider}` : ""}
                                 </p>
                                 <HoldingGrowthLine holding={h} />
+                                <InstalmentLine holding={h} />
                               </div>
                               <span className="tnum text-sm font-semibold">{formatMoney(h.value)}</span>
                               <DropdownMenu>

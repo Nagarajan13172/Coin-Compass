@@ -25,7 +25,25 @@ import { SAVING_SUBTYPES, INVESTMENT_SUBTYPES, holdingGrowth, formatMonths } fro
 import { formatMoney } from "@/lib/format";
 import { enumLabel } from "@/lib/i18nLabels";
 import { RecordMeta } from "@/components/common/RecordMeta";
+import { InstalmentFields, type InstalmentState } from "./InstalmentFields";
+import { cadenceToRule, ruleToCadence } from "@/lib/instalments";
 import type { Holding, HoldingClass, HoldingSubtype } from "@/lib/types";
+
+/**
+ * Subtypes whose value comes from priced lots — the Stocks and Funds pages own
+ * those ledgers, so a standing order here would double-count.
+ */
+function takesInstalments(subtype: HoldingSubtype): boolean {
+  return subtype !== "stocks" && subtype !== "mutual_funds";
+}
+
+const NO_INSTALMENT: InstalmentState = {
+  on: false,
+  amount: "",
+  account: "",
+  cadence: "month",
+  startDate: "",
+};
 
 /** ISO timestamp → the yyyy-mm-dd a <input type="date"> expects (no TZ shift). */
 function toDateInput(iso?: string | null): string {
@@ -57,6 +75,9 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
   const [rate, setRate] = useState("");
   const [maturityValue, setMaturityValue] = useState("");
   const [showGrowth, setShowGrowth] = useState(false);
+  // The standing order that feeds this deposit — one fact, described here rather
+  // than assembled by hand on the Recurring page.
+  const [instalment, setInstalment] = useState<InstalmentState>(NO_INSTALMENT);
 
   useEffect(() => {
     if (!open) return;
@@ -70,6 +91,18 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
     setMaturityDate(toDateInput(holding?.maturityDate));
     setRate(holding?.interestRate != null ? String(holding.interestRate) : "");
     setMaturityValue(holding?.maturityValue != null ? String(holding.maturityValue) : "");
+    const sched = holding?.instalment ?? null;
+    setInstalment(
+      sched
+        ? {
+            on: true,
+            amount: String(sched.amount),
+            account: typeof sched.account === "string" ? sched.account : sched.account._id,
+            cadence: ruleToCadence(sched.frequency, sched.interval),
+            startDate: toDateInput(sched.startDate),
+          }
+        : { ...NO_INSTALMENT, startDate: new Date().toISOString().slice(0, 10) }
+    );
     // Open the growth section automatically if this holding already uses it.
     setShowGrowth(
       Boolean(
@@ -101,6 +134,29 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
     if (!name.trim()) return toast.error(t("holdingForm.enterName"));
     const v = Number(value);
     if (!(v >= 0)) return toast.error(t("holdingForm.enterValidValue"));
+    // Omitted entirely when the section doesn't apply, so saving an unrelated
+    // holding can never cancel a schedule it never showed. `null` is deliberate:
+    // it means "stop this", which is what switching the toggle off must do.
+    const showsInstalment = takesInstalments(subtype);
+    let instalmentPayload: unknown;
+    if (showsInstalment) {
+      if (instalment.on) {
+        const amt = Number(instalment.amount);
+        if (!(amt > 0)) return toast.error(t("instalment.enterAmount"));
+        if (!instalment.account) return toast.error(t("instalment.pickAccount"));
+        instalmentPayload = {
+          amount: amt,
+          account: instalment.account,
+          ...cadenceToRule(instalment.cadence),
+          startDate: instalment.startDate || new Date().toISOString().slice(0, 10),
+          // The deposit matures, so the standing order stops with it.
+          endDate: maturityDate || null,
+        };
+      } else {
+        instalmentPayload = null;
+      }
+    }
+
     const payload = {
       name: name.trim(),
       class: cls,
@@ -113,6 +169,7 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
       maturityDate: maturityDate || null,
       interestRate: rate === "" ? null : Number(rate),
       maturityValue: maturityValue === "" ? null : Number(maturityValue),
+      ...(showsInstalment ? { instalment: instalmentPayload } : {}),
     };
     try {
       if (isEdit && holding) {
@@ -335,6 +392,15 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
               {t("holdingForm.addGrowthDetails")}
             </button>
           )}
+          {takesInstalments(subtype) && (
+            <InstalmentFields
+              state={instalment}
+              onChange={setInstalment}
+              maturityDate={maturityDate || undefined}
+              nextRun={instalment.on ? (holding?.instalment?.nextRun ?? null) : null}
+            />
+          )}
+
           {isEdit && holding && <RecordMeta createdAt={holding.createdAt} updatedAt={holding.updatedAt} />}
         </div>
         <DialogFooter>

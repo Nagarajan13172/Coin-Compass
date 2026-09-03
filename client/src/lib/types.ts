@@ -282,8 +282,38 @@ export interface Holding {
   maturityDate?: string | null;
   interestRate?: number | null;
   maturityValue?: number | null;
+  /**
+   * The standing order feeding this deposit, inlined by the API. Editing it on
+   * the holding is the whole point: a recurring deposit is one fact, so it is
+   * described in one place rather than assembled from a rule elsewhere.
+   */
+  instalment?: HoldingInstalment | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** The funding rule as the holding sees it — a recurring rule, minus the parts
+ *  the deposit path overrides (type, category, destination account). */
+export interface HoldingInstalment {
+  _id: string;
+  amount: number;
+  account: RefLite;
+  frequency: Frequency;
+  interval: number;
+  startDate: string;
+  nextRun: string;
+  endDate?: string | null;
+  active: boolean;
+}
+
+/** What the holding form sends back to set or change that schedule. */
+export interface HoldingInstalmentInput {
+  amount: number;
+  account: string;
+  frequency: Frequency;
+  interval: number;
+  startDate: string;
+  endDate?: string | null;
 }
 
 export type LoanType = "home" | "personal" | "car" | "education" | "gold" | "business" | "other";
