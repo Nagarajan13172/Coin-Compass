@@ -86,6 +86,15 @@ export function useWithdrawFromHolding() {
   });
 }
 
+/** Put back the expenses an import rewrote, categories and all. */
+export function useUndoAdoption() {
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<{ restored: number; total: number }>(`/holdings/${id}/unadopt`, {})).data,
+    onSuccess: invalidateLedger,
+  });
+}
+
 /** Past expenses that look like payments into this deposit, newest first. */
 export function useDepositCandidates(id: string | null) {
   return useQuery({

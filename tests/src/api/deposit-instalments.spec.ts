@@ -261,7 +261,7 @@ describe("deposit instalments — a term with an end and a payout", () => {
     }
 
     const mid = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
-    expect(mid.paid).toEqual({ count: 2, total: 2000 });
+    expect(mid.paid).toEqual({ count: 2, total: 2000, imported: 0 });
     expect(mid.termCount).toBe(3);
 
     await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
@@ -404,7 +404,7 @@ describe("deposit instalments — adopting a rule that was already running", () 
     expect(adopted.data.adopted).toBe(2);
     const after = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
     expect(after.value).toBe(14000);
-    expect(after.paid).toEqual({ count: 2, total: 14000 });
+    expect(after.paid).toEqual({ count: 2, total: 14000, imported: 2 });
   });
 
   it("refuses a rule that is already committed elsewhere", async () => {
@@ -434,5 +434,87 @@ describe("deposit instalments — adopting a rule that was already running", () 
     const res = await u.session.http.post(`/holdings/${h._id}/link-rule`, { recurring: rule._id });
     expect(res.status).toBe(400);
     expect(res.data.code).toBe("DEPOSIT_ALREADY_SCHEDULED");
+  });
+});
+
+describe("deposit instalments — taking an import back", () => {
+  /** An RD paid as a plain categorised expense, twice. */
+  async function pastExpenses(u: any, account: any) {
+    const category = (await u.session.http.get("/categories")).data.find(
+      (c: any) => c.type === "expense"
+    );
+    const ids: string[] = [];
+    for (const days of [-60, -30]) {
+      const txn = (
+        await u.session.http.post("/transactions", {
+          type: "expense",
+          amount: 7000,
+          account: account._id,
+          category: category._id,
+          date: isoDay(days),
+          note: "Car Insurance RD instalment",
+        })
+      ).data;
+      ids.push(txn._id);
+    }
+    return { ids, category };
+  }
+
+  it("restores the expense and its category, not just the link", async () => {
+    const { u, account } = await setup();
+    const { ids, category } = await pastExpenses(u, account);
+    const h = (await u.session.http.post("/holdings", RD)).data;
+
+    await u.session.http.post(`/holdings/${h._id}/adopt`, { transactions: ids });
+    const imported = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
+    expect(imported.value).toBe(14000);
+    expect(imported.paid.imported).toBe(2);
+
+    const undone = await u.session.http.post(`/holdings/${h._id}/unadopt`, {});
+    expect(undone.data.restored).toBe(2);
+
+    // The deposit gives back what the import added.
+    const after = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
+    expect(after.value).toBe(0);
+    expect(after.paid).toEqual({ count: 0, total: 0, imported: 0 });
+
+    // And the transactions are expenses again, categorised as they were —
+    // an uncategorised transfer would be no more correct than a spend.
+    const txns = (await u.session.http.get("/transactions", { params: { limit: 50 } })).data;
+    const rows = (txns.items ?? txns).filter((r: any) => ids.includes(r._id));
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(r.type).toBe("expense");
+      expect(r.category?._id ?? r.category).toBe(category._id);
+      expect(r.holding).toBeNull();
+    }
+  });
+
+  it("leaves instalments that were deposits from the start alone", async () => {
+    const { u, account } = await setup();
+    const { ids } = await pastExpenses(u, account);
+    const h = (await u.session.http.post("/holdings", RD)).data;
+
+    await u.session.http.post(`/holdings/${h._id}/adopt`, { transactions: ids });
+    // One genuine deposit on top of the two imported ones.
+    await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
+
+    const undone = await u.session.http.post(`/holdings/${h._id}/unadopt`, {});
+    expect(undone.data.restored).toBe(2); // only the imported pair
+
+    const after = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
+    expect(after.value).toBe(1000); // the real deposit survives untouched
+    expect(after.paid).toEqual({ count: 1, total: 1000, imported: 0 });
+  });
+
+  it("does nothing when there is nothing to put back", async () => {
+    const { u, account } = await setup();
+    const h = (await u.session.http.post("/holdings", RD)).data;
+    await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
+
+    const res = await u.session.http.post(`/holdings/${h._id}/unadopt`, {});
+    expect(res.data.restored).toBe(0);
+    const after = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
+    expect(after.value).toBe(1000);
   });
 });

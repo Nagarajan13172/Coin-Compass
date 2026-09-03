@@ -16,6 +16,7 @@ import {
   Plus,
   Repeat,
   Trash2,
+  Undo2,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -41,6 +42,7 @@ import { HoldingFormDialog } from "@/features/networth/HoldingFormDialog";
 import { DepositDialog, type DepositMode } from "@/features/networth/DepositDialog";
 import { AdoptDepositsDialog } from "@/features/networth/AdoptDepositsDialog";
 import { LinkRuleDialog } from "@/features/networth/LinkRuleDialog";
+import { UndoImportDialog } from "@/features/networth/UndoImportDialog";
 import { ruleToCadence } from "@/lib/instalments";
 import { NetWorthTrend } from "@/features/networth/NetWorthTrend";
 import { useHoldings, useDeleteHolding } from "@/hooks/useHoldings";
@@ -531,6 +533,7 @@ function AssetsTab({
   const [depositTarget, setDepositTarget] = useState<{ holding: Holding; mode: DepositMode } | null>(null);
   const [adoptTarget, setAdoptTarget] = useState<Holding | null>(null);
   const [linkTarget, setLinkTarget] = useState<Holding | null>(null);
+  const [undoTarget, setUndoTarget] = useState<Holding | null>(null);
 
   function openNew() {
     setEditing(null);
@@ -718,6 +721,14 @@ function AssetsTab({
                                       <DropdownMenuItem onClick={() => setAdoptTarget(h)}>
                                         <History /> {t("adopt.action")}
                                       </DropdownMenuItem>
+                                      {/* Only where there is something to take
+                                          back — deposits recorded as deposits
+                                          from the start have no prior state. */}
+                                      {(h.paid?.imported ?? 0) > 0 && (
+                                        <DropdownMenuItem onClick={() => setUndoTarget(h)}>
+                                          <Undo2 /> {t("undoImport.action")}
+                                        </DropdownMenuItem>
+                                      )}
                                     </>
                                   )}
                                   <DropdownMenuItem
@@ -774,6 +785,7 @@ function AssetsTab({
         // expenses until they're imported, so offer that straight away.
         onLinked={(h) => setAdoptTarget(h)}
       />
+      <UndoImportDialog holding={undoTarget} onClose={() => setUndoTarget(null)} />
 
       {deleteTarget && (
         <ConfirmDeleteDialog

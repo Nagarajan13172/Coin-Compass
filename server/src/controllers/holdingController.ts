@@ -14,6 +14,7 @@ import {
   adoptTransactions,
   depositCandidates,
   depositToHolding,
+  undoAdoption,
   withdrawFromHolding,
 } from "../services/depositService";
 import {
@@ -41,7 +42,7 @@ export async function listHoldings(req: Request, res: Response) {
     holdings.map((h) => ({
       ...h,
       instalment: schedules.get(String(h._id)) ?? null,
-      paid: paid.get(String(h._id)) ?? { count: 0, total: 0 },
+      paid: paid.get(String(h._id)) ?? { count: 0, total: 0, imported: 0 },
     }))
   );
 }
@@ -133,6 +134,11 @@ export async function withdrawHolding(req: Request, res: Response) {
   const uid = userId(req);
   const data = holdingWithdrawSchema.parse(req.body);
   res.json(await withdrawFromHolding(uid, { ...data, holding: req.params.id }));
+}
+
+/** Put back the expenses an import rewrote. */
+export async function undoHoldingAdoption(req: Request, res: Response) {
+  res.json(await undoAdoption(userId(req), req.params.id));
 }
 
 /** Past expenses that look like payments into this deposit. */

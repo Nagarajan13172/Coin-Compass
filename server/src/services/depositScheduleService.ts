@@ -80,7 +80,7 @@ export async function instalmentsFor(uid: unknown, holdingIds: unknown[]) {
 
 /** Instalments actually paid into each holding, keyed by holding id. */
 export async function progressFor(uid: unknown, holdingIds: unknown[]) {
-  const out = new Map<string, { count: number; total: number }>();
+  const out = new Map<string, { count: number; total: number; imported: number }>();
   if (holdingIds.length === 0) return out;
 
   // Only the legs that put money IN. A withdrawal carries a negative
@@ -89,9 +89,19 @@ export async function progressFor(uid: unknown, holdingIds: unknown[]) {
   // instalments — that is what importing them said.
   const rows = await Transaction.aggregate([
     { $match: { user: new Types.ObjectId(String(uid)), holding: { $in: holdingIds }, holdingContribution: { $gt: 0 } } },
-    { $group: { _id: "$holding", count: { $sum: 1 }, total: { $sum: "$holdingContribution" } } },
+    {
+      $group: {
+        _id: "$holding",
+        count: { $sum: 1 },
+        total: { $sum: "$holdingContribution" },
+        // How many were rewritten from past expenses — the ones an undo could
+        // put back, and the only reason to offer one.
+        imported: { $sum: { $cond: [{ $ifNull: ["$adoptedFrom", false] }, 1, 0] } },
+      },
+    },
   ]);
-  for (const r of rows) out.set(String(r._id), { count: r.count, total: round2(r.total) });
+  for (const r of rows)
+    out.set(String(r._id), { count: r.count, total: round2(r.total), imported: r.imported });
   return out;
 }
 

@@ -165,6 +165,7 @@ router.get("/holdings/rules", asyncHandler(holdings.linkableRules));
 router.get("/holdings/:id/candidates", asyncHandler(holdings.holdingCandidates));
 router.post("/holdings/:id/link-rule", asyncHandler(holdings.linkHoldingRule));
 router.post("/holdings/:id/adopt", asyncHandler(holdings.adoptHoldingTransactions));
+router.post("/holdings/:id/unadopt", asyncHandler(holdings.undoHoldingAdoption));
 router.patch("/holdings/:id", asyncHandler(holdings.updateHolding));
 router.delete("/holdings/:id", asyncHandler(holdings.deleteHolding));
 

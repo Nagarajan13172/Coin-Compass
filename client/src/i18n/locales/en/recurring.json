@@ -9,7 +9,8 @@
   "summary": {
     "income": "Monthly income",
     "expenses": "Monthly expenses",
-    "net": "Net / month"
+    "net": "Net / month",
+    "ofWhichSaved": "{{amount}} of it into savings"
   },
   "badges": {
     "overdue": "Overdue",

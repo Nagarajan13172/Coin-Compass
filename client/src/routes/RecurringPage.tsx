@@ -67,15 +67,22 @@ function ruleName(r: Recurring, t: TFunction) {
 /** Normalized per-month cash-flow across all active rules, for the overview strip. */
 function MonthlySummary({ items }: { items: Recurring[] }) {
   const { t } = useTranslation("recurring");
-  const { income, expense } = useMemo(() => {
+  const { income, expense, saved } = useMemo(() => {
     let income = 0;
     let expense = 0;
+    // Deposit instalments leave the account like any other outgoing, so they
+    // belong in the total — but they are not spending, and a page whose whole
+    // point is that distinction shouldn't bury them in one number.
+    let saved = 0;
     for (const r of items) {
       if (!r.active) continue;
       if (r.type === "income") income += monthlyAmount(r);
-      else if (r.type === "expense") expense += monthlyAmount(r);
+      else if (r.type === "expense") {
+        expense += monthlyAmount(r);
+        if (r.holding) saved += monthlyAmount(r);
+      }
     }
-    return { income, expense };
+    return { income, expense, saved };
   }, [items]);
 
   if (income === 0 && expense === 0) return null;
@@ -91,6 +98,11 @@ function MonthlySummary({ items }: { items: Recurring[] }) {
         <div className="p-3">
           <p className="text-xs text-muted-foreground">{t("summary.expenses")}</p>
           <p className="mt-0.5 font-semibold tnum text-expense">−{formatMoney(expense)}</p>
+          {saved > 0 && (
+            <p className="tnum mt-0.5 text-[11px] text-muted-foreground">
+              {t("summary.ofWhichSaved", { amount: formatMoney(saved) })}
+            </p>
+          )}
         </div>
         <div className="p-3">
           <p className="text-xs text-muted-foreground">{t("summary.net")}</p>

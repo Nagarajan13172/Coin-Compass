@@ -377,6 +377,10 @@ export async function adoptTransactions(uid: string, holdingId: string, ids: str
   let total = 0;
   for (const txn of rows) {
     const applied = await applyHoldingContribution(holding._id, uid, txn.amount);
+    // Remembered before it's overwritten, so this can be taken back. Importing
+    // the wrong row is easy — the candidates are partly a guess — and without
+    // this the original category is simply gone.
+    txn.adoptedFrom = { type: txn.type, category: txn.category, oneoff: txn.oneoff };
     txn.type = "transfer";
     txn.toAccount = bucket;
     txn.category = null;
@@ -389,4 +393,45 @@ export async function adoptTransactions(uid: string, holdingId: string, ids: str
   }
 
   return { adopted, total, holding: await Holding.findById(holding._id).lean() };
+}
+
+/**
+ * Put back the expenses an import rewrote.
+ *
+ * Importing makes a claim about the past — that these spends were really money
+ * going into a deposit. When the claim is wrong, undoing it has to restore what
+ * was there, not merely unlink it: an instalment that reverts to an
+ * uncategorised transfer is no more correct than one left as a spend.
+ *
+ * Only transactions carrying `adoptedFrom` are touched, so deposits recorded as
+ * deposits from the start are never disturbed by this.
+ */
+export async function undoAdoption(uid: string, holdingId: string) {
+  const holding = await requireDepositHolding(uid, holdingId);
+  const rows = await Transaction.find({
+    user: uid,
+    holding: holding._id,
+    adoptedFrom: { $ne: null },
+  });
+
+  let restored = 0;
+  let total = 0;
+  for (const txn of rows) {
+    const prior = txn.adoptedFrom!;
+    // Take back exactly what this leg put in — not the amount, which an edit
+    // may since have changed.
+    await reverseHoldingContribution(holding._id, uid, txn.holdingContribution);
+    txn.type = prior.type as "expense" | "income" | "transfer";
+    txn.category = prior.category ?? null;
+    txn.oneoff = prior.oneoff ?? false;
+    txn.toAccount = null;
+    txn.holding = null;
+    txn.holdingContribution = 0;
+    txn.adoptedFrom = null;
+    await txn.save();
+    restored += 1;
+    total = round2(total + txn.amount);
+  }
+
+  return { restored, total, holding: await Holding.findById(holding._id).lean() };
 }

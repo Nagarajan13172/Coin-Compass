@@ -357,5 +357,15 @@
     "submit": "Link rule",
     "linked": "Rule linked to this deposit",
     "linkedWithTerm": "Rule linked — {{count}} instalments, read from its end date"
+  },
+  "undoImport": {
+    "action": "Undo import",
+    "title": "Undo import",
+    "subtitle_one": "Put back the {{count}} payment imported into {{name}}.",
+    "subtitle_other": "Put back the {{count}} payments imported into {{name}}.",
+    "detail": "Each one returns to the expense it was, with the category it had, and the deposit's value drops by what they added. Instalments recorded as deposits from the start aren't touched.",
+    "submit": "Undo import",
+    "done_one": "Put back {{count}} payment",
+    "done_other": "Put back {{count}} payments"
   }
 }

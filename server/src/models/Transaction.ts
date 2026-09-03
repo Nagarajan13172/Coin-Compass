@@ -51,6 +51,25 @@ const transactionSchema = new Schema(
     // never part of the deposit's principal.
     holding: { type: Schema.Types.ObjectId, ref: "Holding", default: null },
     holdingContribution: { type: Number, default: 0 },
+    // What this transaction was before it was imported into a deposit.
+    //
+    // Importing rewrites a real expense in place — it becomes a transfer and
+    // loses its category. That is the correct reading of an RD instalment, but
+    // it is a claim about history, and a claim about history has to be
+    // retractable. Set only by adoptTransactions; cleared when the import is
+    // undone. Null on everything else, including deposits recorded as deposits
+    // from the start, which have nothing to go back to.
+    adoptedFrom: {
+      type: new Schema(
+        {
+          type: { type: String, required: true },
+          category: { type: Schema.Types.ObjectId, ref: "Category", default: null },
+          oneoff: { type: Boolean, default: false },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
     // Stock purchase: the transfer moving cash from the demat account into the
     // Securities bucket. Set on the transfer leg; the lot links back via
     // StockLot.buyTransaction.
