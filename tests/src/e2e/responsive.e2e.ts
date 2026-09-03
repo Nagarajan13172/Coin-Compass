@@ -225,27 +225,21 @@ test("a phone gets the form alone, with no brand panel to scroll past", async ({
   expect(doc).toBeLessThanOrEqual(1);
 });
 
-/**
- * Every candidate panel, at the sizes that squeeze it. They are all in the tree
- * while one is being chosen, and a variant that scrolls the sign-in page would
- * be a bad thing to discover only after picking it.
- */
-test("no candidate panel makes the sign-in page scroll", async ({ page }) => {
-  test.setTimeout(120_000);
-  for (const panel of ["brief", "product", "editorial", "chart"]) {
-    for (const size of [
-      { width: 1024, height: 600 },
-      { width: 1366, height: 660 },
-      { width: 1440, height: 900 },
-    ]) {
-      await page.setViewportSize(size);
-      await page.goto(`/login?panel=${panel}`);
-      await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
-      const doc = await page.evaluate(() => ({
-        x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        y: document.documentElement.scrollHeight - document.documentElement.clientHeight,
-      }));
-      expect(doc, `panel=${panel} at ${size.width}x${size.height}`).toEqual({ x: 0, y: 0 });
-    }
-  }
+test("the signed-out pages carry a copyright, panel or no panel", async ({ page }) => {
+  const year = new Date().getFullYear();
+
+  const line = new RegExp(`© ${year} CoinCompass`);
+
+  // Both copies are in the DOM at every width — one is hidden by a breakpoint —
+  // so each check names the region whose copy should actually be showing.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/login");
+  await expect(page.getByRole("complementary").getByText(line)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("main").getByText(line)).toBeHidden();
+
+  // On a phone the panel isn't rendered, and that's where most people sign in —
+  // so the line has to live under the form too, not only in the panel.
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.reload();
+  await expect(page.getByRole("main").getByText(line)).toBeVisible({ timeout: 15_000 });
 });

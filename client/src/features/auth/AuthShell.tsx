@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Compass } from "lucide-react";
-import { AuthPanel, PANEL_VARIANTS, type PanelVariant } from "./AuthPanels";
+import { APP_NAME, APP_VERSION, currentYear } from "@/lib/appInfo";
 
 /**
  * The frame around every signed-out page: sign in, sign up, verify, 2FA, reset.
@@ -11,20 +11,12 @@ import { AuthPanel, PANEL_VARIANTS, type PanelVariant } from "./AuthPanels";
  * its own sake: a signed-out visitor has no other way to find out what this is,
  * and a lone box in the middle of an empty page tells them nothing.
  *
- * Which panel is still an open question, so four live in the tree at once and
- * `?panel=brief|product|editorial|chart` switches between them. Once one is
- * chosen the rest come out and this reduces to a single import.
+ * One sentence and a lot of air, rather than a feature list or a screenshot.
+ * There is nothing in it to go out of date, which is what a page this permanent
+ * wants. It stays dark in both themes because that is the product's colour, the
+ * one from the app icon — the page is recognisable before a pixel of the app
+ * itself has loaded.
  */
-
-/** The one served when nothing asks for another. */
-const DEFAULT_PANEL: PanelVariant = "brief";
-
-function usePanelVariant(): PanelVariant {
-  const [params] = useSearchParams();
-  const asked = params.get("panel") as PanelVariant | null;
-  return asked && PANEL_VARIANTS.includes(asked) ? asked : DEFAULT_PANEL;
-}
-
 export function AuthShell({
   title,
   subtitle,
@@ -34,16 +26,49 @@ export function AuthShell({
   subtitle: string;
   children: ReactNode;
 }) {
-  const variant = usePanelVariant();
+  const { t } = useTranslation("auth");
+  const copyright = t("shell.copyright", { year: currentYear(), name: APP_NAME });
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[1.05fr_1fr]">
-      {/* Every panel hides itself below lg, so a phone keeps exactly the single
-          centred card it had before — there is no room to say anything else on
-          360px, and the fastest sign-in screen has nothing else on it. */}
-      <AuthPanel variant={variant} />
+      {/* Hidden below lg, so a phone keeps exactly the single centred card it
+          had before — there is no room to say anything else on 360px, and the
+          fastest sign-in screen has nothing else on it. */}
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-slate-950 p-12 text-slate-100 lg:flex xl:p-16">
+        <CompassRose />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-32 top-1/3 h-[28rem] w-[28rem] rounded-full bg-blue-600/15 blur-3xl"
+        />
 
-      <main className="flex min-h-dvh items-center justify-center bg-muted/30 p-4 lg:min-h-0">
+        <div className="relative flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <Compass className="h-5 w-5" />
+          </div>
+          <span className="text-lg font-bold tracking-tight">{APP_NAME}</span>
+        </div>
+
+        <div className="relative max-w-lg">
+          <h2 className="text-4xl font-bold leading-[1.1] tracking-tight xl:text-5xl">
+            {t("shell.headline")}
+          </h2>
+          <p className="mt-6 max-w-md text-base leading-relaxed text-slate-400">
+            {t("shell.tagline")}
+          </p>
+        </div>
+
+        {/* The panel is decoration around the only thing that matters, so it
+            never costs the page a scrollbar: the footer goes first when the
+            window runs short, headline last. */}
+        <div className="relative hidden space-y-1.5 [@media(min-height:560px)]:block">
+          <p className="text-xs text-slate-500">{t("shell.footnote")}</p>
+          <p className="text-xs text-slate-600">
+            {copyright} · v{APP_VERSION}
+          </p>
+        </div>
+      </aside>
+
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-muted/30 p-4 lg:min-h-0">
         <div className="w-full max-w-sm space-y-6">
           <div className="flex flex-col items-center gap-2 text-center">
             {/* The mark repeats on a phone, where the panel isn't shown. */}
@@ -55,7 +80,39 @@ export function AuthShell({
           </div>
           <div className="rounded-2xl border bg-card p-6 shadow-sm">{children}</div>
         </div>
+        {/* Repeated here rather than only in the panel: on a phone the panel
+            doesn't exist, and that is where most people will sign in. */}
+        <p className="text-center text-xs text-muted-foreground lg:hidden">
+          {copyright} · v{APP_VERSION}
+        </p>
       </main>
     </div>
+  );
+}
+
+/**
+ * The app's mark at texture scale, bleeding off the corner.
+ *
+ * Deliberately faint. At any more contrast it stops being a background and
+ * starts being a large blue arrow pointing at nothing.
+ */
+function CompassRose() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 400 400"
+      className="pointer-events-none absolute -bottom-16 -right-24 h-[30rem] w-[30rem]"
+    >
+      <g stroke="#e2e8f0" strokeOpacity="0.10" fill="none">
+        <circle cx="200" cy="200" r="190" strokeWidth="1" />
+        <circle cx="200" cy="200" r="150" strokeWidth="1" />
+        <circle cx="200" cy="200" r="96" strokeWidth="1" />
+        {/* Cardinal ticks, so it reads as a compass rose and not a target. */}
+        <path d="M200 10 V52 M200 348 V390 M10 200 H52 M348 200 H390" strokeWidth="1.5" />
+      </g>
+      <path d="M200 70 L218 200 L182 200 Z" fill="#3b82f6" fillOpacity="0.22" />
+      <path d="M200 330 L218 200 L182 200 Z" fill="#e2e8f0" fillOpacity="0.07" />
+      <circle cx="200" cy="200" r="7" fill="none" stroke="#e2e8f0" strokeOpacity="0.18" />
+    </svg>
   );
 }
