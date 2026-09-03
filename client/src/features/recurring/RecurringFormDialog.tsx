@@ -24,6 +24,7 @@ import { formatMoney } from "@/lib/format";
 import { FundSearchCombobox } from "@/features/funds/FundSearchCombobox";
 import type { FundHit } from "@/lib/types";
 import { useAccounts } from "@/hooks/useAccounts";
+import { fundingAccounts, spendableAccounts } from "@/lib/accounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useLoans } from "@/hooks/useLoans";
 import { useGoals } from "@/hooks/useGoals";
@@ -96,6 +97,10 @@ function upcomingRuns(
 export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
   const { t } = useTranslation("recurring");
   const { data: accounts } = useAccounts();
+  // Money Lent, Money Owed, Stock Investments and Savings & Deposits are the
+  // app's own ledgers; the API refuses them, so they don't belong in a picker.
+  const payFrom = fundingAccounts(accounts);
+  const spendable = spendableAccounts(accounts);
   const { data: loans } = useLoans();
   const { data: goals } = useGoals();
   // Holdings sit behind the wealth lock, so only ask for them when this session
@@ -169,16 +174,26 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
     if (!account) return toast.error(t("form.errors.account"));
     if (type === "transfer" && account === toAccount)
       return toast.error(t("form.errors.accountsDiffer"));
-    if (type !== "transfer" && !category) return toast.error(t("form.errors.category"));
+    // A deposit rule posts a transfer into the Savings & Deposits bucket, so its
+    // category and destination are discarded. Requiring them would be demanding
+    // a decision with no consequence.
+    if (type !== "transfer" && !category && !holdingId) return toast.error(t("form.errors.category"));
     if (endDate && new Date(endDate) < new Date(startDate))
       return toast.error(t("form.errors.endAfterStart"));
 
+    // A deposit rule posts its own leg (bank → Savings & Deposits), so it carries
+    // no category and no destination. Sending the hidden fields' empty strings
+    // would fail validation — the form would simply refuse to save, with nothing
+    // on screen to explain why. Its type is a formality the deposit path never
+    // reads, and "expense" is what the cash-flow forecast wants: the money does
+    // leave the bank. Same shape depositScheduleService builds.
+    const paysDeposit = type !== "income" && Boolean(holdingId);
     const payload: Record<string, unknown> = {
-      type,
+      type: paysDeposit ? "expense" : type,
       amount: amt,
       account,
-      toAccount: type === "transfer" ? toAccount : null,
-      category: type === "transfer" ? null : category,
+      toAccount: paysDeposit || type !== "transfer" ? null : toAccount,
+      category: paysDeposit || type === "transfer" ? null : category,
       frequency,
       interval: Number(interval) || 1,
       payee,
@@ -253,18 +268,26 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
             <Select value={account} onValueChange={setAccount}>
               <SelectTrigger><SelectValue placeholder={t("labels.account", { ns: "common" })} /></SelectTrigger>
               <SelectContent>
-                {accounts?.map((a) => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}
+                {payFrom.map((a) => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
-          {type === "transfer" ? (
+          {/* Once a deposit is linked, neither a destination nor a category is
+              the user's to choose: depositService posts the leg itself. Showing
+              the field anyway invited people to set one and wonder why nothing
+              happened — or worse, to leave a stray bucket selected. */}
+          {holdingId ? (
+            <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+              {t("deposit.rulePosts", { ns: "wealth" })}
+            </p>
+          ) : type === "transfer" ? (
             <div className="space-y-1.5">
               <Label>{t("form.toAccount")}</Label>
               <Select value={toAccount} onValueChange={setToAccount}>
                 <SelectTrigger><SelectValue placeholder={t("labels.account", { ns: "common" })} /></SelectTrigger>
                 <SelectContent>
-                  {accounts?.map((a) => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}
+                  {spendable.map((a) => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -418,13 +441,14 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
               SIP for the same reason those are exclusive with each other. */}
           {type !== "income" &&
             (() => {
-              const options = (holdings ?? []).filter(
-                (h) => h.subtype !== "stocks" && h.subtype !== "mutual_funds"
-              );
+              // Deposits and savings pots only. Stocks and funds are valued from
+              // their lots, and an investment like property or gold isn't
+              // something a standing order pays into.
+              const options = (holdings ?? []).filter((h) => h.class === "saving");
               if (options.length === 0) return null;
               return (
                 <div className="space-y-1.5">
-                  <Label>{t("deposit.payInto", { ns: "wealth" })}</Label>
+                  <Label htmlFor="rec-holding">{t("deposit.payInto", { ns: "wealth" })}</Label>
                   <Select
                     value={holdingId || NO_HOLDING}
                     onValueChange={(v) => {
@@ -437,7 +461,7 @@ export function RecurringFormDialog({ open, onOpenChange, recurring }: Props) {
                       }
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="rec-holding">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

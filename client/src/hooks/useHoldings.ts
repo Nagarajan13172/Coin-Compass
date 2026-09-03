@@ -18,6 +18,9 @@ export function useHoldings({ enabled = true }: { enabled?: boolean } = {}) {
 function invalidate() {
   queryClient.invalidateQueries({ queryKey: ["holdings"] });
   queryClient.invalidateQueries({ queryKey: ["networth"] });
+  // Saving a deposit can create, change or stop its standing order, so the
+  // Recurring page must not keep showing the rule as it was.
+  queryClient.invalidateQueries({ queryKey: ["recurring"] });
 }
 
 /**

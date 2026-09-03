@@ -284,6 +284,25 @@ export const holdingSchema = holdingBase.refine(subtypeMatchesClass, {
 // Partial updates skip the cross-field check (class/subtype may arrive separately).
 export const holdingUpdateSchema = holdingBase.partial();
 
+/**
+ * The standing order that feeds a deposit, described on the deposit itself.
+ *
+ * Deliberately smaller than the recurring rule it builds: type, category and
+ * destination account are all discarded by the deposit path, so asking for them
+ * would be asking the user to decide something that has no effect.
+ */
+export const instalmentSchema = z.object({
+  amount: z.number().positive(),
+  account: objectId,
+  frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).default("monthly"),
+  interval: z.number().int().positive().max(60).default(1),
+  startDate: z.coerce.date().default(() => new Date()),
+  endDate: z.coerce.date().nullish(),
+});
+
+/** `null` clears the schedule; omitted leaves whatever is already there alone. */
+export const holdingInstalmentField = instalmentSchema.nullish();
+
 /** Paying into a deposit: which account the money leaves, and when. */
 export const holdingDepositSchema = z.object({
   account: objectId,

@@ -281,7 +281,8 @@
     "withdrew": "Withdrew {{amount}} from {{name}}",
     "withdrewWithInterest": "Withdrew {{amount}} plus {{interest}} interest",
     "payInto": "Pay into deposit",
-    "ruleHint": "Each run moves the money into this deposit instead of spending it."
+    "ruleHint": "Each run moves the money into this deposit instead of spending it.",
+    "rulePosts": "This rule pays into the deposit above: the money moves out of the account and into Savings & Deposits automatically. No category or destination to choose."
   },
   "adopt": {
     "action": "Import past payments",
@@ -298,5 +299,42 @@
     "submit": "Import",
     "done_one": "Imported {{count}} payment ({{amount}}) into {{name}}",
     "done_other": "Imported {{count}} payments ({{amount}}) into {{name}}"
+  },
+  "instalment": {
+    "title": "Automatic instalment",
+    "subtitle": "Pay into this deposit on a schedule, without recording anything by hand.",
+    "amount": "Instalment",
+    "from": "From account",
+    "pickAccount": "Pick an account",
+    "every": "Every",
+    "starting": "Starting",
+    "enterAmount": "Enter an instalment greater than 0",
+    "preview": "{{amount}} leaves {{account}} every {{every}} and is added to this deposit — a transfer, not a spend.",
+    "previewIncomplete": "Set an amount and an account, and each instalment will move into this deposit automatically.",
+    "until": "Stops at maturity on {{date}}.",
+    "nextDue": "Next instalment due {{date}}.",
+    "cadence": {
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter (3 months)",
+      "halfYear": "Half-year (6 months)",
+      "year": "Year"
+    },
+    "cadenceLower": {
+      "week": "week",
+      "month": "month",
+      "quarter": "quarter",
+      "halfYear": "half-year",
+      "year": "year"
+    },
+    "onCard": "{{amount}} {{every}}",
+    "cardPaused": "paused",
+    "cadenceAdverb": {
+      "week": "weekly",
+      "month": "monthly",
+      "quarter": "quarterly",
+      "halfYear": "half-yearly",
+      "year": "yearly"
+    }
   }
 }
