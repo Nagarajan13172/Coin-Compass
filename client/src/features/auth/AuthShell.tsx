@@ -34,7 +34,13 @@ export function AuthShell({
       {/* Hidden below lg, so a phone keeps exactly the single centred card it
           had before — there is no room to say anything else on 360px, and the
           fastest sign-in screen has nothing else on it. */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-slate-950 p-12 text-slate-100 lg:flex xl:p-16">
+      {/* The panel is dark in both themes, but not the same dark. In light mode
+          it's the app icon's near-black against a white form — a deliberate
+          contrast. In dark mode that same near-black sat ten points below the
+          form's surface and the seam read as two unrelated pages, so it becomes
+          one step under the theme's own background instead: same hue, slightly
+          deeper, one surface with a fold in it. */}
+      <aside className="relative hidden flex-col justify-between overflow-hidden border-white/[0.06] bg-slate-950 p-12 text-slate-100 lg:flex lg:border-r xl:p-16 dark:bg-[hsl(222_47%_8%)]">
         <CompassRose />
         <div
           aria-hidden
