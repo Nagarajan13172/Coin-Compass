@@ -17,7 +17,8 @@
     "accounts": "Accounts",
     "categories": "Categories",
     "goals": "Goals",
-    "loans": "Loans"
+    "loans": "Loans",
+    "signOut": "Sign out"
   },
   "wallet": {
     "title": "Wallet",
@@ -40,6 +41,13 @@
       "light": "Light",
       "dark": "Dark",
       "system": "System"
+    },
+    "numberFormatLabel": "Number format",
+    "numberFormatHelp": "How amounts are grouped. Dates follow the app's language, not this.",
+    "numberFormatUpdated": "Number format updated",
+    "numberFormat": {
+      "indian": "Indian",
+      "western": "International"
     }
   },
   "reports": {
@@ -228,5 +236,20 @@
     "codesGenerated": "New backup codes generated",
     "regenerateFailed": "Couldn't regenerate codes",
     "codesCopied": "Backup codes copied"
+  },
+  "nav": {
+    "label": "Settings sections",
+    "account": "Account",
+    "preferences": "Preferences",
+    "security": "Security",
+    "people": "People & groups",
+    "data": "Data"
+  },
+  "sections": {
+    "account": "Who you're signed in as, and what your workspace is called.",
+    "preferences": "How the app reads: language, money, and what lands in your inbox.",
+    "security": "Everything that stands between someone else and your numbers.",
+    "people": "Who your credits and shared bills are recorded against.",
+    "data": "Take it out, bring it in, and what this build is."
   }
 }
