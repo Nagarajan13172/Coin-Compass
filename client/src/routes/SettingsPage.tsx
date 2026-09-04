@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sun,
+  TriangleAlert,
   Trophy,
   Upload,
   UserRound,
@@ -63,6 +64,7 @@ import {
 import { useMe, useChangePassword, useLogout } from "@/hooks/useAuth";
 import { WealthUnlockDialog } from "@/features/settings/WealthLock";
 import { SettingsNav, SettingsSection } from "@/features/settings/SettingsNav";
+import { DeleteAccountDialog } from "@/features/settings/DeleteAccountDialog";
 import { TwoFactorSettings } from "@/features/settings/TwoFactorSettings";
 import { useSendReportEmail } from "@/hooks/useReports";
 import { useImportFile } from "@/hooks/useImport";
@@ -88,6 +90,7 @@ const SECTIONS = [
   { id: "security", Icon: ShieldCheck },
   { id: "people", Icon: Users },
   { id: "data", Icon: Database },
+  { id: "danger", Icon: TriangleAlert },
 ] as const;
 
 /**
@@ -155,6 +158,7 @@ export default function SettingsPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -801,8 +805,37 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
           </SettingsSection>
+
+          {/* Last, and looking like it. Nothing above this line destroys
+              anything, and everything below it destroys all of it. */}
+          <SettingsSection id="danger" title={ts("nav.danger")} description={ts("sections.danger")}>
+            <Card className="border-expense/30">
+              <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
+                <div className="min-w-[14rem] flex-1">
+                  <p className="text-sm font-medium">{ts("danger.title")}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {ts("danger.desc")}
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  className="w-full shrink-0 sm:w-auto"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <TriangleAlert /> {ts("danger.action")}
+                </Button>
+              </CardContent>
+            </Card>
+          </SettingsSection>
         </div>
       </div>
+
+      <DeleteAccountDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        email={me?.email ?? ""}
+        hasPassword={Boolean(me?.hasPassword)}
+      />
 
 
       {/* Import result dialog */}

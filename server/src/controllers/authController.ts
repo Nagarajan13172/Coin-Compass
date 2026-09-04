@@ -12,6 +12,7 @@ import {
   regenerateBackupCodesSchema,
   emailFallbackSchema,
   wealthPasscodeResetSchema,
+  deleteAccountSchema,
 } from "../validators/schemas";
 import { signupWithPassword, signinWithPassword, changePassword as changePasswordService } from "../services/authService";
 import {
@@ -25,6 +26,7 @@ import {
   consumeWealthPasscodeReset,
 } from "../services/wealthPasscodeResetService";
 import * as twoFactor from "../services/twoFactorService";
+import { deleteUserAccount } from "../services/accountDeletionService";
 import { setSessionCookie, clearSessionCookie } from "../auth/cookie";
 import { setPendingCookie, clearPendingCookie, verifyPending, type PendingSession } from "../auth/pending2fa";
 import { verifyPassword, hashPassword, needsRehash } from "../auth/password";
@@ -213,6 +215,21 @@ export async function twoFactorEmailFallback(req: Request, res: Response) {
 export async function regenerateBackupCodes(req: Request, res: Response) {
   const { code } = regenerateBackupCodesSchema.parse(req.body);
   res.json({ backupCodes: await twoFactor.regenerateBackupCodes(userId(req), code) });
+}
+
+/**
+ * Close the account and delete everything in it.
+ *
+ * The session cookie is cleared even though the user is gone: the browser would
+ * otherwise keep sending a token for a user that no longer exists, and every
+ * request would 401 until the cookie expired on its own.
+ */
+export async function deleteMyAccount(req: Request, res: Response) {
+  const uid = userId(req);
+  const { email, password } = deleteAccountSchema.parse(req.body);
+  const result = await deleteUserAccount(uid, { email, password });
+  clearSessionCookie(res);
+  res.json(result);
 }
 
 export async function logout(_req: Request, res: Response) {

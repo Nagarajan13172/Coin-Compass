@@ -28,6 +28,16 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
 
+/**
+ * Closing an account. The email is typed back rather than sent from the client's
+ * own state, so the request carries proof the user knows which account this is —
+ * not just that some account was open.
+ */
+export const deleteAccountSchema = z.object({
+  email: z.string().trim().min(1),
+  password: z.string().optional(),
+});
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().max(200).optional(),
   newPassword: z.string().min(8, "Password must be at least 8 characters").max(200),

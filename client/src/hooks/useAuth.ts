@@ -86,6 +86,20 @@ export function useLogout() {
   });
 }
 
+/**
+ * Close the account and delete everything in it.
+ *
+ * The cache is cleared rather than invalidated: every query in it belongs to a
+ * user who no longer exists, and refetching them would only produce 401s.
+ */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: async (body: { email: string; password?: string }) =>
+      (await api.delete("/auth/account", { data: body })).data,
+    onSuccess: () => queryClient.clear(),
+  });
+}
+
 /** True when the wealth (Net Worth) section should be visible for the current session. */
 export function useCanSeeWealth(): boolean {
   const { data: me } = useMe();

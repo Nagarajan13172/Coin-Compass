@@ -22,7 +22,7 @@ export interface SettingsSection {
 }
 
 /** Which section is showing. The first one whose heading is above the fold wins. */
-function useActiveSection(ids: string[]): string {
+function useActiveSection(ids: string[]) {
   const [active, setActive] = useState(ids[0] ?? "");
 
   useEffect(() => {
@@ -46,12 +46,14 @@ function useActiveSection(ids: string[]): string {
 
     // The last section is often too short to ever reach the band, so the bottom
     // of the page claims it — otherwise scrolling to the end highlights nothing.
+    // Checked once on mount too, in case the page opens already at the bottom.
     function onScroll() {
       const atBottom =
         window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
       if (atBottom) setActive(ids[ids.length - 1]);
     }
     window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
 
     return () => {
       observer.disconnect();
@@ -59,12 +61,12 @@ function useActiveSection(ids: string[]): string {
     };
   }, [ids]);
 
-  return active;
+  return [active, setActive] as const;
 }
 
 export function SettingsNav({ sections }: { sections: SettingsSection[] }) {
   const { t } = useTranslation("settings");
-  const active = useActiveSection(sections.map((s) => s.id));
+  const [active, setActive] = useActiveSection(sections.map((s) => s.id));
 
   return (
     <>
@@ -78,6 +80,7 @@ export function SettingsNav({ sections }: { sections: SettingsSection[] }) {
             <li key={id}>
               <a
                 href={`#${id}`}
+                onClick={() => setActive(id)}
                 aria-current={active === id ? "true" : undefined}
                 className={cn(
                   "flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
@@ -101,6 +104,7 @@ export function SettingsNav({ sections }: { sections: SettingsSection[] }) {
             <li key={id}>
               <a
                 href={`#${id}`}
+                onClick={() => setActive(id)}
                 aria-current={active === id ? "true" : undefined}
                 className={cn(
                   "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
