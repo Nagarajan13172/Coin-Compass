@@ -136,3 +136,66 @@ test("a phone gets the sections as a strip, and the identity stays readable", as
   );
   expect(doc).toBeLessThanOrEqual(1);
 });
+
+test("the danger zone is last, explains itself, and can't be clicked through", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const email = await openSettings(page);
+
+  const rail = page.getByRole("navigation", { name: /Settings sections/i }).last();
+  await rail.getByRole("link", { name: "Danger zone" }).click();
+  // A click is a statement of intent — the last section is too short to reach
+  // the scroll-spy band on its own, so the rail must take the click's word.
+  await expect(rail.getByRole("link", { name: "Danger zone" })).toHaveAttribute(
+    "aria-current",
+    "true"
+  );
+
+  await page.getByRole("button", { name: "Delete account" }).click();
+  const dialog = page.getByRole("dialog");
+
+  // It says what goes before it asks for anything, and offers the export while
+  // there is still something to export.
+  await expect(dialog.getByText(/None of it can be brought back/)).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /Export CSV/ })).toHaveAttribute(
+    "href",
+    "/api/export/csv"
+  );
+
+  const confirm = dialog.getByRole("button", { name: "Delete everything" });
+  await expect(confirm).toBeDisabled();
+
+  // The wrong email keeps it dead, and says why.
+  await dialog.locator("#del-email").fill("someone.else@example.com");
+  await dialog.locator("#del-password").fill(DEFAULT_PASSWORD);
+  await expect(dialog.getByText(/isn't the email on this account/)).toBeVisible();
+  await expect(confirm).toBeDisabled();
+
+  // The right email without a password keeps it dead too.
+  await dialog.locator("#del-email").fill(email);
+  await dialog.locator("#del-password").fill("");
+  await expect(confirm).toBeDisabled();
+});
+
+test("deleting really does end the account", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const email = await openSettings(page);
+
+  await page.getByRole("link", { name: "Danger zone" }).last().click();
+  await page.getByRole("button", { name: "Delete account" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator("#del-email").fill(email);
+  await dialog.locator("#del-password").fill(DEFAULT_PASSWORD);
+  await dialog.getByRole("button", { name: "Delete everything" }).click();
+
+  await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+  // And the credentials no longer open anything.
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(DEFAULT_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page.getByText(/Invalid email or password|incorrect/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
+});

@@ -243,13 +243,35 @@
     "preferences": "Preferences",
     "security": "Security",
     "people": "People & groups",
-    "data": "Data"
+    "data": "Data",
+    "danger": "Danger zone"
   },
   "sections": {
     "account": "Who you're signed in as, and what your workspace is called.",
     "preferences": "How the app reads: language, money, and what lands in your inbox.",
     "security": "Everything that stands between someone else and your numbers.",
     "people": "Who your credits and shared bills are recorded against.",
-    "data": "Take it out, bring it in, and what this build is."
+    "data": "Take it out, bring it in, and what this build is.",
+    "danger": "The one thing here that can't be taken back."
+  },
+  "danger": {
+    "title": "Delete this account",
+    "desc": "Removes your login and everything recorded under it. Export what you want to keep first — afterwards there is nothing left to export.",
+    "action": "Delete account",
+    "dialogTitle": "Delete this account",
+    "dialogSubtitle": "Read this before you type anything.",
+    "goesTransactions": "Every transaction, account, budget, goal and recurring rule.",
+    "goesWealth": "Every holding, deposit, stock lot, fund lot and loan.",
+    "goesPeople": "Everyone you've recorded credits or shared bills with.",
+    "goesForever": "None of it can be brought back — not by you, and not by us.",
+    "exportFirst": "This is the last moment your data exists.",
+    "exportCsv": "Export CSV",
+    "typeEmail": "Type your email address to confirm",
+    "emailMismatch": "That isn't the email on this account.",
+    "password": "Your password",
+    "confirm": "Delete everything",
+    "deleting": "Deleting…",
+    "deleted": "Your account and everything in it has been deleted",
+    "failed": "Couldn't delete the account"
   }
 }

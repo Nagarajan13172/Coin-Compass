@@ -65,6 +65,10 @@ router.use(requireAuth);
 router.get("/auth/me", asyncHandler(auth.me));
 router.post("/auth/resend-verification", asyncHandler(auth.resendVerification));
 router.post("/auth/change-password", asyncHandler(auth.changePassword));
+// Destroys the account and everything in it. Sits with change-password rather
+// than below requireVerified: someone who never verified their email should
+// still be able to close the account they opened.
+router.delete("/auth/account", asyncHandler(auth.deleteMyAccount));
 
 // ---- Everything below additionally requires a verified email ----
 router.use(asyncHandler(requireVerified));
