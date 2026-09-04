@@ -89,7 +89,9 @@ test("gold page: the day's move in rupees, both chart shapes, and a priced piece
   await expect(page.locator(".recharts-area")).toHaveCount(0);
 
   // Where today sits against the period's average, in words and in shading.
-  await expect(page.getByText(/Good buy|About normal|Dear right now/)).toBeVisible();
+  await expect(page.getByText(/Good buy|About normal|Pricey right now/)).toBeVisible();
+  // ...and as an instruction, for a reader who won't parse the percentage.
+  await expect(page.getByText(/^(Buy|Wait|Don't buy)$/).first()).toBeVisible();
   await expect(page.getByText(/the 30-day average/)).toBeVisible();
   await expect(page.getByText(/7d avg/)).toBeVisible();
   await expect(

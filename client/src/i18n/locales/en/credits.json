@@ -156,7 +156,12 @@
     "signal": {
       "good": "Good buy",
       "fair": "About normal",
-      "high": "Dear right now",
+      "high": "Pricey right now",
+      "action": {
+        "good": "Buy",
+        "fair": "Wait",
+        "high": "Don't buy"
+      },
       "under": "under",
       "over": "over",
       "detail": "{{pct}}% ({{amount}}/g) {{direction}} the {{days}}-day average",
