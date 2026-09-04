@@ -12,7 +12,9 @@ import type { BuySignal, PeriodRange } from "./buySignal";
  * reasoning underneath and the averages it came from alongside.
  *
  * The wording stays careful on purpose. "Below its recent average" is a fact;
- * "prices will rise" would be a forecast, and nothing here can know that.
+ * "prices will rise" would be a forecast, and nothing here can know that. The
+ * Buy / Wait / Don't buy chip is that same fact said plainly — it restates where
+ * today sits against the average, and still predicts nothing about tomorrow.
  */
 export function BuySignalBanner({
   signal,
@@ -66,9 +68,21 @@ export function BuySignalBanner({
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className={cn("text-base font-semibold leading-tight", tone.title)}>
-            {t(`gold.signal.${verdict}`)}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className={cn("text-base font-semibold leading-tight", tone.title)}>
+              {t(`gold.signal.${verdict}`)}
+            </p>
+            {/* The same verdict as a plain instruction, for someone who doesn't
+                want to read a percentage to know what to do. */}
+            <span
+              className={cn(
+                "rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide",
+                tone.badge
+              )}
+            >
+              {t(`gold.signal.action.${verdict}`)}
+            </span>
+          </div>
           <p className="tnum mt-0.5 text-sm text-muted-foreground">
             {t("gold.signal.detail", {
               pct: Math.abs(signal.diffPct).toFixed(2),
