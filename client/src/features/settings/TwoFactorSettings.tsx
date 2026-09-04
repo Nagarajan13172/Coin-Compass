@@ -30,7 +30,13 @@ import {
 } from "@/hooks/use2fa";
 import type { TwoFactorSetup } from "@/lib/types";
 
-export function TwoFactorSettings() {
+/**
+ * `bare` drops the Card wrapper so this can sit as rows inside the Settings
+ * page's single Security card. Two-factor is not a separate concern from a
+ * password and a PIN — it was only a separate card because it lives in its own
+ * file.
+ */
+export function TwoFactorSettings({ bare = false }: { bare?: boolean } = {}) {
   const { t } = useTranslation("settings");
   const { data: me } = useMe();
   const { data: status } = useTwoFactorStatus();
@@ -117,12 +123,8 @@ export function TwoFactorSettings() {
     toast.success(t("twoFactor.codesCopied"));
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("twoFactor.title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const rows = (
+    <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span
@@ -191,8 +193,11 @@ export function TwoFactorSettings() {
             </div>
           </>
         )}
-      </CardContent>
+    </div>
+  );
 
+  const dialogs = (
+    <>
       {/* Enrollment dialog */}
       <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
         <DialogContent className="max-w-sm">
@@ -354,6 +359,24 @@ export function TwoFactorSettings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+
+  if (bare)
+    return (
+      <>
+        {rows}
+        {dialogs}
+      </>
+    );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("twoFactor.title")}</CardTitle>
+      </CardHeader>
+      <CardContent>{rows}</CardContent>
+      {dialogs}
     </Card>
   );
 }

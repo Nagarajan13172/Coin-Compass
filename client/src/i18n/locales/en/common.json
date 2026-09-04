@@ -66,7 +66,7 @@
   },
   "language": {
     "label": "Language",
-    "help": "Changes the language of the app’s text. Amounts and dates keep your regional format.",
+    "help": "Changes the language of the app's text. Amounts follow the number format below.",
     "updated": "Language updated"
   },
   "date": {
