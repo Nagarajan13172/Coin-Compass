@@ -684,3 +684,160 @@ describe("deposit instalments — the goal knows what pays it", () => {
     expect(String(goal.projectedDate).slice(0, 10)).toBe(String(goal.targetDate).slice(0, 10));
   });
 });
+
+describe("deposit instalments — linking a goal somebody already had", () => {
+  /** A goal built by hand, the way people ran an RD before deposits held one. */
+  async function handBuiltGoal(u: any) {
+    return (
+      await u.session.http.post("/goals", {
+        name: "Car insurance",
+        targetAmount: 12000,
+        savedAmount: 3000,
+        targetDate: isoDay(300),
+      })
+    ).data;
+  }
+
+  it("hands the arithmetic over without making them start again", async () => {
+    const { u, account } = await setup();
+    const goal = await handBuiltGoal(u);
+    const h = (
+      await u.session.http.post("/holdings", {
+        ...RD,
+        termCount: 12,
+        instalment: { amount: 1000, account: account._id, startDate: isoDay(7) },
+      })
+    ).data;
+    await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
+
+    const res = await u.session.http.patch(`/goals/${goal._id}`, { linkedHolding: h._id });
+    expect(res.status).toBe(200);
+    // Progress is the deposit's, not the figure they had typed.
+    expect(res.data.savedAmount).toBe(1000);
+    // What they wrote is still theirs: linking is not a takeover.
+    expect(res.data.name).toBe("Car insurance");
+    expect(res.data.targetAmount).toBe(12000);
+    // And the deposit now knows it's tracked, so it won't offer a second goal.
+    const holding = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
+    expect(holding.trackedAsGoal).toBe(true);
+  });
+
+  it("won't let two goals read one deposit", async () => {
+    const { u, account } = await setup();
+    const h = (
+      await u.session.http.post("/holdings", {
+        ...RD,
+        termCount: 12,
+        trackAsGoal: true,
+        instalment: { amount: 1000, account: account._id, startDate: isoDay(7) },
+      })
+    ).data;
+    const second = await handBuiltGoal(u);
+
+    const res = await u.session.http.patch(`/goals/${second._id}`, { linkedHolding: h._id });
+    expect(res.status).toBe(409);
+    expect(res.data.code).toBe("HOLDING_ALREADY_LINKED");
+  });
+
+  it("won't let one goal read a wallet and a deposit at once", async () => {
+    const { u, account } = await setup();
+    const h = (await u.session.http.post("/holdings", RD)).data;
+    const goal = (
+      await u.session.http.post("/goals", {
+        name: "Car insurance",
+        targetAmount: 12000,
+        linkedAccount: account._id,
+      })
+    ).data;
+
+    // Two sources would be two answers to the question the goal exists to answer.
+    const res = await u.session.http.patch(`/goals/${goal._id}`, { linkedHolding: h._id });
+    expect(res.status).toBe(400);
+    expect(res.data.code).toBe("GOAL_TWO_LINKS");
+  });
+
+  it("refuses a holding valued from its lots", async () => {
+    const { u } = await setup();
+    const stocks = (
+      await u.session.http.post("/holdings", {
+        name: "Demat",
+        class: "investment",
+        subtype: "stocks",
+        value: 50000,
+      })
+    ).data;
+    const goal = await handBuiltGoal(u);
+
+    // Reading one would be reading a market price, not money set aside.
+    const res = await u.session.http.patch(`/goals/${goal._id}`, { linkedHolding: stocks._id });
+    expect(res.status).toBe(400);
+    expect(res.data.code).toBe("HOLDING_LOT_OWNED");
+  });
+
+  it("gives a hand-linked goal back rather than deleting it", async () => {
+    const { u, account } = await setup();
+    const goal = await handBuiltGoal(u);
+    const h = (
+      await u.session.http.post("/holdings", {
+        ...RD,
+        termCount: 12,
+        instalment: { amount: 1000, account: account._id, startDate: isoDay(7) },
+      })
+    ).data;
+    await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
+    await u.session.http.patch(`/goals/${goal._id}`, { linkedHolding: h._id });
+
+    // Switching the deposit's toggle off must not delete a goal the user made.
+    await u.session.http.patch(`/holdings/${h._id}`, { trackAsGoal: false });
+    const after = (await u.session.http.get("/goals")).data;
+    expect(after).toHaveLength(1);
+    expect(after[0]).toMatchObject({ name: "Car insurance", targetAmount: 12000 });
+    expect(after[0].linkedHolding ?? null).toBeNull();
+    // It keeps the figure it had reached, rather than snapping back to 3,000.
+    expect(after[0].savedAmount).toBe(1000);
+  });
+
+  it("survives the deposit being deleted, unlike the deposit's own goal", async () => {
+    const { u, account } = await setup();
+    const mine = await handBuiltGoal(u);
+    const h = (
+      await u.session.http.post("/holdings", {
+        ...RD,
+        termCount: 12,
+        instalment: { amount: 1000, account: account._id, startDate: isoDay(7) },
+      })
+    ).data;
+    await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
+    await u.session.http.patch(`/goals/${mine._id}`, { linkedHolding: h._id });
+
+    await u.session.http.delete(`/holdings/${h._id}`);
+    const after = (await u.session.http.get("/goals")).data;
+    expect(after).toHaveLength(1);
+    expect(after[0].savedAmount).toBe(1000);
+    // And it takes contributions again, now that nothing else moves it.
+    const contributed = await u.session.http.post(`/goals/${after[0]._id}/contribute`, {
+      amount: 500,
+    });
+    expect(contributed.status).toBe(200);
+    expect(contributed.data.savedAmount).toBe(1500);
+  });
+
+  it("doesn't rewrite a hand-made goal when the deposit is renamed", async () => {
+    const { u, account } = await setup();
+    const goal = await handBuiltGoal(u);
+    const h = (
+      await u.session.http.post("/holdings", {
+        ...RD,
+        termCount: 12,
+        instalment: { amount: 1000, account: account._id, startDate: isoDay(7) },
+      })
+    ).data;
+    await u.session.http.patch(`/goals/${goal._id}`, { linkedHolding: h._id });
+
+    await u.session.http.patch(`/holdings/${h._id}`, { name: "HDFC RD" });
+    const after = (await u.session.http.get("/goals")).data[0];
+    // The deposit's own goal follows its name; one the user wrote does not.
+    expect(after.name).toBe("Car insurance");
+    expect(after.targetAmount).toBe(12000);
+  });
+});

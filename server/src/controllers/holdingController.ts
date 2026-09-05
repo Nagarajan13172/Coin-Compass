@@ -139,7 +139,13 @@ export async function deleteHolding(req: Request, res: Response) {
   await RecurringTransaction.deleteMany({ user: uid, holding: holding._id });
   // A goal whose progress can never move again is worse than no goal: its source
   // is gone, so it would sit at whatever figure it happened to reach, for ever.
-  await Goal.deleteMany({ user: uid, linkedHolding: holding._id });
+  // The deposit's own goal goes with it; a goal the user linked by hand is
+  // handed back instead, keeping the figure it had reached.
+  await Goal.deleteMany({ user: uid, linkedHolding: holding._id, managedByDeposit: true });
+  await Goal.updateMany(
+    { user: uid, linkedHolding: holding._id },
+    { $set: { linkedHolding: null, savedAmount: Math.max(0, holding.value ?? 0) } }
+  );
   res.json({ ok: true });
 }
 
@@ -177,7 +183,7 @@ export async function adoptHoldingTransactions(req: Request, res: Response) {
 
 /** Keep an existing deposit goal's name, target and deadline current. */
 async function refreshDepositGoal(uid: string, holdingId: unknown) {
-  if (await Goal.exists({ user: uid, linkedHolding: holdingId })) {
+  if (await Goal.exists({ user: uid, linkedHolding: holdingId, managedByDeposit: true })) {
     await syncDepositGoal(uid, holdingId, true);
   }
 }
