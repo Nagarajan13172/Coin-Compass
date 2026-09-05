@@ -21,10 +21,12 @@ import {
   instalmentsFor,
   linkRuleToHolding,
   progressFor,
+  syncDepositGoal,
   syncInstalment,
   unlinkedRules,
 } from "../services/depositScheduleService";
 import { RecurringTransaction } from "../models/RecurringTransaction";
+import { Goal } from "../models/Goal";
 import { userId } from "../middleware/auth";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -37,12 +39,18 @@ export async function listHoldings(req: Request, res: Response) {
   const uid = userId(req);
   const holdings = await Holding.find({ user: uid }).sort({ value: -1 }).lean();
   const ids = holdings.map((h) => h._id);
-  const [schedules, paid] = await Promise.all([instalmentsFor(uid, ids), progressFor(uid, ids)]);
+  const [schedules, paid, goals] = await Promise.all([
+    instalmentsFor(uid, ids),
+    progressFor(uid, ids),
+    Goal.find({ user: uid, linkedHolding: { $in: ids } }).select("linkedHolding").lean(),
+  ]);
+  const tracked = new Set(goals.map((g) => String(g.linkedHolding)));
   res.json(
     holdings.map((h) => ({
       ...h,
       instalment: schedules.get(String(h._id)) ?? null,
       paid: paid.get(String(h._id)) ?? { count: 0, total: 0, imported: 0 },
+      trackedAsGoal: tracked.has(String(h._id)),
     }))
   );
 }
@@ -72,17 +80,21 @@ async function applyInstalment(uid: string, holdingId: unknown, raw: unknown, te
 
 export async function createHolding(req: Request, res: Response) {
   const uid = userId(req);
-  const { instalment, ...body } = (req.body ?? {}) as Record<string, unknown>;
+  const { instalment, trackAsGoal, ...body } = (req.body ?? {}) as Record<string, unknown>;
   const data = holdingSchema.parse(body);
   assertTermForRD(data.subtype, data.termCount, instalment);
   const holding = await Holding.create({ ...data, user: uid });
   const schedule = await applyInstalment(uid, holding._id, instalment, data.termCount);
-  res.status(201).json({ ...holding.toObject(), instalment: schedule ?? null });
+  // After the schedule, because the goal's target and deadline are read off it.
+  const goal = trackAsGoal === undefined ? null : await syncDepositGoal(uid, holding._id, Boolean(trackAsGoal));
+  res
+    .status(201)
+    .json({ ...holding.toObject(), instalment: schedule ?? null, trackedAsGoal: Boolean(goal) });
 }
 
 export async function updateHolding(req: Request, res: Response) {
   const uid = userId(req);
-  const { instalment, ...body } = (req.body ?? {}) as Record<string, unknown>;
+  const { instalment, trackAsGoal, ...body } = (req.body ?? {}) as Record<string, unknown>;
   const data = holdingUpdateSchema.parse(body);
   const current = await Holding.findOne({ _id: req.params.id, user: uid });
   if (!current) throw new HttpError(404, "Holding not found");
@@ -98,10 +110,17 @@ export async function updateHolding(req: Request, res: Response) {
   const holding = await Holding.findOneAndUpdate({ _id: req.params.id, user: uid }, data, { new: true });
   if (!holding) throw new HttpError(404, "Holding not found");
   const schedule = await applyInstalment(uid, holding._id, instalment, holding.termCount);
+  // Omitted means "leave it alone", the same as the schedule: a rename must not
+  // silently delete somebody's goal. When it is named, the sync also refreshes
+  // the goal's name, target and deadline from whatever the deposit now says.
+  if (trackAsGoal !== undefined) await syncDepositGoal(uid, holding._id, Boolean(trackAsGoal));
+  else await refreshDepositGoal(uid, holding._id);
+
   res.json({
     ...holding.toObject(),
     instalment:
       schedule !== undefined ? schedule : ((await instalmentsFor(uid, [holding._id])).get(String(holding._id)) ?? null),
+    trackedAsGoal: Boolean(await Goal.exists({ user: uid, linkedHolding: holding._id })),
   });
 }
 
@@ -118,6 +137,9 @@ export async function deleteHolding(req: Request, res: Response) {
   // fail on every run and stall — depositToHolding throws, and the scheduler
   // stops without advancing rather than skipping the instalment silently.
   await RecurringTransaction.deleteMany({ user: uid, holding: holding._id });
+  // A goal whose progress can never move again is worse than no goal: its source
+  // is gone, so it would sit at whatever figure it happened to reach, for ever.
+  await Goal.deleteMany({ user: uid, linkedHolding: holding._id });
   res.json({ ok: true });
 }
 
@@ -151,6 +173,13 @@ export async function adoptHoldingTransactions(req: Request, res: Response) {
   const uid = userId(req);
   const { transactions } = holdingAdoptSchema.parse(req.body);
   res.json(await adoptTransactions(uid, req.params.id, transactions));
+}
+
+/** Keep an existing deposit goal's name, target and deadline current. */
+async function refreshDepositGoal(uid: string, holdingId: unknown) {
+  if (await Goal.exists({ user: uid, linkedHolding: holdingId })) {
+    await syncDepositGoal(uid, holdingId, true);
+  }
 }
 
 /** Recurring rules that could be adopted as a deposit's schedule. */

@@ -47,6 +47,8 @@ export interface InstalmentState {
   termCount: string;
   /** Where the maturity payout lands. */
   payoutAccount: string;
+  /** Whether a Goal should track this deposit's progress. */
+  trackAsGoal: boolean;
 }
 
 export function InstalmentFields({
@@ -216,6 +218,32 @@ export function InstalmentFields({
           )}
 
           {payoutField}
+
+          {/* A deposit with a term already states a target, a deadline and
+              progress — which is a goal with different words on it. Offered
+              rather than assumed: a standing order into an emergency fund is a
+              habit, and a Goals page full of things nobody chose is worse than
+              an empty one. */}
+          {needsTerm && (
+            <label className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border p-3">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{t("instalment.trackAsGoal")}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                  {term > 0 && amountNum > 0
+                    ? t("instalment.trackAsGoalDetail", {
+                        target: formatMoney(term * amountNum),
+                        date: lastDue ? fmt(lastDue.toISOString()) : "",
+                      })
+                    : t("instalment.trackAsGoalHint")}
+                </span>
+              </span>
+              <Switch
+                checked={state.trackAsGoal}
+                onCheckedChange={(v) => set({ trackAsGoal: v })}
+                aria-label={t("instalment.trackAsGoal")}
+              />
+            </label>
+          )}
 
           {/* What will actually happen, in a sentence — because the mechanism
               (a transfer into an app-managed bucket) is not worth explaining,

@@ -104,7 +104,9 @@
     "fundedByRules_other": "{{count}} விதிகளிலிருந்து மாதம் {{amount}}",
     "fundedByPlan": "திட்டப்படி மாதம் {{amount}}",
     "nothingFunding": "இதுவரை எதுவும் செலுத்தப்படவில்லை",
-    "ofTarget": "/ {{target}}"
+    "ofTarget": "/ {{target}}",
+    "tracksDeposit": "{{name}}-ஐக் கண்காணிக்கிறது",
+    "openDeposit": "வைப்புத்தொகையைத் திற"
   },
   "contribute": {
     "addTo": "{{name}} இல் சேர்",

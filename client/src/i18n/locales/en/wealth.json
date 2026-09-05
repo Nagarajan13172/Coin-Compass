@@ -343,7 +343,10 @@
     "payoutTo": "When it matures, pay out to",
     "payoutLater": "Decide at maturity",
     "termProgress": "{{paid}} of {{count}} paid",
-    "payOut": "Pay out"
+    "payOut": "Pay out",
+    "trackAsGoal": "Also track this as a goal",
+    "trackAsGoalDetail": "A goal of {{target}} by {{date}}, with this deposit's balance as its progress. Nothing to record twice.",
+    "trackAsGoalHint": "Set an amount and a term, and the goal takes its target and deadline from them."
   },
   "linkRule": {
     "action": "Link a recurring rule",

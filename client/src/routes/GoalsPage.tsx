@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { addMonths, differenceInCalendarMonths, format } from "date-fns";
 import {
@@ -15,6 +16,7 @@ import {
   Repeat2,
   RefreshCw,
   Trophy,
+  PiggyBank,
   Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -54,6 +56,19 @@ import type { Goal, RefLite } from "@/lib/types";
 /** The wallet a goal tracks, if it tracks one. Populated on the list response. */
 function linkedWallet(g: Goal): RefLite | null {
   const link = g.linkedAccount;
+  return link && typeof link === "object" ? link : null;
+}
+
+/**
+ * The deposit a goal tracks, if it tracks one.
+ *
+ * A recurring deposit is already a target, a deadline and progress, so a goal
+ * can read it instead of keeping its own copy — the same arrangement as a
+ * tracked wallet, and with the same consequence: nothing is ever recorded
+ * against the goal directly.
+ */
+function linkedDeposit(g: Goal): RefLite | null {
+  const link = g.linkedHolding;
   return link && typeof link === "object" ? link : null;
 }
 import { toast } from "sonner";
@@ -243,7 +258,12 @@ function GoalCard({
 }) {
   const { t } = useTranslation("planning");
   const openTxnSheet = useUIStore((st) => st.openTxnSheet);
+  const navigate = useNavigate();
   const wallet = linkedWallet(g);
+  const deposit = linkedDeposit(g);
+  // Progress comes from somewhere else, so the goal itself takes no money in or
+  // out. Offering a button the API refuses is worse than offering none.
+  const derived = Boolean(wallet || deposit);
   const roll = useRollGoalCycle();
   // Guard the missing case too: a goal saved before `repeat` existed has no
   // such field, and `undefined !== "none"` would call it a repeating goal.
@@ -251,6 +271,7 @@ function GoalCard({
   /** For a tracked goal, "add money" means moving money into its wallet. */
   function addMoney() {
     if (wallet) openTxnSheet({ type: "transfer", prefill: { toAccount: wallet._id } });
+    else if (deposit) navigate("/net-worth");
     else onContribute("add");
   }
   const eta =
@@ -310,6 +331,12 @@ function GoalCard({
                 <span className="truncate">{t("goals.tracksWallet", { name: wallet.name })}</span>
               </p>
             )}
+            {deposit && (
+              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                <PiggyBank className="h-3 w-3 shrink-0" />
+                <span className="truncate">{t("goals.tracksDeposit", { name: deposit.name })}</span>
+              </p>
+            )}
             {repeating && (
               <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
                 <RefreshCw className="h-3 w-3 shrink-0" />
@@ -327,12 +354,17 @@ function GoalCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {(g.complete || wallet) && (
+              {(g.complete || derived) && (
                 <DropdownMenuItem onClick={addMoney}>
-                  <Plus /> {wallet ? t("goals.addToWallet") : t("goals.addMoney")}
+                  <Plus />
+                  {wallet
+                    ? t("goals.addToWallet")
+                    : deposit
+                      ? t("goals.openDeposit")
+                      : t("goals.addMoney")}
                 </DropdownMenuItem>
               )}
-              {!wallet && (
+              {!derived && (
                 <DropdownMenuItem onClick={() => onContribute("withdraw")} disabled={g.savedAmount <= 0}>
                   <Minus /> {t("goals.withdraw")}
                 </DropdownMenuItem>
@@ -434,7 +466,12 @@ function GoalCard({
 
           {!g.complete && (
             <Button variant="outline" size="sm" className="w-full" onClick={addMoney}>
-              <Plus /> {wallet ? t("goals.addToWallet") : t("goals.addMoney")}
+              <Plus />
+              {wallet
+                ? t("goals.addToWallet")
+                : deposit
+                  ? t("goals.openDeposit")
+                  : t("goals.addMoney")}
             </Button>
           )}
         </div>

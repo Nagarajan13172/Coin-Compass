@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Account } from "../models/Account";
 import { Holding } from "../models/Holding";
+import { Goal } from "../models/Goal";
 import { Transaction } from "../models/Transaction";
 import { RecurringTransaction, RECURRENCE_FREQUENCIES } from "../models/RecurringTransaction";
 import { HttpError } from "../middleware/errorHandler";
@@ -310,4 +311,72 @@ export async function linkRuleToHolding(uid: string, holdingId: unknown, ruleId:
   }
 
   return { rule: rule.toObject(), termCount: holding.termCount ?? null };
+}
+
+/**
+ * The goal a recurring deposit already is.
+ *
+ * An RD states a target (the instalments together), a deadline (the last one)
+ * and progress (what it holds) — which is a goal with different words on it.
+ * Rather than ask someone to type the same three facts into the Goals page, the
+ * deposit can carry one, and the goal reads the deposit instead of keeping its
+ * own drifting copy.
+ *
+ * It's a choice, not automatic: a standing order into an emergency fund is a
+ * habit rather than a goal, and a Goals page full of things nobody set as goals
+ * is worse than one that's empty.
+ *
+ * Progress is derived (`Goal.linkedHolding`), so no contribution is ever stored
+ * against it — the same rule that stops a wallet-tracking goal counting the same
+ * rupees twice.
+ */
+export async function syncDepositGoal(
+  uid: unknown,
+  holdingId: unknown,
+  wanted: boolean
+): Promise<Record<string, unknown> | null> {
+  const existing = await Goal.findOne({ user: uid, linkedHolding: holdingId });
+
+  if (!wanted) {
+    if (existing) await Goal.deleteOne({ _id: existing._id });
+    return null;
+  }
+
+  const holding = await Holding.findOne({ _id: holdingId, user: uid });
+  if (!holding) return null;
+  const rule = await RecurringTransaction.findOne({ user: uid, holding: holdingId });
+
+  // What the deposit is aiming at: every instalment, added up. Interest is
+  // deliberately left out — the goal is what you set out to put in, and the
+  // payout is worth more than that by design.
+  const term = holding.termCount ?? 0;
+  const target = rule && term ? round2(rule.amount * term) : (holding.maturityValue ?? holding.value ?? 0);
+  if (!target) return null;
+
+  const targetDate =
+    rule && term
+      ? termEndDate(rule.startDate, rule.frequency, rule.interval, term)
+      : (holding.maturityDate ?? null);
+
+  if (existing) {
+    existing.name = holding.name;
+    existing.targetAmount = target;
+    existing.targetDate = targetDate;
+    await existing.save();
+    return existing.toObject();
+  }
+
+  const goal = await Goal.create({
+    user: uid,
+    name: holding.name,
+    targetAmount: target,
+    linkedHolding: holding._id,
+    targetDate,
+    // A deposit runs once and matures; it is not a sinking fund that restarts.
+    repeat: "none",
+    currency: holding.currency,
+    icon: "piggy-bank",
+    color: "#14B8A6",
+  });
+  return goal.toObject();
 }

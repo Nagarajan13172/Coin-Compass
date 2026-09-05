@@ -218,6 +218,8 @@ export interface Goal {
   savedAmount: number;
   /** The account this goal tracks, if any — progress then follows its balance. */
   linkedAccount?: RefLite | string | null;
+  /** The deposit this goal tracks, if any — progress is then what it holds. */
+  linkedHolding?: RefLite | string | null;
   targetDate?: string | null;
   monthlyContribution: number;
   color: string;
@@ -295,6 +297,8 @@ export interface Holding {
    * the ones rewritten from past expenses — the only ones an undo can put back.
    */
   paid?: { count: number; total: number; imported: number };
+  /** Whether a Goal is tracking this deposit's progress. */
+  trackedAsGoal?: boolean;
   /**
    * The standing order feeding this deposit, inlined by the API. Editing it on
    * the holding is the whole point: a recurring deposit is one fact, so it is

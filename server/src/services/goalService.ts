@@ -1,5 +1,6 @@
 import { Goal } from "../models/Goal";
 import { Account } from "../models/Account";
+import { Holding } from "../models/Holding";
 import { computeAllBalances } from "./balanceService";
 import { HttpError } from "../middleware/errorHandler";
 
@@ -65,7 +66,7 @@ export async function applyGoalContribution(
   // contribution as well would count the same money twice — once when it lands
   // in the account and again here. The API refuses these links up front; this is
   // the backstop for a goal that gets linked after a rule was pointed at it.
-  if (goal.linkedAccount) return 0;
+  if (goal.linkedAccount || goal.linkedHolding) return 0;
 
   const next = applyContribution(
     { savedAmount: goal.savedAmount ?? 0, targetAmount: goal.targetAmount, achievedAt: goal.achievedAt ?? null },
@@ -93,8 +94,10 @@ export async function reverseGoalContribution(
 /** True when this goal's progress comes from an account balance, not a stored total. */
 export async function isLinkedGoal(goalId: unknown, userId: unknown): Promise<boolean> {
   if (!goalId) return false;
-  const goal = await Goal.findOne({ _id: goalId, user: userId }).select("linkedAccount").lean();
-  return Boolean(goal?.linkedAccount);
+  const goal = await Goal.findOne({ _id: goalId, user: userId })
+    .select("linkedAccount linkedHolding")
+    .lean();
+  return Boolean(goal?.linkedAccount || goal?.linkedHolding);
 }
 
 /**
@@ -104,7 +107,7 @@ export async function isLinkedGoal(goalId: unknown, userId: unknown): Promise<bo
  */
 export async function assertGoalTakesContributions(goalId: unknown, userId: unknown): Promise<void> {
   if (await isLinkedGoal(goalId, userId)) {
-    throw new HttpError(400, "This goal tracks an account", "GOAL_TRACKS_ACCOUNT");
+    throw new HttpError(400, "This goal tracks an account or a deposit", "GOAL_TRACKS_ACCOUNT");
   }
 }
 
@@ -147,17 +150,44 @@ function accountIdOf(link: unknown): string {
  * Swap in live balances for every goal that tracks an account. Costs one balance
  * aggregation for the whole list, and only when at least one goal is linked.
  */
-export async function withLinkedBalances<T extends { savedAmount?: number; linkedAccount?: unknown }>(
-  goals: T[],
-  userId: string
-): Promise<T[]> {
-  if (!goals.some((g) => g.linkedAccount)) return goals;
-  const balances = await computeAllBalances(userId);
-  return goals.map((g) =>
-    g.linkedAccount
-      ? { ...g, savedAmount: Math.max(0, balances.get(accountIdOf(g.linkedAccount))?.balance ?? 0) }
-      : g
-  );
+export async function withLinkedBalances<
+  T extends { savedAmount?: number; linkedAccount?: unknown; linkedHolding?: unknown },
+>(goals: T[], userId: string): Promise<T[]> {
+  const anyAccount = goals.some((g) => g.linkedAccount);
+  const anyHolding = goals.some((g) => g.linkedHolding);
+  if (!anyAccount && !anyHolding) return goals;
+
+  // One aggregation and one query for the whole list, and only for the kind of
+  // link that's actually present.
+  const balances = anyAccount ? await computeAllBalances(userId) : null;
+  const holdings = anyHolding ? await holdingValues(userId) : null;
+
+  return goals.map((g) => {
+    if (g.linkedAccount) {
+      return { ...g, savedAmount: Math.max(0, balances?.get(accountIdOf(g.linkedAccount))?.balance ?? 0) };
+    }
+    if (g.linkedHolding) {
+      // What the deposit holds is the progress: pay an instalment and the goal
+      // advances, take money out and it falls back — exactly as a wallet does.
+      return { ...g, savedAmount: Math.max(0, holdings?.get(accountIdOf(g.linkedHolding)) ?? 0) };
+    }
+    return g;
+  });
+}
+
+/** Every deposit's current value, keyed by id. */
+async function holdingValues(userId: string): Promise<Map<string, number>> {
+  const rows = await Holding.find({ user: userId }).select("value").lean();
+  return new Map(rows.map((h) => [String(h._id), h.value ?? 0]));
+}
+
+/** The live value behind a deposit-tracking goal (0 when it tracks nothing). */
+export async function linkedHoldingValue(linkedHolding: unknown, userId: string): Promise<number> {
+  if (!linkedHolding) return 0;
+  const holding = await Holding.findOne({ _id: accountIdOf(linkedHolding), user: userId })
+    .select("value")
+    .lean();
+  return Math.max(0, holding?.value ?? 0);
 }
 
 /** The live balance behind one linked goal (0 when it tracks nothing). */
