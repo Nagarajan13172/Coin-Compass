@@ -338,7 +338,20 @@ export async function syncDepositGoal(
   const existing = await Goal.findOne({ user: uid, linkedHolding: holdingId });
 
   if (!wanted) {
-    if (existing) await Goal.deleteOne({ _id: existing._id });
+    if (!existing) return null;
+    // Only a goal this deposit made for itself is this deposit's to remove. A
+    // goal the user built and linked by hand is given back — unlinked, with the
+    // last figure kept as its own — rather than deleted by a toggle they may
+    // have flipped for a quite different reason.
+    if (existing.managedByDeposit) await Goal.deleteOne({ _id: existing._id });
+    else {
+      // Keep the number they last saw, which is the deposit's — not the stored
+      // figure the goal was carrying before it started reading the deposit.
+      const held = await Holding.findOne({ _id: holdingId, user: uid }).select("value").lean();
+      existing.savedAmount = Math.max(0, held?.value ?? existing.savedAmount ?? 0);
+      existing.linkedHolding = null;
+      await existing.save();
+    }
     return null;
   }
 
@@ -359,10 +372,14 @@ export async function syncDepositGoal(
       : (holding.maturityDate ?? null);
 
   if (existing) {
-    existing.name = holding.name;
-    existing.targetAmount = target;
-    existing.targetDate = targetDate;
-    await existing.save();
+    // A goal the user wrote keeps what they wrote. Only the deposit's own goal
+    // is a view of the deposit, so only that one follows its name and figures.
+    if (existing.managedByDeposit) {
+      existing.name = holding.name;
+      existing.targetAmount = target;
+      existing.targetDate = targetDate;
+      await existing.save();
+    }
     return existing.toObject();
   }
 
@@ -371,6 +388,7 @@ export async function syncDepositGoal(
     name: holding.name,
     targetAmount: target,
     linkedHolding: holding._id,
+    managedByDeposit: true,
     targetDate,
     // A deposit runs once and matures; it is not a sinking fund that restarts.
     repeat: "none",

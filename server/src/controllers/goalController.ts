@@ -4,6 +4,8 @@ import { goalSchema, goalUpdateSchema, goalContributeSchema } from "../validator
 import {
   applyContribution,
   assertAccountLinkable,
+  assertHoldingLinkable,
+  assertOneLinkOnly,
   linkedBalance,
   linkedHoldingValue,
   nextAchievedAt,
@@ -96,10 +98,13 @@ async function respondWith(res: Response, goal: { toObject: () => Record<string,
 export async function createGoal(req: Request, res: Response) {
   const uid = userId(req);
   const data = goalSchema.parse(req.body);
+  assertOneLinkOnly(data.linkedAccount, data.linkedHolding);
   await assertAccountLinkable(data.linkedAccount, uid);
+  await assertHoldingLinkable(data.linkedHolding, uid);
   const goal = await Goal.create({ ...data, user: uid });
   const obj = goal.toObject();
   if (obj.linkedAccount) obj.savedAmount = await linkedBalance(obj.linkedAccount, uid);
+  else if (obj.linkedHolding) obj.savedAmount = await linkedHoldingValue(obj.linkedHolding, uid);
   res.status(201).json(withProgress(obj));
 
 }
@@ -109,17 +114,35 @@ export async function updateGoal(req: Request, res: Response) {
   const data = goalUpdateSchema.parse(req.body);
   const goal = await Goal.findOne({ _id: req.params.id, user: uid });
   if (!goal) throw new HttpError(404, "Goal not found");
+  // Whichever link the request doesn't mention keeps its current value, so the
+  // "one link only" check is against what the goal would actually end up with.
+  const nextAccount = data.linkedAccount !== undefined ? data.linkedAccount : goal.linkedAccount;
+  const nextHolding = data.linkedHolding !== undefined ? data.linkedHolding : goal.linkedHolding;
+  assertOneLinkOnly(nextAccount, nextHolding);
   if (data.linkedAccount !== undefined) await assertAccountLinkable(data.linkedAccount, uid, goal._id);
+  if (data.linkedHolding !== undefined) await assertHoldingLinkable(data.linkedHolding, uid, goal._id);
 
-  // Unlinking keeps the number the user last saw: the wallet's balance becomes
-  // the goal's own stored total, rather than snapping back to a stale figure.
+  // Unlinking keeps the number the user last saw: the live figure becomes the
+  // goal's own stored total, rather than snapping back to a stale one.
   if (data.linkedAccount === null && goal.linkedAccount) {
     goal.savedAmount = await linkedBalance(goal.linkedAccount, uid);
   }
+  if (data.linkedHolding === null && goal.linkedHolding) {
+    goal.savedAmount = await linkedHoldingValue(goal.linkedHolding, uid);
+    // Unlinked by hand, so the deposit no longer owns it either way.
+    goal.managedByDeposit = false;
+  }
   Object.assign(goal, data);
+  // A goal the user edits is theirs from then on: the deposit stops rewriting
+  // its name and target behind their back.
+  if (data.linkedHolding !== undefined) goal.managedByDeposit = false;
   // Editing savedAmount/targetAmount can cross the finish line just like a
   // contribution does — keep achievedAt in step so the persisted date isn't stale.
-  const saved = goal.linkedAccount ? await linkedBalance(goal.linkedAccount, uid) : goal.savedAmount;
+  const saved = goal.linkedAccount
+    ? await linkedBalance(goal.linkedAccount, uid)
+    : goal.linkedHolding
+      ? await linkedHoldingValue(goal.linkedHolding, uid)
+      : goal.savedAmount;
   goal.achievedAt = nextAchievedAt(saved, goal.targetAmount, goal.achievedAt ?? null, new Date());
   await goal.save();
   await respondWith(res, goal, uid);

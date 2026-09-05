@@ -20,6 +20,12 @@ const goalSchema = new Schema(
     // one) and progress (what it holds) — so the goal reads those rather than
     // keeping a second, drifting copy of them.
     linkedHolding: { type: Schema.Types.ObjectId, ref: "Holding", default: null },
+    // True only for a goal the deposit created for itself. Such a goal is a view
+    // of the deposit, so its name, target and deadline are refreshed from it —
+    // and switching the deposit's toggle off removes it again. A goal the user
+    // made and linked by hand is theirs: linking never rewrites what they typed,
+    // and unlinking gives it back rather than deleting it.
+    managedByDeposit: { type: Boolean, default: false },
     targetDate: { type: Date, default: null },
     // Optional planned monthly saving — used to estimate time-to-goal.
     monthlyContribution: { type: Number, default: 0, min: 0 },

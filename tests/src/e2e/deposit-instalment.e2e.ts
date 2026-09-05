@@ -281,3 +281,49 @@ test("a recurring deposit can be the goal it already is", async ({ page }) => {
   await expect(card.getByRole("button", { name: /Open the deposit/ })).toBeVisible();
   await expect(card.getByRole("button", { name: /^Add money$/ })).toHaveCount(0);
 });
+
+test("a goal somebody already had can be pointed at a deposit", async ({ page }) => {
+  test.setTimeout(120_000);
+  const { email } = await seedUserWithData();
+  await page.context().addCookies([await browserSessionCookie(email, DEFAULT_PASSWORD)]);
+  await page.goto("/goals");
+
+  // The deposit they've since started keeping properly, with ₹3,000 in it.
+  await page.evaluate(async () => {
+    const accounts = await (await fetch("/api/accounts", { credentials: "include" })).json();
+    await fetch("/api/holdings", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Car Insurance RD",
+        class: "saving",
+        subtype: "recurring_deposit",
+        value: 3000,
+        termCount: 12,
+        instalment: { amount: 1000, account: accounts[0]._id, startDate: new Date().toISOString() },
+      }),
+    });
+  });
+  await page.reload();
+
+  // The goal they'd been running by hand, pointed at it.
+  await page.getByRole("button", { name: /Actions for Emergency Fund/i }).click();
+  await page.getByRole("menuitem", { name: /Edit/i }).click();
+  const form = page.getByRole("dialog");
+  await form.locator("#goal-holding").click();
+  await page.getByRole("option", { name: /Car Insurance RD/ }).click();
+
+  // Linking is not a takeover: the manual "saved so far" goes away because the
+  // deposit supplies it, but their name and target stay theirs.
+  await expect(form.locator("#goal-saved")).toHaveCount(0);
+  await expect(form.getByText(/Progress is this deposit's balance/)).toBeVisible();
+  await form.getByRole("button", { name: /^(Save|Create)/ }).click();
+  await expect(form).toBeHidden();
+
+  const card = page.locator("div.p-4, div.p-5").filter({ hasText: "Emergency Fund" }).last();
+  await expect(card.getByText("Tracks Car Insurance RD")).toBeVisible({ timeout: 15_000 });
+  // Progress is the deposit's ₹3,000, not the ₹35,000 the goal used to carry.
+  await expect(card.getByText("₹3,000", { exact: true })).toBeVisible();
+  await expect(card.getByText("of ₹1,00,000")).toBeVisible();
+});

@@ -220,6 +220,9 @@ export const goalSchema = z.object({
   currency: z.string().default("INR"),
   // The wallet whose balance is this goal's progress; null tracks nothing.
   linkedAccount: optionalObjectId,
+  // Or the deposit whose value is this goal's progress. A goal tracks at most
+  // one of the two — reading both would be two answers to one question.
+  linkedHolding: optionalObjectId,
   // How often the goal starts over — "none" finishes for good.
   repeat: z.enum(["none", "monthly", "quarterly", "yearly"]).default("none"),
 });

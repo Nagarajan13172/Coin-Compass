@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { useCreateGoal, useUpdateGoal, useGoals } from "@/hooks/useGoals";
 import { useAccounts } from "@/hooks/useAccounts";
+import { useHoldings } from "@/hooks/useHoldings";
+import { useCanSeeWealth } from "@/hooks/useAuth";
 import { useSettings } from "@/hooks/useSettings";
 import { GOAL_REPEATS, type Goal, type GoalRepeat, type RefLite } from "@/lib/types";
 
@@ -44,6 +46,10 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
   const { t } = useTranslation("planning");
   const { data: settings } = useSettings();
   const { data: accounts } = useAccounts();
+  // Behind the wealth lock, so an everyday session simply sees no deposits to
+  // link rather than a request that 403s.
+  const canSeeWealth = useCanSeeWealth();
+  const { data: holdings } = useHoldings({ enabled: canSeeWealth });
   const { data: goals } = useGoals();
   const create = useCreateGoal();
   const update = useUpdateGoal();
@@ -57,8 +63,12 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
   const [color, setColor] = useState("#6366F1");
   const [icon, setIcon] = useState("goal");
   const [linkedAccount, setLinkedAccount] = useState(NO_ACCOUNT);
+  const [linkedHolding, setLinkedHolding] = useState(NO_ACCOUNT);
   const [repeat, setRepeat] = useState<GoalRepeat>("none");
-  const linked = linkedAccount !== NO_ACCOUNT;
+  const trackingAccount = linkedAccount !== NO_ACCOUNT;
+  const trackingHolding = linkedHolding !== NO_ACCOUNT;
+  // Either source supplies the saved figure, so the manual field goes away.
+  const linked = trackingAccount || trackingHolding;
 
   useEffect(() => {
     if (!open) return;
@@ -70,15 +80,30 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
     setColor(goal?.color ?? "#6366F1");
     setIcon(goal?.icon ?? "goal");
     setLinkedAccount(refId(goal?.linkedAccount) || NO_ACCOUNT);
+    setLinkedHolding(refId(goal?.linkedHolding) || NO_ACCOUNT);
     setRepeat(goal?.repeat ?? "none");
   }, [open, goal]);
 
   /** Which wallet each OTHER goal already tracks — one account funds one goal. */
   const takenBy = new Map<string, string>();
+  /** And the same for deposits, for the same reason. */
+  const depositTakenBy = new Map<string, string>();
   for (const g of goals ?? []) {
+    if (g._id === goal?._id) continue;
     const id = refId(g.linkedAccount);
-    if (id && g._id !== goal?._id) takenBy.set(id, g.name);
+    if (id) takenBy.set(id, g.name);
+    const hid = refId(g.linkedHolding);
+    if (hid) depositTakenBy.set(hid, g.name);
   }
+
+  /**
+   * Deposits a goal can read. Stocks and funds are valued from their lots by
+   * their own pages, so a goal reading one would be reading a market price
+   * rather than money someone set aside.
+   */
+  const linkableHoldings = (holdings ?? []).filter(
+    (h) => h.subtype !== "stocks" && h.subtype !== "mutual_funds"
+  );
 
   async function submit() {
     if (!name.trim()) return toast.error(t("goalForm.enterName"));
@@ -90,7 +115,8 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
       targetAmount: target,
       // A tracked wallet supplies the saved figure; sending one would be ignored.
       savedAmount: linked ? undefined : Number(savedAmount) || 0,
-      linkedAccount: linked ? linkedAccount : null,
+      linkedAccount: trackingAccount ? linkedAccount : null,
+      linkedHolding: trackingHolding ? linkedHolding : null,
       repeat,
       monthlyContribution: Number(monthlyContribution) || 0,
       targetDate: targetDate ? new Date(targetDate).toISOString() : null,
@@ -156,7 +182,13 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
               every deposit counts without recording anything on the goal. */}
           <div className="space-y-1.5">
             <Label htmlFor="goal-account">{t("goalForm.trackAccount")}</Label>
-            <Select value={linkedAccount} onValueChange={setLinkedAccount}>
+            <Select
+              value={linkedAccount}
+              onValueChange={(v) => {
+                setLinkedAccount(v);
+                if (v !== NO_ACCOUNT) setLinkedHolding(NO_ACCOUNT);
+              }}
+            >
               <SelectTrigger id="goal-account">
                 <SelectValue />
               </SelectTrigger>
@@ -175,6 +207,41 @@ export function GoalFormDialog({ open, onOpenChange, goal }: Props) {
               {linked ? t("goalForm.trackAccountOnHint") : t("goalForm.trackAccountHint")}
             </p>
           </div>
+          {/* Track a deposit instead: an RD already has a target, a deadline and
+              progress, and plenty of people were running one as a plain goal
+              long before the deposit could hold it. Linking hands the arithmetic
+              over without them having to start again. */}
+          {linkableHoldings.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="goal-holding">{t("goalForm.trackDeposit")}</Label>
+              <Select
+                value={linkedHolding}
+                onValueChange={(v) => {
+                  setLinkedHolding(v);
+                  // One source only — two would be two answers to one question.
+                  if (v !== NO_ACCOUNT) setLinkedAccount(NO_ACCOUNT);
+                }}
+              >
+                <SelectTrigger id="goal-holding">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_ACCOUNT}>{t("goalForm.noDeposit")}</SelectItem>
+                  {linkableHoldings.map((h) => (
+                    <SelectItem key={h._id} value={h._id} disabled={depositTakenBy.has(h._id)}>
+                      {depositTakenBy.has(h._id)
+                        ? t("goalForm.depositTaken", { name: h.name, goal: depositTakenBy.get(h._id) })
+                        : h.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {trackingHolding ? t("goalForm.trackDepositOnHint") : t("goalForm.trackDepositHint")}
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="goal-monthly">{t("goalForm.monthlySaving")}</Label>

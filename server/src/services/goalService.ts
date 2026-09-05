@@ -137,6 +137,51 @@ export async function assertAccountLinkable(
   }
 }
 
+/**
+ * Validate a goal's deposit link: the deposit must exist, belong to the user,
+ * take deposits at all, and not already be feeding a different goal.
+ */
+export async function assertHoldingLinkable(
+  holdingId: unknown,
+  userId: unknown,
+  exceptGoalId?: unknown
+): Promise<void> {
+  if (!holdingId) return;
+  const holding = await Holding.findOne({ _id: holdingId, user: userId }).select("subtype").lean();
+  if (!holding) throw new HttpError(404, "Deposit not found");
+  // Stocks and funds are valued from their lots by their own pages; a goal
+  // reading one would be reading a market price, not money set aside.
+  if (holding.subtype === "stocks" || holding.subtype === "mutual_funds") {
+    throw new HttpError(400, "That holding is valued from its lots", "HOLDING_LOT_OWNED");
+  }
+  const clash = await Goal.findOne({
+    user: userId,
+    linkedHolding: holdingId,
+    ...(exceptGoalId ? { _id: { $ne: exceptGoalId } } : {}),
+  })
+    .select("name")
+    .lean();
+  if (clash) {
+    throw new HttpError(409, "That deposit already feeds another goal", "HOLDING_ALREADY_LINKED", {
+      name: clash.name,
+    });
+  }
+}
+
+/**
+ * A goal tracks a wallet or a deposit, never both — two sources would be two
+ * answers to the one question the goal exists to answer.
+ */
+export function assertOneLinkOnly(linkedAccount: unknown, linkedHolding: unknown): void {
+  if (linkedAccount && linkedHolding) {
+    throw new HttpError(
+      400,
+      "A goal can track an account or a deposit, not both",
+      "GOAL_TWO_LINKS"
+    );
+  }
+}
+
 /** The account id behind a link, whether it arrives raw or already populated. */
 function accountIdOf(link: unknown): string {
   if (!link) return "";
