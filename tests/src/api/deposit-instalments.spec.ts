@@ -518,3 +518,169 @@ describe("deposit instalments — taking an import back", () => {
     expect(after.value).toBe(1000);
   });
 });
+
+describe("deposit instalments — the goal a recurring deposit already is", () => {
+  /** An RD with a schedule, optionally tracked as a goal. */
+  async function rdWithTerm(u: any, account: any, trackAsGoal?: boolean) {
+    return (
+      await u.session.http.post("/holdings", {
+        ...RD,
+        termCount: 12,
+        instalment: {
+          amount: 1000,
+          account: account._id,
+          startDate: isoDay(7),
+          frequency: "monthly",
+          interval: 1,
+        },
+        ...(trackAsGoal === undefined ? {} : { trackAsGoal }),
+      })
+    ).data;
+  }
+
+  it("takes its target and deadline from the deposit, not from the user again", async () => {
+    const { u, account } = await setup();
+    const h = await rdWithTerm(u, account, true);
+    expect(h.trackedAsGoal).toBe(true);
+
+    const goals = (await u.session.http.get("/goals")).data;
+    expect(goals).toHaveLength(1);
+    // Twelve instalments of ₹1,000 — interest deliberately excluded, because the
+    // goal is what you set out to put in.
+    expect(goals[0]).toMatchObject({ name: "Car Insurance RD", targetAmount: 12000 });
+    expect(String(goals[0].linkedHolding?._id ?? goals[0].linkedHolding)).toBe(h._id);
+    // The deadline is the last instalment, eleven months after the first.
+    const expected = new Date(isoDay(7));
+    expected.setMonth(expected.getMonth() + 11);
+    expect(String(goals[0].targetDate).slice(0, 10)).toBe(expected.toISOString().slice(0, 10));
+  });
+
+  it("moves with the deposit rather than keeping its own copy", async () => {
+    const { u, account } = await setup();
+    const h = await rdWithTerm(u, account, true);
+    expect((await u.session.http.get("/goals")).data[0].savedAmount).toBe(0);
+
+    await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
+    expect((await u.session.http.get("/goals")).data[0].savedAmount).toBe(1000);
+
+    // And back down again, exactly as a wallet-tracked goal does.
+    await u.session.http.post(`/holdings/${h._id}/withdraw`, { account: account._id, amount: 400 });
+    expect((await u.session.http.get("/goals")).data[0].savedAmount).toBe(600);
+  });
+
+  it("refuses a contribution, because the deposit is what moves it", async () => {
+    const { u, account } = await setup();
+    await rdWithTerm(u, account, true);
+    const goal = (await u.session.http.get("/goals")).data[0];
+
+    // Recording here as well would show the same rupees twice.
+    const res = await u.session.http.post(`/goals/${goal._id}/contribute`, { amount: 500 });
+    expect(res.status).toBe(400);
+    expect(res.data.code).toBe("GOAL_TRACKS_DEPOSIT");
+    expect((await u.session.http.get("/goals")).data[0].savedAmount).toBe(0);
+  });
+
+  it("is a choice — no goal appears unless one is asked for", async () => {
+    const { u, account } = await setup();
+    await rdWithTerm(u, account, false);
+    expect((await u.session.http.get("/goals")).data).toHaveLength(0);
+
+    // Omitting it entirely is the same as declining: a standing order into a
+    // savings pot is a habit, not something anyone set as a goal.
+    const { u: u2, account: a2 } = await setup();
+    await rdWithTerm(u2, a2);
+    expect((await u2.session.http.get("/goals")).data).toHaveLength(0);
+  });
+
+  it("can be switched on and off later without disturbing the deposit", async () => {
+    const { u, account } = await setup();
+    const h = await rdWithTerm(u, account, false);
+    await u.session.http.post(`/holdings/${h._id}/deposit`, { account: account._id, amount: 1000 });
+
+    const on = await u.session.http.patch(`/holdings/${h._id}`, { trackAsGoal: true });
+    expect(on.data.trackedAsGoal).toBe(true);
+    // It arrives already showing the instalment that was paid before it existed.
+    expect((await u.session.http.get("/goals")).data[0].savedAmount).toBe(1000);
+
+    const off = await u.session.http.patch(`/holdings/${h._id}`, { trackAsGoal: false });
+    expect(off.data.trackedAsGoal).toBe(false);
+    expect((await u.session.http.get("/goals")).data).toHaveLength(0);
+    // The deposit itself is untouched by either.
+    const after = (await u.session.http.get("/holdings")).data.find((x: any) => x._id === h._id);
+    expect(after.value).toBe(1000);
+    expect(after.instalment).toBeTruthy();
+  });
+
+  it("follows a rename, and doesn't vanish on an unrelated edit", async () => {
+    const { u, account } = await setup();
+    const h = await rdWithTerm(u, account, true);
+
+    await u.session.http.patch(`/holdings/${h._id}`, { name: "Car Insurance" });
+    const goals = (await u.session.http.get("/goals")).data;
+    expect(goals).toHaveLength(1); // a rename must not silently delete it
+    expect(goals[0].name).toBe("Car Insurance");
+  });
+
+  it("goes when the deposit goes", async () => {
+    const { u, account } = await setup();
+    const h = await rdWithTerm(u, account, true);
+
+    await u.session.http.delete(`/holdings/${h._id}`);
+    // A goal whose progress can never move again would sit at whatever figure it
+    // reached, for ever.
+    expect((await u.session.http.get("/goals")).data).toHaveLength(0);
+  });
+});
+
+describe("deposit instalments — the goal knows what pays it", () => {
+  it("counts the deposit's own instalment as the goal's funding", async () => {
+    const { u, account } = await setup();
+    const h = (
+      await u.session.http.post("/holdings", {
+        ...RD,
+        termCount: 12,
+        trackAsGoal: true,
+        instalment: {
+          amount: 1000,
+          account: account._id,
+          startDate: isoDay(7),
+          frequency: "monthly",
+          interval: 1,
+        },
+      })
+    ).data;
+    expect(h.trackedAsGoal).toBe(true);
+
+    const goal = (await u.session.http.get("/goals")).data[0];
+    // "Nothing paying in yet" would be untrue of a goal being paid into monthly.
+    expect(goal.fundedByRules).toBe(1);
+    expect(goal.fundedMonthly).toBe(1000);
+    // And with a rate of ₹1,000 a month against ₹12,000, it lands on time.
+    expect(goal.projectedDate).toBeTruthy();
+  });
+
+  it("doesn't call a deposit that's running to plan 'behind'", async () => {
+    const { u, account } = await setup();
+    // The first instalment is a week out, so dividing what's left by a monthly
+    // rate from today lands a month past the deadline — and the card used to
+    // report that as being behind schedule, about a deposit doing exactly what
+    // it agreed to.
+    await u.session.http.post("/holdings", {
+      ...RD,
+      termCount: 12,
+      trackAsGoal: true,
+      instalment: {
+        amount: 1000,
+        account: account._id,
+        startDate: isoDay(7),
+        frequency: "monthly",
+        interval: 1,
+      },
+    });
+
+    const goal = (await u.session.http.get("/goals")).data[0];
+    expect(goal.schedule).not.toBe("behind");
+    // It finishes on its last instalment, because that is what the plan says.
+    expect(String(goal.projectedDate).slice(0, 10)).toBe(String(goal.targetDate).slice(0, 10));
+  });
+});

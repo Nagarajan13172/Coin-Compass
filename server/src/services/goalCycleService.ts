@@ -119,7 +119,7 @@ export interface GoalFunding {
  * negative saving, and shows up in the balance anyway.
  */
 export async function fundingByGoal(
-  goals: { _id: unknown; linkedAccount?: unknown }[],
+  goals: { _id: unknown; linkedAccount?: unknown; linkedHolding?: unknown }[],
   uid: string
 ): Promise<Map<string, GoalFunding>> {
   const out = new Map<string, GoalFunding>();
@@ -131,8 +131,19 @@ export async function fundingByGoal(
     const id = link && typeof link === "object" && "_id" in link ? String(link._id) : link ? String(link) : "";
     if (id) accountOf.set(id, String(g._id));
   }
+  // A deposit-tracking goal is funded by the deposit's own instalment. Without
+  // this the card says "nothing paying in yet" about a goal that is being paid
+  // into every month, which is simply untrue.
+  const holdingOf = new Map<string, string>(); // linked holding id -> goal id
+  for (const g of goals) {
+    const link = g.linkedHolding as { _id?: unknown } | string | null | undefined;
+    const id = link && typeof link === "object" && "_id" in link ? String(link._id) : link ? String(link) : "";
+    if (id) holdingOf.set(id, String(g._id));
+  }
+
   const goalIds = goals.map((g) => String(g._id));
   const accountIds = [...accountOf.keys()];
+  const holdingIds = [...holdingOf.keys()];
 
   const rules = await RecurringTransaction.find({
     user: uid,
@@ -142,6 +153,7 @@ export async function fundingByGoal(
       ...(accountIds.length
         ? [{ toAccount: { $in: accountIds } }, { account: { $in: accountIds }, type: "income" }]
         : []),
+      ...(holdingIds.length ? [{ holding: { $in: holdingIds } }] : []),
     ],
   }).lean();
 
@@ -157,6 +169,8 @@ export async function fundingByGoal(
     const into = rule.type === "transfer" ? rule.toAccount : rule.type === "income" ? rule.account : null;
     const linkedGoal = into ? accountOf.get(String(into)) : undefined;
     if (linkedGoal) add(linkedGoal, rule);
+    const depositGoal = rule.holding ? holdingOf.get(String(rule.holding)) : undefined;
+    if (depositGoal) add(depositGoal, rule);
   }
 
   for (const [goalId, list] of byGoal) {
@@ -167,7 +181,13 @@ export async function fundingByGoal(
 
 /** Projection fields for one goal, given what's funding it. */
 export function projectionFor(
-  goal: { savedAmount: number; targetAmount: number; targetDate?: Date | string | null; monthlyContribution?: number },
+  goal: {
+    savedAmount: number;
+    targetAmount: number;
+    targetDate?: Date | string | null;
+    monthlyContribution?: number;
+    linkedHolding?: unknown;
+  },
   funding: GoalFunding | undefined,
   now: Date = new Date()
 ) {
@@ -175,8 +195,18 @@ export function projectionFor(
   // goal nobody has automated yet.
   const fundedMonthly = funding?.monthly || goal.monthlyContribution || 0;
   const remaining = Math.max(goal.targetAmount - goal.savedAmount, 0);
-  const projectedDate = projectedCompletion(remaining, fundedMonthly, now);
   const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
+
+  // A deposit-tracking goal finishes on its last instalment by construction:
+  // the target IS the instalments added up and the deadline IS the last one.
+  // Dividing what's left by a monthly rate and comparing the answer to the
+  // deadline compares the plan to itself, and lands a month out whenever the
+  // first instalment isn't due today — "Behind 1 mo" about a deposit that is
+  // running exactly to plan.
+  const projectedDate =
+    goal.linkedHolding && targetDate && remaining > 0
+      ? targetDate
+      : projectedCompletion(remaining, fundedMonthly, now);
   return {
     fundedMonthly,
     fundedByRules: funding?.rules ?? 0,

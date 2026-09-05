@@ -60,6 +60,7 @@ const NO_INSTALMENT: InstalmentState = {
   startDate: "",
   termCount: "",
   payoutAccount: "",
+  trackAsGoal: false,
 };
 
 /** ISO timestamp → the yyyy-mm-dd a <input type="date"> expects (no TZ shift). */
@@ -119,12 +120,17 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
             startDate: toDateInput(sched.startDate),
             termCount: holding?.termCount != null ? String(holding.termCount) : "",
             payoutAccount: payoutId(holding),
+            trackAsGoal: Boolean(holding?.trackedAsGoal),
           }
         : {
             ...NO_INSTALMENT,
             startDate: new Date().toISOString().slice(0, 10),
             termCount: holding?.termCount != null ? String(holding.termCount) : "",
             payoutAccount: payoutId(holding),
+            // On by default for a new RD: someone giving it a term is describing
+            // something they're saving *towards*. Editing an old one keeps
+            // whatever it already had.
+            trackAsGoal: holding ? Boolean(holding.trackedAsGoal) : true,
           }
     );
     // Open the growth section automatically if this holding already uses it.
@@ -203,6 +209,11 @@ export function HoldingFormDialog({ open, onOpenChange, holding }: Props) {
       // bank agreed to, and the payout account is where it all comes back.
       termCount: instalment.termCount === "" ? null : Number(instalment.termCount),
       payoutAccount: instalment.payoutAccount || null,
+      // Only sent where the switch was shown. Omitted means "leave it alone",
+      // so saving an unrelated holding can't delete a goal it never displayed.
+      ...(showsInstalment && subtype === "recurring_deposit"
+        ? { trackAsGoal: instalment.on && instalment.trackAsGoal }
+        : {}),
     };
     try {
       if (isEdit && holding) {

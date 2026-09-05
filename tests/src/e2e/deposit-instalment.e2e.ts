@@ -243,3 +243,41 @@ test("an import can be taken back, category and all", async ({ page }) => {
   // these are two months old.
   expect(category).toBeTruthy();
 });
+
+test("a recurring deposit can be the goal it already is", async ({ page }) => {
+  test.setTimeout(120_000);
+  const { email } = await seedUserWithData();
+  await page.context().addCookies([await browserSessionCookie(email, DEFAULT_PASSWORD)]);
+
+  await page.goto("/net-worth");
+  await page.getByRole("tab", { name: "Assets" }).click();
+  await page.getByRole("button", { name: /Add (holding|asset)/i }).first().click();
+  const form = page.getByRole("dialog");
+  await form.locator("#hold-name").fill("Car Insurance RD");
+  await form.getByRole("combobox").nth(1).click();
+  await page.getByRole("option", { name: /Recurring deposit/i }).click();
+  await form.locator("#hold-value").fill("0");
+  await form.getByRole("switch").first().click();
+  await form.locator("#inst-amount").fill("1000");
+  await form.locator("#inst-account").click();
+  await page.getByRole("option", { name: "Savings", exact: true }).click();
+  await form.getByRole("button", { name: "12", exact: true }).click();
+
+  // The offer states the goal it would make, from the deposit's own figures.
+  await expect(form.getByText(/A goal of ₹12,000 by/)).toBeVisible();
+  await form.getByRole("button", { name: /^(Add|Save)/ }).click();
+  await expect(form).toBeHidden();
+
+  await page.goto("/goals");
+  const card = page.locator("div.p-4, div.p-5").filter({ hasText: "Car Insurance RD" }).last();
+  await expect(card.getByText("of ₹12,000")).toBeVisible({ timeout: 15_000 });
+  await expect(card.getByText("Tracks Car Insurance RD")).toBeVisible();
+  // The instalment is what pays it, so the card says so rather than "nothing".
+  await expect(card.getByText(/₹1,000\/month from 1 rule/)).toBeVisible();
+  await expect(card.getByText("On track")).toBeVisible();
+
+  // Money goes in through the deposit, so the goal offers no way to add any —
+  // a button the API refuses would be worse than no button.
+  await expect(card.getByRole("button", { name: /Open the deposit/ })).toBeVisible();
+  await expect(card.getByRole("button", { name: /^Add money$/ })).toHaveCount(0);
+});

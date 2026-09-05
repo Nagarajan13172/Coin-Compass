@@ -5,6 +5,7 @@ import {
   applyContribution,
   assertAccountLinkable,
   linkedBalance,
+  linkedHoldingValue,
   nextAchievedAt,
   withLinkedBalances,
 } from "../services/goalService";
@@ -36,6 +37,7 @@ function withProgress(goal: Record<string, unknown>, funding?: GoalFunding, now 
       targetAmount: target,
       targetDate: goal.targetDate as Date | null,
       monthlyContribution: Number(goal.monthlyContribution ?? 0),
+      linkedHolding: goal.linkedHolding,
     },
     funding,
     now
@@ -61,11 +63,15 @@ export async function listGoals(req: Request, res: Response) {
   // Turn over any repeating goal that came due, so opening the page shows the new
   // cycle rather than a finished one waiting on tomorrow's sweep.
   await rollDueGoalCycles(new Date(), uid);
-  const goals = await Goal.find({ user: uid }).sort({ createdAt: -1 }).populate("linkedAccount", "name icon color type").lean();
+  const goals = await Goal.find({ user: uid })
+    .sort({ createdAt: -1 })
+    .populate("linkedAccount", "name icon color type")
+    .populate("linkedHolding", "name subtype value termCount")
+    .lean();
   // A linked goal's saved total is its wallet's live balance, resolved here so
   // every caller (list, dashboard, the goal card) sees the same number.
   const resolved = await withLinkedBalances(
-    goals.map((g) => ({ ...g, linkedAccount: g.linkedAccount })),
+    goals.map((g) => ({ ...g, linkedAccount: g.linkedAccount, linkedHolding: g.linkedHolding })),
     uid
   );
   const funding = await fundingByGoal(resolved, uid);
@@ -79,7 +85,11 @@ export async function listGoals(req: Request, res: Response) {
 async function respondWith(res: Response, goal: { toObject: () => Record<string, unknown> }, uid: string) {
   const obj = goal.toObject();
   if (obj.linkedAccount) obj.savedAmount = await linkedBalance(obj.linkedAccount, uid);
-  const funding = await fundingByGoal([{ _id: obj._id, linkedAccount: obj.linkedAccount }], uid);
+  else if (obj.linkedHolding) obj.savedAmount = await linkedHoldingValue(obj.linkedHolding, uid);
+  const funding = await fundingByGoal(
+    [{ _id: obj._id, linkedAccount: obj.linkedAccount, linkedHolding: obj.linkedHolding }],
+    uid
+  );
   res.json(withProgress(obj, funding.get(String(obj._id))));
 }
 
@@ -121,10 +131,14 @@ export async function contributeGoal(req: Request, res: Response) {
   const { amount } = goalContributeSchema.parse(req.body);
   const goal = await Goal.findOne({ _id: req.params.id, user: uid });
   if (!goal) throw new HttpError(404, "Goal not found");
-  // Money reaches a wallet-tracking goal by landing in the wallet. Adding here
-  // as well would show the same rupees twice, so send the user to a transfer.
+  // Money reaches a wallet-tracking goal by landing in the wallet, and a
+  // deposit-tracking goal by an instalment being paid. Adding here as well would
+  // show the same rupees twice, so send the user to the thing that moves it.
   if (goal.linkedAccount) {
     throw new HttpError(400, "This goal tracks an account", "GOAL_TRACKS_ACCOUNT");
+  }
+  if (goal.linkedHolding) {
+    throw new HttpError(400, "This goal tracks a deposit", "GOAL_TRACKS_DEPOSIT");
   }
 
   const next = applyContribution(

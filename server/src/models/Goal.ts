@@ -15,6 +15,11 @@ const goalSchema = new Schema(
     // The wallet this goal tracks, if any. Progress then IS that account's
     // balance: pay in and the goal advances, withdraw and it falls back.
     linkedAccount: { type: Schema.Types.ObjectId, ref: "Account", default: null },
+    // The deposit this goal tracks, if any. A recurring deposit is already
+    // goal-shaped — a target (the instalments together), a deadline (the last
+    // one) and progress (what it holds) — so the goal reads those rather than
+    // keeping a second, drifting copy of them.
+    linkedHolding: { type: Schema.Types.ObjectId, ref: "Holding", default: null },
     targetDate: { type: Date, default: null },
     // Optional planned monthly saving — used to estimate time-to-goal.
     monthlyContribution: { type: Number, default: 0, min: 0 },
@@ -50,6 +55,13 @@ const goalSchema = new Schema(
 goalSchema.index(
   { user: 1, linkedAccount: 1 },
   { unique: true, partialFilterExpression: { linkedAccount: { $type: "objectId" } } }
+);
+
+// Same rule for deposits: two goals reading one deposit would each show the same
+// rupees as theirs.
+goalSchema.index(
+  { user: 1, linkedHolding: 1 },
+  { unique: true, partialFilterExpression: { linkedHolding: { $type: "objectId" } } }
 );
 
 export type GoalDoc = InferSchemaType<typeof goalSchema>;

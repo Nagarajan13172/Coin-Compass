@@ -104,7 +104,9 @@
     "fundedByRules_other": "{{amount}}/month from {{count}} rules",
     "fundedByPlan": "{{amount}}/month planned",
     "nothingFunding": "Nothing paying in yet",
-    "ofTarget": "of {{target}}"
+    "ofTarget": "of {{target}}",
+    "tracksDeposit": "Tracks {{name}}",
+    "openDeposit": "Open the deposit"
   },
   "contribute": {
     "addTo": "Add to {{name}}",
